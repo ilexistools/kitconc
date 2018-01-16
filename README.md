@@ -30,6 +30,7 @@ It is suggested that users install Anaconda Platform as an easy option.
 
 Installation
 =========
+(Make sure you have Python 3.6.0 and the required packages.)
 
 1. Download kitconc from GitHub;
 2. Extract its contents;
