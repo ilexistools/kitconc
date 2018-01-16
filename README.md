@@ -36,38 +36,40 @@ See how easy it is to use Kitconc:
 
 Adding a corpus
 -------------
-
+```python
 from kitconc.corpus import Corpus
 corpus = Corpus('c:/kitconc','horoscopo','portuguese','latin-1')
 corpus.add_texts('c:/corpora/horoscopo',False)
-
+```
 
 Creating and saving a wordlist in Excel
 -------------
-
+```python
 from kitconc.corpus import Corpus
 corpus = Corpus('c:/kitconc','horoscopo','portuguese','latin-1')
 wordlist = corpus.wordlist()
 wordlist.save_xls('c:/kitconc/wordlist.xlsx')
+```
 
 Creating and saving keywords in Excel
 -------------
-
+```python
 from kitconc.corpus import Corpus
 corpus = Corpus('c:/kitconc','horoscopo','portuguese','latin-1')
 wordlist = corpus.wordlist()
 keywords = corpus.keywords(wordlist)
 keywords.save_xls('c:/kitconc/keywords.xlsx')
-
+```
 
 Creating and saving concordance lines in Excel
 -------------
-
+```python
 from kitconc.corpus import Corpus
 corpus = Corpus('c:/kitconc','horoscopo','portuguese','latin-1')
 concordance = corpus.kwic('vida')
 concordance.sort('R1','R2',None)
 concordance.save_xls('c:/kitconc/kwic.xlsx',50,['R1','R2'])
+```
 
 
 http://ilexis.net.br/kitconc5
