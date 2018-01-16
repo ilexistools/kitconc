@@ -41,6 +41,12 @@ python setup.py install
 ```
 5. That's it!
 
+Language resources
+=========
+
+Kitconc comes with some language resources for portuguese and english corpora.
+It also has functions for adding your own language resources.
+
 Usage example
 =========
 
