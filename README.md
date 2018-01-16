@@ -9,7 +9,8 @@ It contains, among other things, tools for creating:
 * Frequency wordlists
 * Keywords
 * Concordance lines
-* Collocates and n-gram tables
+* Collocates tables
+* N-gram lists
 * Excel data files and plots
 
 The package is built on top of platforms and packages for scientific research: NLTK, pandas, XlsxWrite and sckit-learn. 
