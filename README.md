@@ -28,6 +28,17 @@ Kitconc requires a Python 3.6.0 instalation along with:
 
 It is suggested that users install Anaconda Platform as an easy option. 
 
+Installation
+=========
+
+1. Download kitconc from GitHub;
+2. Extract its contents;
+3. Open a terminal and navigate to the kitconc-master folder;
+4. Use the following command:
+```bash
+python setup.py install
+```
+5. That's it!
 
 Usage example
 =========
