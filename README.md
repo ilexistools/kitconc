@@ -33,7 +33,7 @@ Installation
 
 1. Download kitconc from GitHub;
 2. Extract its contents;
-3. Open a terminal and navigate to the kitconc-master folder;
+3. Open a terminal and navigate to the 'kitconc-master' folder;
 4. Use the following command:
 ```bash
 python setup.py install
