@@ -114,7 +114,7 @@ from kitconc.corpus import Corpus
 # reference to corpus 
 corpus = Corpus('workspace','job_ads', language='english',encoding='utf-8')
 
-# make wordlist 
+# make concordance lines 
 kwic = corpus.kwic('experience')
 
 # print 10 lines of concordances
@@ -122,5 +122,30 @@ print(kwic.df.head(10))
 
 # save in Excel
 kwic.save_xls(corpus.output_path + 'kwic_experience.xlsx')
+```
+
+Finding collocates 
+-------------
+```python
+from kitconc.corpus import Corpus
+
+# reference to corpus 
+corpus = Corpus('workspace','job_ads', language='english',encoding='utf-8')
+
+# make wordlist 
+wordlist = corpus.wordlist()
+
+# make collocates (t-score is the default measure)
+collocates = corpus.collocates(wordlist, 'experience',coll_pos='NN JJ', left_span = 3, right_span=3)
+
+#for mutual information, use:
+#collocates = corpus.collocates(wordlist, 'experience',coll_pos='NN JJ', left_span = 3, right_span=3,
+#measure=corpus.MUTUAL_INFORMATION)
+
+# print top 25 collocates
+print(collocates.df.head(25))
+
+# save in Excel
+collocates.save_xls(corpus.output_path + 'collocates_experience.xlsx')
 ```
 
