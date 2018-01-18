@@ -19,7 +19,7 @@ All in Anaconda Platform.
 Requirements
 =========
 
-Kitconc requires a Python 3.6.0 instalation along with:
+Kitconc requires a Python 3.6 (or later) instalation along with:
 
 * NLTK
 * pandas
@@ -30,7 +30,7 @@ It is suggested that users install Anaconda Platform as an easy option.
 
 Installation
 =========
-(Make sure you have Python 3.6.0 and the required packages.)
+(Make sure you have Python 3.6 (or later) and the required packages.)
 
 1. Download kitconc from GitHub;
 2. Extract its contents;
@@ -132,7 +132,7 @@ from kitconc.corpus import Corpus
 # reference to corpus 
 corpus = Corpus('workspace','job_ads', language='english',encoding='utf-8')
 
-# make wordlist 
+# find wordlist 
 wordlist = corpus.wordlist()
 
 # make collocates (t-score is the default measure)
