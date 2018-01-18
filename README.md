@@ -56,18 +56,31 @@ See how easy it is to use Kitconc:
 Adding a corpus
 -------------
 ```python
-from kitconc.corpus import Corpus
-corpus = Corpus('c:/kitconc','horoscopo','portuguese','latin-1')
-corpus.add_texts('c:/corpora/horoscopo',False)
+from kitconc.corpus import Corpus 
+
+# create a corpus 
+corpus = Corpus('workspace','job_ads', language='english',encoding='utf-8')
+
+# add texts 
+corpus.add_texts('JOB_ADS',show_progress=True)
 ```
 
-Creating and saving a wordlist in Excel
+Creating a wordlist 
 -------------
 ```python
 from kitconc.corpus import Corpus
-corpus = Corpus('c:/kitconc','horoscopo','portuguese','latin-1')
+
+# access to corpus 
+corpus = Corpus('workspace','job_ads', language='english',encoding='utf-8')
+
+# make wordlist 
 wordlist = corpus.wordlist()
-wordlist.save_xls('c:/kitconc/wordlist.xlsx')
+
+# print the top 25 most frequent words
+print(wordlist.df.head(25))
+
+# save in Excel
+wordlist.save_xls(corpus.output_path + 'wordlist.xlsx')
 ```
 
 Creating and saving keywords in Excel
