@@ -57,10 +57,13 @@ Adding a corpus
 ```python
 from kitconc.corpus import Corpus 
 
-# create a corpus 
+# create a corpus
+# * 'workspace' is the folder path to store the corpus data
+# * 'job_ads' is the corpus name
 corpus = Corpus('workspace','job_ads', language='english',encoding='utf-8')
 
-# add texts 
+# add texts
+# * 'JOB_ADS' is the folder path for the raw corpus (.txt files)  
 corpus.add_texts('JOB_ADS',show_progress=True)
 ```
 
