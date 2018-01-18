@@ -9,7 +9,7 @@ It contains, among other things, tools for creating:
 * Frequency wordlists
 * Keywords
 * Concordance lines
-* Collocates tables
+* Collocates 
 * N-gram lists
 * Excel data files and plots
 
