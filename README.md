@@ -11,7 +11,8 @@ It contains, among other things, tools for creating:
 * Concordance lines
 * Collocates 
 * N-gram lists
-* Excel data files and plots
+* Dispersion plots
+* Excel data files 
 
 The package is built on top of platforms and packages for scientific research: NLTK, pandas, XlsxWrite and sckit-learn. 
 All in Anaconda Platform.
