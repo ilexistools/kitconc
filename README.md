@@ -20,7 +20,7 @@ All in Anaconda Platform.
 Requirements
 =========
 
-Kitconc requires a Python 3.6 (or later) instalation along with:
+Kitconc requires a Python 3.6 (or later) installation along with:
 
 * NLTK
 * pandas
