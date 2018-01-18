@@ -51,6 +51,7 @@ Usage example
 =========
 
 See how easy it is to use Kitconc:
+
 (<a href='https://github.com/ilexistools/kitconc-examples'>Download examples...</a>)
 
 Adding a corpus
