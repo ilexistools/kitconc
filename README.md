@@ -87,6 +87,7 @@ print(wordlist.df.head(25))
 # * inside the corpus folder (your_corpus/output/)
 wordlist.save_xls(corpus.output_path + 'wordlist.xlsx')
 ```
+<a href='https://github.com/ilexistools/kitconc-examples/tree/master/images/wordlist.png'>See results...</a>
 
 Extracting keywords 
 -------------
@@ -138,10 +139,10 @@ from kitconc.corpus import Corpus
 # reference to corpus 
 corpus = Corpus('workspace','job_ads', language='english',encoding='utf-8')
 
-# find wordlist 
+# make wordlist 
 wordlist = corpus.wordlist()
 
-# make collocates (t-score is the default measure)
+# find collocates (t-score is the default measure)
 collocates = corpus.collocates(wordlist, 'experience',coll_pos='NN JJ', left_span = 3, right_span=3)
 
 #for mutual information, use:
