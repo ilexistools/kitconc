@@ -39,7 +39,6 @@ Installation
 ```bash
 python setup.py install
 ```
-5. That's it!
 
 Language resources
 =========
@@ -70,7 +69,7 @@ Creating a wordlist
 ```python
 from kitconc.corpus import Corpus
 
-# access to corpus 
+# reference to corpus 
 corpus = Corpus('workspace','job_ads', language='english',encoding='utf-8')
 
 # make wordlist 
@@ -83,26 +82,45 @@ print(wordlist.df.head(25))
 wordlist.save_xls(corpus.output_path + 'wordlist.xlsx')
 ```
 
-Creating and saving keywords in Excel
+Extracting keywords 
 -------------
 ```python
 from kitconc.corpus import Corpus
-corpus = Corpus('c:/kitconc','horoscopo','portuguese','latin-1')
+
+# reference to corpus 
+corpus = Corpus('workspace','job_ads', language='english',encoding='utf-8')
+
+# make wordlist
 wordlist = corpus.wordlist()
+
+# make keywords (Log-likelihood is the default measure)
 keywords = corpus.keywords(wordlist)
-keywords.save_xls('c:/kitconc/keywords.xlsx')
+
+# for chi-square measure, use:
+# keywords = corpus.keywords(wordlist, measure = corpus.CHI_SQUARE)
+
+# print the top 25 keywords
+print(keywords.df.head(25))
+
+# save in Excel
+keywords.save_xls(corpus.output_path + 'keywords.xlsx') 
 ```
 
-Creating and saving concordance lines in Excel
+Creating concordance lines 
 -------------
 ```python
 from kitconc.corpus import Corpus
-corpus = Corpus('c:/kitconc','horoscopo','portuguese','latin-1')
-concordance = corpus.kwic('vida')
-concordance.sort('R1','R2',None)
-concordance.save_xls('c:/kitconc/kwic.xlsx',50,['R1','R2'])
+
+# reference to corpus 
+corpus = Corpus('workspace','job_ads', language='english',encoding='utf-8')
+
+# make wordlist 
+kwic = corpus.kwic('experience')
+
+# print 10 lines of concordances
+print(kwic.df.head(10))
+
+# save in Excel
+kwic.save_xls(corpus.output_path + 'kwic_experience.xlsx')
 ```
 
-
-http://ilexis.net.br/kitconc5
- `<http://ilexis.net.br/kitconc5>`.
