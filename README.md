@@ -32,7 +32,7 @@ Installation
 =========
 (Make sure you have Python 3.6 (or later) and the required packages.)
 
-1. Download kitconc from GitHub;
+1. Download Kitconc from GitHub;
 2. Extract its contents;
 3. Open a terminal and navigate to the 'kitconc-master' folder;
 4. Use the following command:
