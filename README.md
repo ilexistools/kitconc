@@ -82,6 +82,8 @@ wordlist = corpus.wordlist()
 print(wordlist.df.head(25))
 
 # save in Excel
+# * corpus.output_path is a default folder
+# inside the corpus folder (your_corpus/output/)
 wordlist.save_xls(corpus.output_path + 'wordlist.xlsx')
 ```
 
