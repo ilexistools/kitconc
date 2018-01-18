@@ -68,6 +68,7 @@ corpus = Corpus('workspace','job_ads', language='english',encoding='utf-8')
 # * 'JOB_ADS' is the folder path for the raw corpus (.txt files)  
 corpus.add_texts('JOB_ADS',show_progress=True)
 ```
+<a href='https://raw.githubusercontent.com/ilexistools/kitconc-examples/master/images/corpus.png'>See results...</a>
 
 Creating a wordlist 
 -------------
@@ -88,7 +89,7 @@ print(wordlist.df.head(25))
 # * inside the corpus folder (your_corpus/output/)
 wordlist.save_xls(corpus.output_path + 'wordlist.xlsx')
 ```
-<a href='https://github.com/ilexistools/kitconc-examples/tree/master/images/wordlist.png'>See results...</a>
+<a href='https://raw.githubusercontent.com/ilexistools/kitconc-examples/master/images/wordlist.png'>See results...</a>
 
 Extracting keywords 
 -------------
@@ -113,6 +114,7 @@ print(keywords.df.head(25))
 # save in Excel
 keywords.save_xls(corpus.output_path + 'keywords.xlsx') 
 ```
+<a href='https://raw.githubusercontent.com/ilexistools/kitconc-examples/master/images/keywords.png'>See results...</a>
 
 Creating concordance lines 
 -------------
@@ -131,6 +133,7 @@ print(kwic.df.head(10))
 # save in Excel
 kwic.save_xls(corpus.output_path + 'kwic_experience.xlsx')
 ```
+<a href='https://raw.githubusercontent.com/ilexistools/kitconc-examples/master/images/concordance.png'>See results...</a>
 
 Finding collocates 
 -------------
@@ -156,4 +159,70 @@ print(collocates.df.head(25))
 # save in Excel
 collocates.save_xls(corpus.output_path + 'collocates_experience.xlsx')
 ```
+<a href='https://raw.githubusercontent.com/ilexistools/kitconc-examples/master/images/collocates.png'>See results...</a>
+
+Making clusters 
+-------------
+```python
+from kitconc.corpus import Corpus
+
+# reference to corpus 
+corpus = Corpus('workspace','job_ads', language='english',encoding='utf-8')
+
+# make clusters
+clusters = corpus.clusters('experience', size=3, min_freq = 3,min_range=2)
+
+# print top 25 clusters
+print(clusters.df.head(25))
+
+# save in Excel
+clusters.save_xls(corpus.output_path + 'clusters_experience.xlsx')
+```
+<a href='https://raw.githubusercontent.com/ilexistools/kitconc-examples/master/images/clusters.png'>See results...</a>
+
+Creating dispersion plots 
+-------------
+```python
+from kitconc.corpus import Corpus
+
+# reference to corpus 
+corpus = Corpus('workspace','job_ads', language='english',encoding='utf-8')
+
+# make dispersion plots
+dispersion = corpus.dispersion('experience')
+
+# print some data
+print(dispersion.df.head(25))
+
+# save in Excel
+dispersion.save_xls(corpus.output_path + 'dispersion_experience.xlsx')
+```
+<a href='https://raw.githubusercontent.com/ilexistools/kitconc-examples/master/images/dispersion.png'>See results...</a>
+
+Creating keywords dispersion plots 
+-------------
+```python
+from kitconc.corpus import Corpus
+
+# reference to corpus 
+corpus = Corpus('workspace','job_ads', language='english',encoding='utf-8')
+
+# make wordlist
+wordlist = corpus.wordlist()
+
+# make keywords 
+keywords = corpus.keywords(wordlist)
+wordlist = None
+
+# make dispersion plots
+dispersion = corpus.keywords_dispersion(keywords)
+
+# print some data
+print(dispersion.df.head(25))
+
+# save in Excel
+dispersion.save_xls(corpus.output_path + 'dispersion_keywords.xlsx')
+```
+<a href='https://raw.githubusercontent.com/ilexistools/kitconc-examples/master/images/dispersion_keywords.png'>See results...</a>
+
 
