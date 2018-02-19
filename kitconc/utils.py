@@ -54,7 +54,6 @@ def cleanse(workspace,corpus_name):
     import shutil
     shutil.rmtree(workspace + corpus_name)
 
-
 def get_chi_square_method():
     bam = BigramAssocMeasures
     return bam.chi_sq

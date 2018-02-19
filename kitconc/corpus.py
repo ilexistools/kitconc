@@ -10,20 +10,20 @@ from collections import OrderedDict
 from kitconc.wordlist import Wordlist
 from kitconc.keywords import Keywords
 from kitconc.wtfreq import WTfreq
-from kitconc.freqinfiles import Freqinfiles
+from kitconc.wfreqinfiles import Wfreqinfiles
 from kitconc.kwic import Kwic
 from kitconc.collocates import Collocates
 from kitconc.ngrams import Ngrams
 from kitconc.clusters import Clusters
 from kitconc.dispersion import Dispersion
 from kitconc.keywords_dispersion import KeywordsDispersion
+from kitconc.keynessxrange import Keynessxrange
 from kitconc import utils  
 
 class Corpus (object):
-    
-    """
-    Useful constants here: 
-    """
+    """This class is the main component for doing corpus analysis in Kitconc."""
+
+    #Useful constants here: 
     LOG_LIKELIHOOD = 'log-likelihood'
     CHI_SQUARE = 'chi square'
     MUTUAL_INFORMATION = 'mutual information'
@@ -32,7 +32,6 @@ class Corpus (object):
     
     def __init__(self,workspace,corpus_name,language='english',encoding='utf-8'):
         """
-        This class is the main component for doing corpus analysis in Kitconc.
         All needed functions for text processing are accessed through this object. 
         
         Parameters
@@ -64,6 +63,7 @@ class Corpus (object):
         self.language = language 
         self.encoding = encoding
         self.output_path = self.workspace + self.corpus_name + '/output/'
+    
     
     #-----------------------------------------------------------------------------------------------------
     # ADD TEXTS
@@ -109,7 +109,7 @@ class Corpus (object):
         total_files = len(files)
         i = 0
         # tag other languages 
-        for filename in files:
+        for filename in sorted(files):
             i +=1
             tagged_sents = []
             f = open(source_folder + "/" + filename,'r',encoding=self.encoding)
@@ -362,10 +362,10 @@ class Corpus (object):
         return wt
     
     #-----------------------------------------------------------------------------------------------------
-    # FREQUENCY IN TEXT FILES
+    # WORD FREQUENCY IN TEXT FILES
     #-----------------------------------------------------------------------------------------------------
     
-    def freqinfiles(self,wordlist,**kwargs):
+    def wfreqinfiles(self,wordlist,**kwargs):
         #args
         lowercase= kwargs.get('lowercase',True)
         show_progress=kwargs.get('show_progress',False)
@@ -411,7 +411,7 @@ class Corpus (object):
         # save table
         i = 0
         tb = []
-        tb.append("N\tWORD\tFREQUENCY\t%")
+        tb.append("N\tWORD\tRANGE\t%")
         for kv in words.most_common():
             i+=1
             p = round((kv[1] / float(total_files)) * 100,2)
@@ -419,7 +419,7 @@ class Corpus (object):
         
         words = None
         
-        fif = Freqinfiles()
+        fif = Wfreqinfiles()
         fif.read_str('\n'.join(tb))
         
         return fif 
@@ -733,6 +733,7 @@ class Corpus (object):
         wordlist = None
         # splits search word
         node = node.strip().split(' ')
+        
         # checks pos for each search word
         if pos == None:
             pos = []
@@ -741,11 +742,7 @@ class Corpus (object):
         else:
             pos = pos.strip().split(' ')
         # check coll_pos
-        if coll_pos == None:
-            coll_pos = []
-            for i in range(len(node)):
-                coll_pos.append(None)
-        else:
+        if coll_pos != None:
             coll_pos = coll_pos.strip().split(' ')
         # sets the horizon size
         horizon = 5
@@ -798,8 +795,6 @@ class Corpus (object):
                         tokens = line.strip().split(' ')
                         if len(tokens) != 0:
                             for token in tokens:
-                                if limit != 0 and len(ids) == limit:
-                                    break 
                                 token_id+=1
                                 wt = nltk.str2tuple(token)
                                 # add for text source
@@ -985,6 +980,7 @@ class Corpus (object):
             # count collocates
             if coll_pos == None or coll_pos == [None]:
                 if len(ids) != 0:
+                    
                     for idx in ids:
                         j+=1
                         l = (idx[0]-(left_span+node_size),idx[0]-node_size)
@@ -1069,11 +1065,14 @@ class Corpus (object):
         for kv in collocates.most_common():
             i+=1
             tb.append(str(i) + '\t' + kv[0][0] + '\t' + kv[0][1] + '\t' + kv[0][2] + '\t' + kv[0][3] + '\t' + str(kv[1]))
+            if i >= limit:
+                break
         collocates = None
         # save
         coll = Collocates()
         coll.read_str('\n'.join(tb))
         tb = None
+        
         
         return coll
     
@@ -1707,6 +1706,29 @@ class Corpus (object):
         
         return  dispersion
         
+    #-----------------------------------------------------------------------------------------------------
+    # KEYWORDS x RANGE
+    #-----------------------------------------------------------------------------------------------------
+    
+    def keynessxrange(self,keywords,wfreqinfiles,**kwargs):
+        tb = keywords.df.merge(wfreqinfiles.df,on='WORD',how='left')
+        keywords = None
+        wfreqinfiles = None
+        tb['KEYNESS*RANGE'] = tb['KEYNESS'] * tb['RANGE']
+        tb.drop(['KEYNESS','RANGE','%','N_y'],axis=1,inplace=True)
+        tb = tb.sort_values('KEYNESS*RANGE', ascending=False)
+        tb = tb.reset_index(drop=True)
+        tb.columns = ['N', 'WORD','FREQUENCY','KEYNESS*RANGE']
+        j = 0 
+        for i, row in tb.iterrows():
+            j+=1
+            tb.set_value(i,'N',j)
+        keyrange = Keynessxrange()
+        keyrange.df = tb 
+        return keyrange 
+        
+        
+            
         
         
         
