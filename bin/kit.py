@@ -10,7 +10,7 @@ import pandas as pd
 class KitPrompt(Cmd):
     
     def parse_args(self,s):
-        """Parse args from command line"""
+        """Parses args from command line"""
         try:
             args = s.strip().split(' ')
         except:
@@ -18,6 +18,7 @@ class KitPrompt(Cmd):
         return args
     
     def load_config(self):
+        """Loads configuration """
         self.workspace = None
         self.corpus_in_use = None
         try:
@@ -29,8 +30,6 @@ class KitPrompt(Cmd):
         except Exception as e:
                 print(e)
                 
-        
-    
     #
     # EXIT CONSOLE COMMANDS 
     #
@@ -97,7 +96,8 @@ class KitPrompt(Cmd):
                     for filename in files:
                         if os.path.isdir(self.workspace + filename):
                             corpora.append(filename)
-                    print ('\n' +'\n'.join(corpora) + '\n')
+                    if len(corpora) !=0:
+                        print ('\n' +'\n'.join(corpora) + '\n')
                 else:
                     output_path = self.workspace + self.corpus_in_use + '/output/'
                     files = os.listdir(output_path)
@@ -105,12 +105,25 @@ class KitPrompt(Cmd):
                     for filename in files:
                         if os.path.isfile(output_path + filename):
                             contents.append(filename)
-                    print ('\n' +'\n'.join(contents) + '\n')
+                    if len(contents) !=0:
+                        print ('\n' +'\n'.join(contents) + '\n')
             else:
                 print('\nNo workspace set.\n')
         except Exception as e:
                 print(e)
-                    
+    
+    def do_home(self,args):
+        """\nDescription: Returns to the current workspace root without any corpus selection.
+        \nUsage: home
+        """
+        try:
+            if self.corpus_in_use != None:
+                self.corpus_in_use = None
+                self.prompt = 'kitconc>'
+                print ('')
+        except Exception as e:
+                print(e)
+            
     #
     # util
     #     
@@ -211,17 +224,7 @@ class KitPrompt(Cmd):
         except Exception as e:
                 print(e)
         
-    def do_leave(self,s):
-        """\nDescription: Sets the current corpus as None.
-        \nUsage: leave 
-        """
-        try:
-            if self.corpus_in_use != None:
-                self.corpus_in_use = None
-                self.prompt = 'kitconc>'
-                print ('')
-        except Exception as e:
-                print(e)
+        
     
     def do_info(self,s):
         """\nDescription: Shows corpus information.
@@ -246,9 +249,13 @@ class KitPrompt(Cmd):
                 parser.add_argument('-f', action='store', dest='filename', type=str)
                 parser.add_argument('--lines', action='store', dest='lines', type=int)
                 args = parser.parse_args(s.split())
-                if str(args.filename).endswith('.tab'):
-                    output_path  = self.workspace + self.corpus_in_use + '/output/'
-                    tb = pd.read_table(output_path + args.filename)
+                if str(args.filename).endswith('.tab') == False:
+                        filename = args.filename + '.tab'
+                else:
+                    filename = args.filename
+                output_path  = self.workspace + self.corpus_in_use + '/output/'
+                if os.path.exists(output_path + filename):
+                    tb = pd.read_table(output_path + filename)
                     lines = 5
                     if args.lines != None:
                         lines = args.lines 
@@ -287,7 +294,7 @@ class KitPrompt(Cmd):
     #
     
     def do_wordlist(self,s):
-        """\nDescription: Makes a frequency list from the current corpus. 
+        """\nDescription: Makes a frequency word list from the current corpus. 
         \nUsage: wordlist
         """
         try:
@@ -368,12 +375,24 @@ class KitPrompt(Cmd):
     
     def do_kwic(self,s):
         """\nDescription: Creates concordance lines. 
-        \nUsage: kwic -n [node] --pos [pos] --limit [limit] --sort1 [first] --sort2 [second] --sort3 [third]  
+        \nUsage: kwic -n [node]
+        \n\nOptions: 
+        \n--pos [pos]         - (str) POS tag(s) for search node
+        \n--regex [regex]     - (str) regular expression
+        \n--horizon [horizon] - (int) horizon size
+        \n--width [width]     - (int) width in chars
+        \n--limit [limit]     - (int) number 
+        \n--sort1 [first]     - (str) possible values: L1,L2,L3,L4,R1,R2,R3, or R4
+        \n--sort2 [second]    - (str) possible values: L1,L2,L3,L4,R1,R2,R3, or R4
+        \n--sort3 [third]     - (str) possible values: L1,L2,L3,L4,R1,R2,R3, or R4
         """
+        
         try:
             parser = argparse.ArgumentParser()
-            parser.add_argument('-n', action='store', dest='node', type=str)
+            parser.add_argument('-n', action='store', dest='node',nargs='+', type=str)
             parser.add_argument('--pos', action='store', dest='pos', type=str)
+            parser.add_argument('--regex', action='store', dest='regex', type=str)
+            parser.add_argument('--horizon', action='store', dest='horizon', type=int)
             parser.add_argument('--width', action='store', dest='width', type=int)
             parser.add_argument('--limit', action='store', dest='limit', type=int)
             parser.add_argument('--sort1', action='store', dest='sort1', type=str)
@@ -381,16 +400,36 @@ class KitPrompt(Cmd):
             parser.add_argument('--sort3', action='store', dest='sort3', type=str)
             args = parser.parse_args(s.split())
             
-            node = args.node.strip() 
+            if len(args.node) > 1:
+                node = ' '.join(args.node)
+            else:
+                node = args.node[0].strip()
+             
             if args.pos is None:
                 pos = None
             else:
                 pos = args.pos
             
+            if args.regex is None:
+                regex = False 
+            else:
+                if args.regex == '1' or args.regex == 'True':
+                    regex = True
+            
+            if args.horizon is None:
+                horizon = 12
+            else:
+                horizon = int(args.horizon)
+            
+            if args.width is None:
+                width = 65
+            else:
+                width = args.width  
+            
             if args.limit is None:
                 limit = 0
             else:
-                limit = args.limit 
+                limit = int(args.limit) 
             
             if args.sort1 is None:
                 sort1 = None
@@ -407,20 +446,302 @@ class KitPrompt(Cmd):
             else:
                 sort3 = args.sort3
             
-            if args.width is None:
-                width = 65
-            else:
-                width = args.width
-            
             if self.corpus_in_use is not None:
                     corpus_info = self.__corpus_info(self.corpus_in_use)
                     corpus = Corpus(self.workspace,self.corpus_in_use,language=corpus_info['language'],encoding=corpus_info['encoding'])
-                    kwic = corpus.kwic(node, pos, 10, limit, True)
+                    kwic = corpus.kwic(node,pos=pos,regex=regex,horizon=horizon,limit=limit,show_progress=True)
                     kwic.sort(sort1, sort2, sort3)  
                     kwic.save_xls(self.workspace + self.corpus_in_use + '/output/kwic.xlsx', width)
         except Exception as e:
                 print(e)
         
+    #
+    # COLOCATES
+    #
+    
+    def do_collocates(self,s):
+        """\nDescription: Extracts a list of collocates. 
+        \nUsage: collocates -n [node]
+        \n\nOptions: 
+        \n--pos [pos]         - (str) POS tag(s) for search node
+        \n--regex [regex]     - (str) regular expression
+        \n--ls [left_span]    - (int) left span size for collocates
+        \n--rs [right_span]   - (int) right span size for collocates
+        \n--cpos [pos]        - (str) POS tag(s) for collocates
+        \n--limit [limit]     - (int) number
+        \n--stat [measure]    - (str) statistical measure: tscore or mutual information
+        """
+        try:
+            # parse args
+            parser = argparse.ArgumentParser()
+            parser.add_argument('-n', action='store', dest='node',nargs='+', type=str)
+            parser.add_argument('--pos', action='store', dest='pos',nargs='+', type=str)
+            parser.add_argument('--regex', action='store', dest='regex', type=str)
+            parser.add_argument('--ls', action='store', dest='ls', type=str)
+            parser.add_argument('--rs', action='store', dest='rs', type=str)
+            parser.add_argument('--cpos', action='store', dest='cpos',nargs='+', type=str)
+            parser.add_argument('--limit', action='store', dest='limit', type=int)
+            parser.add_argument('--stat', action='store', dest='stat', type=str)
+            args = parser.parse_args(s.split())
+            # fix args
+            if len(args.node) > 1:
+                node = ' '.join(args.node)
+            else:
+                node = args.node[0].strip()
+            if args.pos is None:
+                pos = None
+            else:
+                if len(args.pos) > 1:
+                    pos = ' '.join(args.pos)
+                else:
+                    pos = args.pos[0]
+            if args.regex is None:
+                regex = False 
+            else:
+                if args.regex == '1' or args.regex == 'True':
+                    regex = True
+            if args.ls is not None:
+                ls = int(args.ls)
+            else:
+                ls = 1
+            if args.rs is not None:
+                rs = int(args.rs)
+            else:
+                rs = 1
+            if args.cpos is not None:
+                if len(args.cpos) > 1:
+                    cpos = ' '.join(args.cpos)
+                else:
+                    cpos = args.cpos[0]
+            else:
+                cpos = None
+            if args.limit is None:
+                limit = 0
+            else:
+                limit = int(args.limit)
+            if args.stat is None:
+                stat = 'tscore'
+            else:
+                stat = args.stat
+            
+            # exec
+            if self.corpus_in_use is not None:
+                corpus_info = self.__corpus_info(self.corpus_in_use)
+                corpus = Corpus(self.workspace,self.corpus_in_use,language=corpus_info['language'],encoding=corpus_info['encoding'])
+                wordlist = corpus.wordlist()
+                collocates = corpus.collocates(wordlist,node,pos=pos,regex=regex,left_span=ls,right_span=rs, 
+                                               coll_pos=cpos,limit=limit,measure=stat,show_progress=True)
+                collocates.save_xls(self.workspace + self.corpus_in_use + '/output/collocates.xlsx')
+        except Exception as e:
+                print(e) 
+        
+        
+    #
+    # N-GRAMS
+    #
+    
+    def do_ngrams(self,s):
+        """\nDescription: Makes a list of n-grams (1 to 4). 
+        \nUsage: ngrams -size [size]
+        \n\nOptions: 
+        \n--minfreq [minfreq]     - (int) minimum frequency
+        \n--minrange [minrange]   - (int) minimum frequency in corpus files
+        \n--tag1 [pos]            - (str) POS tag for word 1
+        \n--tag2 [pos]            - (str) POS tag for word 2
+        \n--tag3 [pos]            - (str) POS tag for word 3
+        \n--tag4 [pos]            - (str) POS tag for word 4
+        """
+        try:
+            # parse args
+            parser = argparse.ArgumentParser()
+            parser.add_argument('-size', action='store', dest='size', type=int)
+            parser.add_argument('--minfreq', action='store', dest='minfreq', type=int)
+            parser.add_argument('--minrange', action='store', dest='minrange', type=int)
+            parser.add_argument('--tag1', action='store', dest='tag1', type=str)
+            parser.add_argument('--tag2', action='store', dest='tag2', type=str)
+            parser.add_argument('--tag3', action='store', dest='tag3', type=str)
+            parser.add_argument('--tag4', action='store', dest='tag4', type=str)
+            args = parser.parse_args(s.split())
+            # fix args
+            if args.size is not None:
+                if args.size < 1:
+                    size = 1
+                else:
+                    size = args.size
+            if args.minfreq is None:
+                minfreq = 1
+            else:
+                minfreq = args.minfreq
+            if args.minrange is None:
+                minrange = 1
+            else:
+                minrange = args.minrange
+            if args.tag1 is None:
+                tag1 = [None]
+            else:
+                tag1 = args.tag1.strip().split(' ')
+            if args.tag2 is None:
+                tag2 = [None]
+            else:
+                tag2 = args.tag2.strip().split(' ')
+            if args.tag3 is None:
+                tag3 = [None]
+            else:
+                tag3 = args.tag3.strip().split(' ')
+            if args.tag4 is None:
+                tag4 = [None]
+            else:
+                tag4 = args.tag4.strip().split(' ') 
+            # exec
+            if self.corpus_in_use is not None:
+                corpus_info = self.__corpus_info(self.corpus_in_use)
+                corpus = Corpus(self.workspace,self.corpus_in_use,language=corpus_info['language'],encoding=corpus_info['encoding'])
+                ngrams = corpus.ngrams(size=size,min_freq=minfreq,min_range=minrange,tag1=tag1,tag2=tag2,tag3=tag3,tag4=tag4, show_progress=True)
+                ngrams.save_xls(self.workspace + self.corpus_in_use + '/output/ngrams.xlsx')
+        except Exception as e:
+                print(e) 
+        
+    #
+    # CLUSTERS
+    #
+    
+    def do_clusters(self,s):
+        """\nDescription: Makes a list of clusters. 
+        \nUsage: clusters -n [node] -size [size]
+        \n\nOptions: 
+        \n--minfreq [minfreq]     - (int) minimum frequency
+        \n--minrange [minrange]   - (int) minimum frequency in corpus files
+        \n--tag1 [pos]            - (str) POS tag for word 1
+        \n--tag2 [pos]            - (str) POS tag for word 2
+        \n--tag3 [pos]            - (str) POS tag for word 3
+        \n--tag4 [pos]            - (str) POS tag for word 4
+        """
+        try:
+            # parse args
+            parser = argparse.ArgumentParser()
+            parser.add_argument('-n', action='store', dest='node', type=str)
+            parser.add_argument('-size', action='store', dest='size', type=int)
+            parser.add_argument('--minfreq', action='store', dest='minfreq', type=int)
+            parser.add_argument('--minrange', action='store', dest='minrange', type=int)
+            parser.add_argument('--tag1', action='store', dest='tag1', type=str)
+            parser.add_argument('--tag2', action='store', dest='tag2', type=str)
+            parser.add_argument('--tag3', action='store', dest='tag3', type=str)
+            parser.add_argument('--tag4', action='store', dest='tag4', type=str)
+            args = parser.parse_args(s.split())
+            # fix args
+            if args.node is not None:
+                node = args.node
+            else:
+                node = ''
+            if args.size is not None:
+                size = args.size
+            else:
+                size = args.size 
+            if args.minfreq is None:
+                minfreq = 1
+            else:
+                minfreq = args.minfreq
+            if args.minrange is None:
+                minrange = 1
+            else:
+                minrange = args.minrange
+            if args.tag1 is None:
+                tag1 = [None]
+            else:
+                tag1 = args.tag1.strip().split(' ')
+            if args.tag2 is None:
+                tag2 = [None]
+            else:
+                tag2 = args.tag2.strip().split(' ')
+            if args.tag3 is None:
+                tag3 = [None]
+            else:
+                tag3 = args.tag3.strip().split(' ')
+            if args.tag4 is None:
+                tag4 = [None]
+            else:
+                tag4 = args.tag4.strip().split(' ')
+            # exec
+            if self.corpus_in_use is not None:
+                corpus_info = self.__corpus_info(self.corpus_in_use)
+                corpus = Corpus(self.workspace,self.corpus_in_use,language=corpus_info['language'],encoding=corpus_info['encoding'])
+                clusters = corpus.clusters(node,size=size,min_freq=minfreq,min_range=minrange,tag1=tag1,tag2=tag2,tag3=tag3,tag4=tag4, show_progress=True)
+                clusters.save_xls(self.workspace + self.corpus_in_use + '/output/clusters.xlsx')
+        except Exception as e:
+                print(e)
+        
+    #
+    # DISPERSION
+    #
+    
+    def do_dispersion(self,s):
+        """\nDescription: Creates a dispersion plot for each text file. 
+        \nUsage: dispersion -n [node] 
+        \n\nOptions: 
+        \n--pos [pos]       - (str) POS tag(s)
+        \n--regex [regex]   - (str) regular expression
+        """
+        try:
+            # parse args
+            parser = argparse.ArgumentParser()
+            parser.add_argument('-n', action='store', dest='node',nargs='+', type=str)
+            parser.add_argument('--pos', action='store', dest='pos', type=str)
+            parser.add_argument('--regex', action='store', dest='regex', type=str)
+            args = parser.parse_args(s.split())
+            # fix args
+            if len(args.node) > 1:
+                node = ' '.join(args.node)
+            else:
+                node = args.node[0].strip()
+            if args.pos is None:
+                pos = None
+            else:
+                if len(args.pos) > 1:
+                    pos = ' '.join(args.pos)
+                else:
+                    pos = args.pos[0]
+            if args.regex is None:
+                regex = False 
+            else:
+                if args.regex == '1' or args.regex == 'True':
+                    regex = True
+            # exec
+            if self.corpus_in_use is not None:
+                corpus_info = self.__corpus_info(self.corpus_in_use)
+                corpus = Corpus(self.workspace,self.corpus_in_use,language=corpus_info['language'],encoding=corpus_info['encoding'])
+                dispersion = corpus.dispersion(node,pos=pos,regex=regex, show_progress=True)
+                dispersion.save_xls(self.workspace + self.corpus_in_use + '/output/dispersion.xlsx')
+        except Exception as e:
+                print(e)
+    
+    def do_keywords_dispersion(self,s):
+        """\nDescription: Creates a dispersion plot for each text file. 
+        \nUsage: keywords_dispersion 
+        \n\nOptions: 
+        \n--limit [number]       - (int) limit of keywords
+        """
+        try:
+            # parse args
+            parser = argparse.ArgumentParser()
+            parser.add_argument('--limit', action='store', dest='limit', type=str)
+            args = parser.parse_args(s.split())
+            # fix args
+            if args.limit is None:
+                limit = 100
+            else:
+                limit = args.limit
+            # exec
+            if self.corpus_in_use is not None:
+                corpus_info = self.__corpus_info(self.corpus_in_use)
+                corpus = Corpus(self.workspace,self.corpus_in_use,language=corpus_info['language'],encoding=corpus_info['encoding'])
+                wordlist = corpus.wordlist()
+                keywords = corpus.keywords(wordlist)
+                wordlist = None
+                dispersion = corpus.keywords_dispersion(keywords,limit=limit, show_progress=True)
+                keywords = None
+                dispersion.save_xls(self.workspace + self.corpus_in_use + '/output/dispersion.xlsx')
+        except Exception as e:
+                print(e)
         
 
 if __name__ == '__main__':
