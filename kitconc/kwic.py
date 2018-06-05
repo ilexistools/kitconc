@@ -4,12 +4,27 @@ from io import StringIO
 import xlsxwriter 
 
 
+class KwicColors(object):
+    def __init__(self):
+        self.black = '#000000'
+        self.blue = '#000099'
+        self.brown = '#604020'
+        self.green = '#008000'
+        self.orange = '#cc5200'
+        self.pink = '#ff0080'
+        self.purple = '#990099'
+        self.red = '#cc2900'
+        self.white = '#ffffff'
+        self.yellow='#e6e600' 
+
 
 class Kwic(object):
     
     def __init__(self,**kwargs):
+        self.colors = KwicColors()
         self.df = None
         self.encoding = kwargs.get('encoding','utf-8')
+        """
         self.color_blue = '#000099'
         self.color_orange = '#cc5200'
         self.color_green = '#008000'
@@ -20,6 +35,7 @@ class Kwic(object):
         self.color_pink = '#ff0080'
         self.color_black = '#000000'
         self.color_white = '#ffffff'
+        """
         
     def read_str(self,str_table):
         """Reads data table from string"""
@@ -123,14 +139,21 @@ class Kwic(object):
         return df 
          
     
-    def save_xls(self,filename,width=65,cols=None,colors=None):
-        if colors == None:
-            ccolors = [self.color_blue,self.color_orange,self.color_purple]
-        else:
-            ccolors = colors 
-            while len(ccolors) < 3:
-                ccolors.append(self.color_blue) 
-             
+    def save_xls(self,filename,**kwargs):
+        width = kwargs.get('width',65)
+        cols = kwargs.get('cols',None)
+        left_colors = kwargs.get('left_colors',[self.colors.blue,self.colors.green, self.colors.orange])
+        right_colors = kwargs.get('right_colors',[self.colors.blue,self.colors.green, self.colors.orange])
+        
+        if len (left_colors) < 3:
+            while len(left_colors) < 3:
+                left_colors.append(self.colors.blue)
+        
+        if len (right_colors) < 3:
+            while len(right_colors) < 3:
+                right_colors.append(self.colors.blue)
+        
+        
         if cols == None:
             lc = [None,None,None]
             rc = [None,None,None]
@@ -179,22 +202,38 @@ class Kwic(object):
         node_format.set_bottom_color('white')
         node_format.set_bg_color("white")
         
-        hf1 = workbook.add_format({'bold': False, 'font_color': ccolors[0]})
-        hf1.set_font("Courier New")
-        hf1.set_font_size(10)
-        hf1.set_align('center')
+        left_hf1 = workbook.add_format({'bold': False, 'font_color': left_colors[0] })
+        left_hf1.set_font("Courier New")
+        left_hf1.set_font_size(10)
+        left_hf1.set_align('center')
         
         
-        hf2 = workbook.add_format({'bold': False, 'font_color': ccolors[1]})
-        hf2.set_font("Courier New")
-        hf2.set_font_size(10)
-        hf2.set_align('center')
+        left_hf2 = workbook.add_format({'bold': False, 'font_color': left_colors[1]})
+        left_hf2.set_font("Courier New")
+        left_hf2.set_font_size(10)
+        left_hf2.set_align('center')
+        
+        left_hf3 = workbook.add_format({'bold': False, 'font_color': left_colors[2]})
+        left_hf3.set_font("Courier New")
+        left_hf3.set_font_size(10)
+        left_hf3.set_align('center')
         
         
-        hf3 = workbook.add_format({'bold': False, 'font_color': ccolors[2]})
-        hf3.set_font("Courier New")
-        hf3.set_font_size(10)
-        hf3.set_align('center')
+        right_hf1 = workbook.add_format({'bold': False, 'font_color': right_colors[0]})
+        right_hf1.set_font("Courier New")
+        right_hf1.set_font_size(10)
+        right_hf1.set_align('center')
+        
+        
+        right_hf2 = workbook.add_format({'bold': False, 'font_color': right_colors[1]})
+        right_hf2.set_font("Courier New")
+        right_hf2.set_font_size(10)
+        right_hf2.set_align('center')
+        
+        right_hf3 = workbook.add_format({'bold': False, 'font_color': right_colors[2]})
+        right_hf3.set_font("Courier New")
+        right_hf3.set_font_size(10)
+        right_hf3.set_align('center')
         
         
         hor_format = workbook.add_format({'bold': False, 'font_color': '#000000'})
@@ -255,8 +294,8 @@ class Kwic(object):
             worksheet.write(i,0, int(row[0]),col_A_format) # N
             
             if kcolor == True:
-                left = self.__cleft(row[1], lc[0], lc[1], lc[2], hf1,hf2,hf1, hor_format,width)
-                right = self.__cright(row[3], rc[0], rc[1], rc[2], hf1,hf2,hf3, hor_format,width)
+                left = self.__cleft(row[1], lc[0], lc[1], lc[2], left_hf1,left_hf2,left_hf3, hor_format,width)
+                right = self.__cright(row[3], rc[0], rc[1], rc[2], right_hf1,right_hf2,right_hf3, hor_format,width)
                 whole = left + [node_format, ' ' + row[2] + ' '] + right
             else:
                 whole = [hor_format, self.nleft(row[1],width), node_format, ' ' + row[2] + ' ', hor_format, self.nright(row[3],width)]

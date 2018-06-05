@@ -148,9 +148,54 @@ def train_sequential_tagger():
     f = open('/home/lopes/corpora/tagger.pickle','wb')
     pickle.dump(tagger2,f)
     f.close()
+
+
+def sent2conll2000(sent):
+    s = []
+    for token in sent:
+        s.append(token[0] + ' ' + token[1] + ' O')
+    return '\n'.join(s)   
+
+
+def train_MacMorpho_tagger(**kwargs):
+    universal_tagset = kwargs.get('universal_tagset',False)
+    data_path = kwargs.get('data_path',None)
+    if data_path != None:
+        if data_path not in nltk.data.path:
+            nltk.data.path.append(data_path)
     
+    if universal_tagset ==True:
+        sents = nltk.corpus.mac_morpho.tagged_sents(tagset='universal')
+    else:
+        sents = nltk.corpus.mac_morpho.tagged_sents()
     
+    import collections
+    counter  = collections.Counter()
     
+    for sent in sents:
+        print(sent)
+        input('')
+        
+#train_MacMorpho_tagger(universal_tagset=True,data_path = '/home/lopes/nltk_data/')
+
+def load_merge_tags_rules(filename,**kwargs):
+    encoding = kwargs.get('encoding','utf-8')
+    rules = []
+    with open (filename,'r',encoding=encoding) as fh:
+        for line in fh:
+            if len(line.strip()) !=0:
+                fields = line.strip().split('\t')
+                if len(fields) >= 3:
+                    rule=(fields[0].strip(),fields[1].strip(),fields[2].strip())
+                    rules.append(rule)
+    return rules 
+                
+                
+                
+                
+        
+    
+
         
         
         

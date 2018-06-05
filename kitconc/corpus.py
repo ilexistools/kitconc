@@ -29,6 +29,9 @@ class Corpus (object):
     MUTUAL_INFORMATION = 'mutual information'
     TSCORE = 'tscore'
     
+    # tagging format
+    TREE_TAGGER_FORMAT = 'treetagger'
+    TAB_SEPARATED_FORMAT = 'tab'
     
     def __init__(self,workspace,corpus_name,language='english',encoding='utf-8'):
         """
@@ -136,7 +139,200 @@ class Corpus (object):
         # save corpus info 
         fh = open(self.workspace + self.corpus_name + '/info.pickle','wb')
         pickle.dump(corpus_info,fh)
-        fh.close() 
+        fh.close()
+
+    
+    #-----------------------------------------------------------------------------------------------------
+    # ADD FROM TAGGED TEXTS
+    #-----------------------------------------------------------------------------------------------------
+
+    
+    def add_tagged_texts(self,source_folder,**kwargs):
+        """
+        Adds tagged texts to the corpus.
+        Tagged texts are saved in a corpus folder for analysis.
+        
+        Parameters
+        ----------
+        
+        - souce_folder : str
+        A string path where tagged texts are stored.
+        
+        - tagging_format : str
+        A tagged text file format.
+        
+        - sentence_breakers : list 
+        A list of chars for breaking sentences.
+        
+        - show_progress : boolean
+        Prints a progress message if value is True.
+        
+        Returns
+        -------
+        None
+        """
+        # args
+        show_progress=kwargs.get('show_progress',False)
+        tagging_format = kwargs.get('tagging_format','tab')
+        sentence_breakers = kwargs.get('sentence_breakers',['.','?',';','!'])
+        # create all folders for the new corpus
+        if not os.path.exists(self.workspace + self.corpus_name):
+            os.mkdir(self.workspace + self.corpus_name)
+        if not os.path.exists(self.workspace + self.corpus_name + '/tagged'):
+            os.mkdir(self.workspace + self.corpus_name + '/tagged')
+        if not os.path.exists(self.workspace + self.corpus_name + '/output'):
+            os.mkdir(self.workspace + self.corpus_name + '/output')
+        # get files
+        if tagging_format == 'treetagger':
+            self.__tree_tagger(source_folder, sentence_breakers, show_progress)
+        elif tagging_format == 'tab':
+            self.__tab(source_folder, sentence_breakers, show_progress)
+        else:
+            self.__tab(source_folder, sentence_breakers, show_progress)
+            
+        # set corpus info
+        corpus_info = {}
+        corpus_info['workspace'] = self.workspace
+        corpus_info['corpus_name'] = self.corpus_name
+        corpus_info['language'] = self.language
+        corpus_info['encoding'] = self.encoding
+        # save corpus info 
+        fh = open(self.workspace + self.corpus_name + '/info.pickle','wb')
+        pickle.dump(corpus_info,fh)
+        fh.close()
+        
+        
+    def __tree_tagger(self,source_folder,sentence_breakers,show_progress):
+        files = os.listdir(source_folder)
+        total_files = len(files)
+        i = 0
+        for filename in sorted(files):
+            i +=1
+            tagged_sents = []
+            with open(source_folder + '/' + filename,'r') as fh:
+                tagged_sent = []
+                for line in fh:
+                    if len(line.strip()) != 0:
+                        wtl = line.strip().split('\t')
+                        wt =  nltk.tuple2str((wtl[0],wtl[1]))
+                        tagged_sent.append(wt)
+                        if wtl[0] in sentence_breakers:
+                            tagged_sents.append(' '.join(tagged_sent))
+                            tagged_sent = []
+            with open(self.workspace + self.corpus_name + "/tagged/" + filename ,'w',encoding=self.encoding) as fh:
+                fh.write('\n'.join(tagged_sents))  
+            if show_progress == True:
+                print("{1}% ..... {0} ".format (filename, round((i/float(total_files)) * 100)) )
+    
+    def __tab(self,source_folder,sentence_breakers,show_progress):
+        files = os.listdir(source_folder)
+        total_files = len(files)
+        i = 0
+        for filename in sorted(files):
+            i +=1
+            tagged_sents = []
+            with open(source_folder + '/' + filename,'r') as fh:
+                tagged_sent = []
+                for line in fh:
+                    if len(line.strip()) != 0:
+                        wtl = line.strip().split('\t')
+                        wt =  nltk.tuple2str((wtl[0],wtl[1]))
+                        tagged_sent.append(wt)
+                        if wtl[0] in sentence_breakers:
+                            tagged_sents.append(' '.join(tagged_sent))
+                            tagged_sent = []
+            with open(self.workspace + self.corpus_name + "/tagged/" + filename ,'w',encoding=self.encoding) as fh:
+                fh.write('\n'.join(tagged_sents))  
+            if show_progress == True:
+                print("{1}% ..... {0} ".format (filename, round((i/float(total_files)) * 100)) )
+
+    
+    #-----------------------------------------------------------------------------------------------------
+    # JOIN TAGGED WORDS
+    #-----------------------------------------------------------------------------------------------------
+    
+    def merge_tagged_tokens(self,merge_rules,**kwargs):
+        """
+        Merges tagged tokens in a corpus.
+        
+        Parameters
+        ---------- 
+        
+        - merge_rules : list of tuples 
+        - show_progress : boolean
+        Prints a progress message if value is True.
+        
+        Returns
+        -------
+        None
+        
+        """
+        #args
+        show_progress=kwargs.get('show_progress',False)
+        # fix args
+        # create a dictionary from merge rules
+        dic = {}
+        for item in merge_rules:
+            if len(item) >= 3:
+                k = (item[0] + item[1]) 
+                if  k not in dic:
+                    dic[k] = item[2]
+        
+        print(dic)
+        input('')
+        # set required paths
+        tagged_path = self.workspace + self.corpus_name + "/tagged"
+        # get corpus files in a list 
+        files = os.listdir(tagged_path)
+        total_files = len(files)
+        # loop
+        d = deque(maxlen=2)
+        i = 0 
+        for filename in files:
+            replace_rules = {}
+            with open(tagged_path + '/' +filename,'r',encoding=self.encoding) as fh:
+                for line in fh:
+                    if len(line.strip()) != 0:
+                        tokens = line.strip().split(' ')
+                        for token in tokens:
+                            wt = nltk.str2tuple(token)
+                            if len(wt) >= 2:
+                                d.append(wt)
+                            if len(d) == 2:
+                                st = (d[0][0]+d[1][0])
+                                if st in dic:
+                                    a = ' ' + d[0][0] + '/' + d[0][1] + ' ' + d[1][0] + '/' + d[1][1] + ' '
+                                    b = ' ' + dic[st] + '/' + d[0][1] + '+' + d[1][1] + ' '
+                                    if a not in replace_rules:
+                                        replace_rules[a] = b
+            
+            # replace in file
+            if len(replace_rules) != 0:
+                    
+                f = open(tagged_path + '/' +filename,'r',encoding=self.encoding)
+                contents = f.read()
+                f.close()
+                
+                
+                for k in replace_rules:
+                    contents = contents.replace(k,replace_rules[k])
+                
+                f = open(tagged_path + '/' +filename,'w',encoding=self.encoding)
+                f.write(contents)
+                f.close()
+                
+            # print progress
+            if show_progress == True:
+                i+=1
+                print("{1}% ..... {0} ".format (filename, round((i/float(total_files)) * 100)) )
+                
+        d = None
+        dic = None
+        merge_rules = None
+        
+        for k in replace_rules:
+            print(k,replace_rules[k])
+         
     
     #-----------------------------------------------------------------------------------------------------
     # WORDLIST
@@ -444,7 +640,7 @@ class Corpus (object):
         - regex : boolean
         Use regular expression for search word matching.
         
-        - horizon : int
+        - horizon : int    
         Left and right horizon of words.
         
         - limit : int
@@ -1065,8 +1261,10 @@ class Corpus (object):
         for kv in collocates.most_common():
             i+=1
             tb.append(str(i) + '\t' + kv[0][0] + '\t' + kv[0][1] + '\t' + kv[0][2] + '\t' + kv[0][3] + '\t' + str(kv[1]))
-            if i >= limit:
-                break
+            if limit != 0:
+                if i >= limit:
+                    break
+            
         collocates = None
         # save
         coll = Collocates()
@@ -1241,18 +1439,19 @@ class Corpus (object):
                                     dqtag.append(wt[1])
                                     # tag filter
                                     tag_flag = True
-                                    if size == 1:
-                                        if tag1 != [None] and dqtag[0] not in tag1:
-                                            tag_flag = False
-                                    elif size == 2:
-                                        if (tag1 != [None] and dqtag[0] not in tag1) or (tag2 != [None] and dqtag[1] not in tag2):
-                                            tag_flag = False
-                                    elif size == 3:
-                                        if (tag1 != [None] and dqtag[0] not in tag1) or (tag2 != [None] and dqtag[1] not in tag2) or (tag3 != [None] and dqtag[2] not in tag3):
-                                            tag_flag = False
-                                    elif size == 4:
-                                        if (tag1 != [None] and dqtag[0] not in tag1) or (tag2 != [None] and dqtag[1] not in tag2) or (tag3 != [None] and dqtag[2] not in tag3) or (tag4 != [None] and dqtag[3] not in tag4):
-                                            tag_flag = False
+                                    if len(dq) >= size:
+                                        if size == 1:
+                                            if tag1 != [None] and dqtag[0] not in tag1:
+                                                tag_flag = False
+                                        elif size == 2:
+                                            if (tag1 != [None] and dqtag[0] not in tag1) or (tag2 != [None] and dqtag[1] not in tag2):
+                                                tag_flag = False
+                                        elif size == 3:
+                                            if (tag1 != [None] and dqtag[0] not in tag1) or (tag2 != [None] and dqtag[1] not in tag2) or (tag3 != [None] and dqtag[2] not in tag3):
+                                                tag_flag = False
+                                        elif size == 4:
+                                            if (tag1 != [None] and dqtag[0] not in tag1) or (tag2 != [None] and dqtag[1] not in tag2) or (tag3 != [None] and dqtag[2] not in tag3) or (tag4 != [None] and dqtag[3] not in tag4):
+                                                tag_flag = False
                                     
                                     # word filter
                                     word_flag = False
@@ -1726,6 +1925,82 @@ class Corpus (object):
         keyrange = Keynessxrange()
         keyrange.df = tb 
         return keyrange 
+    
+    
+    def textfile_get_tagged_sents(self,text_id):
+        # set required paths
+        tagged_path = self.workspace + self.corpus_name + "/tagged/"
+        # get corpus files in a list 
+        files = os.listdir(tagged_path)
+        # sort
+        sorted(files)
+        # get
+        text = None 
+        filename = files[text_id]
+        sents = []
+        with open(self.workspace + self.corpus_name + "/tagged/" + filename,'r') as fh:
+            for line in fh:
+                tokens = line.strip().split(' ')
+                sent = []
+                for token in tokens:
+                    wt = nltk.str2tuple(token)
+                    sent.append(wt)
+                sents.append(sent)
+        return sents 
+    
+    def textfile_get_tokenized_sents(self,text_id):
+        # set required paths
+        tagged_path = self.workspace + self.corpus_name + "/tagged/"
+        # get corpus files in a list 
+        files = os.listdir(tagged_path)
+        # sort
+        sorted(files)
+        # get
+        text = None 
+        filename = files[text_id]
+        sents = []
+        with open(self.workspace + self.corpus_name + "/tagged/" + filename,'r') as fh:
+            for line in fh:
+                tokens = line.strip().split(' ')
+                sent = []
+                for token in tokens:
+                    wt = nltk.str2tuple(token)
+                    sent.append(wt[0])
+                sents.append(sent)
+        return sents
+    
+    def textfile_to_conll2000(self,text_id):
+        sents = self.textfile_get_tagged_sents(text_id)
+        new_sents = []
+        for sent in sents:
+            new_sents.append(utils.sent2conll2000(sent))
+        return '\n\n'.join(new_sents)
+        
+            
+        
+        
+        
+        
+        
+                
+            
+    
+    
+            
+            
+            
+            
+            
+            
+            
+            
+            
+        
+    
+        
+        
+        
+        
         
         
             
