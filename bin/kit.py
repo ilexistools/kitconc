@@ -2,10 +2,9 @@
 import os, sys,subprocess  
 from cmd import Cmd
 import argparse
-from kitconc.corpus import Corpus
 import pickle
 import pandas as pd  
-
+from kitconc.corpus import Corpus
   
 class KitPrompt(Cmd):
     
@@ -302,7 +301,7 @@ class KitPrompt(Cmd):
                 corpus_info = self.__corpus_info(self.corpus_in_use)
                 corpus = Corpus(self.workspace,self.corpus_in_use,language=corpus_info['language'],encoding=corpus_info['encoding'])
                 wordlist = corpus.wordlist(show_progress=True)
-                wordlist.save_tab(self.workspace + self.corpus_in_use + '/output/wordlist.tab')
+                #wordlist.save_tab(self.workspace + self.corpus_in_use + '/output/wordlist.tab')
                 wordlist.save_xls(self.workspace + self.corpus_in_use + '/output/wordlist.xlsx')
                 wordlist = None
         except Exception as e:
@@ -321,7 +320,7 @@ class KitPrompt(Cmd):
                     corpus_info = self.__corpus_info(self.corpus_in_use)
                     corpus = Corpus(self.workspace,self.corpus_in_use,language=corpus_info['language'],encoding=corpus_info['encoding'])
                     wtfreq = corpus.wtfreq(show_progress=True)
-                    wtfreq.save_tab(self.workspace + self.corpus_in_use + '/output/wtfreq.tab')
+                    #wtfreq.save_tab(self.workspace + self.corpus_in_use + '/output/wtfreq.tab')
                     wtfreq.save_xls(self.workspace + self.corpus_in_use + '/output/wtfreq.xlsx')
                     wtfreq = None
         except Exception as e:
@@ -331,20 +330,20 @@ class KitPrompt(Cmd):
     # WTFREQINFILES
     #
     
-    def do_freqinfiles(self,s):
+    def do_wfreqinfiles(self,s):
         """\nDescription: Counts the frequency of words in text files. 
-        \nUsage: freqinfiles
+        \nUsage: wfreqinfiles
         """
         try:
             if self.corpus_in_use is not None:
                     corpus_info = self.__corpus_info(self.corpus_in_use)
                     corpus = Corpus(self.workspace,self.corpus_in_use,language=corpus_info['language'],encoding=corpus_info['encoding'])
                     wordlist = corpus.wordlist(show_progress=True)
-                    freqinfiles = corpus.freqinfiles(wordlist, show_progress=True) 
+                    wfreqinfiles = corpus.wfreqinfiles(wordlist, show_progress=True) 
                     wordlist = None
-                    freqinfiles.save_tab(self.workspace + self.corpus_in_use + '/output/freqinfiles.tab')
-                    freqinfiles.save_xls(self.workspace + self.corpus_in_use + '/output/freqinfiles.xlsx')
-                    freqinfiles = None
+                    #freqinfiles.save_tab(self.workspace + self.corpus_in_use + '/output/freqinfiles.tab')
+                    wfreqinfiles.save_xls(self.workspace + self.corpus_in_use + '/output/wfreqinfiles.xlsx')
+                    wfreqinfiles = None
         except Exception as e:
                 print(e)
     
@@ -363,7 +362,7 @@ class KitPrompt(Cmd):
                     wordlist = corpus.wordlist(show_progress=True)
                     keywords = corpus.keywords(wordlist, show_progress=True) 
                     wordlist = None
-                    keywords.save_tab(self.workspace + self.corpus_in_use + '/output/keywords.tab')
+                    #keywords.save_tab(self.workspace + self.corpus_in_use + '/output/keywords.tab')
                     keywords.save_xls(self.workspace + self.corpus_in_use + '/output/keywords.xlsx')
                     keywords = None
         except Exception as e:
@@ -451,7 +450,7 @@ class KitPrompt(Cmd):
                     corpus = Corpus(self.workspace,self.corpus_in_use,language=corpus_info['language'],encoding=corpus_info['encoding'])
                     kwic = corpus.kwic(node,pos=pos,regex=regex,horizon=horizon,limit=limit,show_progress=True)
                     kwic.sort(sort1, sort2, sort3)  
-                    kwic.save_xls(self.workspace + self.corpus_in_use + '/output/kwic.xlsx', width)
+                    kwic.save_xls(self.workspace + self.corpus_in_use + '/output/kwic.xlsx', width=width)
         except Exception as e:
                 print(e)
         
@@ -515,15 +514,18 @@ class KitPrompt(Cmd):
                     cpos = args.cpos[0]
             else:
                 cpos = None
+            
             if args.limit is None:
                 limit = 0
             else:
                 limit = int(args.limit)
+            
             if args.stat is None:
                 stat = 'tscore'
             else:
                 stat = args.stat
             
+     
             # exec
             if self.corpus_in_use is not None:
                 corpus_info = self.__corpus_info(self.corpus_in_use)
@@ -579,19 +581,19 @@ class KitPrompt(Cmd):
             if args.tag1 is None:
                 tag1 = [None]
             else:
-                tag1 = args.tag1.strip().split(' ')
+                tag1 = args.tag1
             if args.tag2 is None:
                 tag2 = [None]
             else:
-                tag2 = args.tag2.strip().split(' ')
+                tag2 = args.tag2
             if args.tag3 is None:
                 tag3 = [None]
             else:
-                tag3 = args.tag3.strip().split(' ')
+                tag3 = args.tag3
             if args.tag4 is None:
                 tag4 = [None]
             else:
-                tag4 = args.tag4.strip().split(' ') 
+                tag4 = args.tag4 
             # exec
             if self.corpus_in_use is not None:
                 corpus_info = self.__corpus_info(self.corpus_in_use)
@@ -648,19 +650,19 @@ class KitPrompt(Cmd):
             if args.tag1 is None:
                 tag1 = [None]
             else:
-                tag1 = args.tag1.strip().split(' ')
+                tag1 = args.tag1
             if args.tag2 is None:
                 tag2 = [None]
             else:
-                tag2 = args.tag2.strip().split(' ')
+                tag2 = args.tag2
             if args.tag3 is None:
                 tag3 = [None]
             else:
-                tag3 = args.tag3.strip().split(' ')
+                tag3 = args.tag3
             if args.tag4 is None:
                 tag4 = [None]
             else:
-                tag4 = args.tag4.strip().split(' ')
+                tag4 = args.tag4
             # exec
             if self.corpus_in_use is not None:
                 corpus_info = self.__corpus_info(self.corpus_in_use)
@@ -729,7 +731,7 @@ class KitPrompt(Cmd):
             if args.limit is None:
                 limit = 100
             else:
-                limit = args.limit
+                limit = int(args.limit)
             # exec
             if self.corpus_in_use is not None:
                 corpus_info = self.__corpus_info(self.corpus_in_use)
@@ -739,7 +741,7 @@ class KitPrompt(Cmd):
                 wordlist = None
                 dispersion = corpus.keywords_dispersion(keywords,limit=limit, show_progress=True)
                 keywords = None
-                dispersion.save_xls(self.workspace + self.corpus_in_use + '/output/dispersion.xlsx')
+                dispersion.save_xls(self.workspace + self.corpus_in_use + '/output/keywords_dispersion.xlsx')
         except Exception as e:
                 print(e)
         
