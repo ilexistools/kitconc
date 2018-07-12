@@ -3,8 +3,13 @@ import os, sys,subprocess
 from cmd import Cmd
 import argparse
 import pickle
-import pandas as pd  
+import pandas as pd
+import re 
+from collections import Counter 
 from kitconc.corpus import Corpus
+from kitconc import utils 
+from kitconc.corpus import Keywords
+
   
 class KitPrompt(Cmd):
     
@@ -248,13 +253,21 @@ class KitPrompt(Cmd):
                 parser.add_argument('-f', action='store', dest='filename', type=str)
                 parser.add_argument('--lines', action='store', dest='lines', type=int)
                 args = parser.parse_args(s.split())
-                if str(args.filename).endswith('.tab') == False:
-                        filename = args.filename + '.tab'
+                if str(args.filename).endswith('.xlsx') == False:
+                        filename = args.filename + '.xlsx'
                 else:
                     filename = args.filename
                 output_path  = self.workspace + self.corpus_in_use + '/output/'
                 if os.path.exists(output_path + filename):
-                    tb = pd.read_table(output_path + filename)
+                    
+                    if filename.endswith('.xlsx') or filename.endswith('.xls'):
+                        tb = pd.read_excel(output_path + filename)
+                    elif filename.endswith('.tab'):
+                        tb = pd.read_table(output_path + filename)
+                    elif filename.endswith('.csv'):
+                        tb = pd.read_csv(output_path + filename)
+                    else:
+                        tb = pd.read_table(output_path + filename)
                     lines = 5
                     if args.lines != None:
                         lines = args.lines 
@@ -744,7 +757,283 @@ class KitPrompt(Cmd):
                 dispersion.save_xls(self.workspace + self.corpus_in_use + '/output/keywords_dispersion.xlsx')
         except Exception as e:
                 print(e)
+    
+    #
+    # CREATE TAGGED
+    #
+    def do_create_tagged(self,s):
+        """\nDescription: Creates a corpus from tagged texts. 
+        \nUsage: create_tagged -n [name] -f [source_folder] -l [language] --e [encoding]  
+        """
+        try:
+            parser = argparse.ArgumentParser()
+            parser.add_argument('-n', action='store', dest='name', type=str)
+            parser.add_argument('-f', action='store', dest='source_folder', type=str)
+            parser.add_argument('-l', action='store', dest='language', type=str)
+            parser.add_argument('--e', action='store', dest='encoding', type=str)
+            args = parser.parse_args(s.split())
+        except:
+            args = None
         
+        if args is not None:
+            if args.encoding!=None:
+                encoding = args.encoding
+            else:
+                encoding='utf-8'
+            try:
+                corpus = Corpus(self.workspace,args.name,language=args.language, encoding = encoding)
+                corpus.add_tagged_texts(args.source_folder, show_progress=True)
+            except Exception as e:
+                print(e)
+
+    #
+    # MERGE TAGGED TOKENS
+    #
+    def do_merge_tokens(self,s):
+        """\nDescription: Merges tagged tokens in a corpus.
+        \nUsage: merge_tokens -f [merge rules file]
+        """
+        try:
+            parser = argparse.ArgumentParser()
+            parser.add_argument('-f', action='store', dest='source_folder', type=str)
+            args = parser.parse_args(s.split())
+        except:
+            args = None
+        
+        if args is not None:
+            try:
+                corpus_info = self.__corpus_info(self.corpus_in_use)
+                corpus = Corpus(self.workspace,self.corpus_in_use,language=corpus_info['language'],encoding=corpus_info['encoding'])
+                merge_rules = utils.load_merge_tags_rules(args.source_folder)
+                corpus.merge_tagged_tokens(merge_rules,show_progress=True)
+            except Exception as e:
+                print(e)
+    #
+    # STOPLIST
+    #
+    
+    
+    
+    def do_keywords_stop(self,s):
+        """\nDescription: Deletes rows in a keywords file according to a stoplist.
+        \nUsage: keywords_stop -f [stoplist file] --extra [number]  
+        \n\nOptions: 
+        \n--extra [number]    - (int) 
+        \n 1: remove numbers; 
+        \n 2: remove numbers and chars of length 1. 
+        """
+        try:
+            parser = argparse.ArgumentParser()
+            parser.add_argument('-f', action='store', dest='stop_file', type=str)
+            parser.add_argument('--extra', action='store', dest='extra', type=int)
+            args = parser.parse_args(s.split())
+        except:
+            args = None
+        if args is not None:
+            # set encoding for reading stoplist
+            corpus_info = self.__corpus_info(self.corpus_in_use)
+            encoding_set = corpus_info['encoding']
+            # read source file
+            tb = pd.read_excel(self.workspace + self.corpus_in_use + '/output/keywords.xlsx')
+            # fix Nan
+            tb['FREQUENCY']=tb['FREQUENCY'].fillna(0).astype(int) # intead of tb.dropna(subset='FREQUENCY')
+            tb['KEYNESS']=tb['KEYNESS'].fillna(0).astype(float)
+            # fix data types
+            tb['WORD'] = tb['WORD'].astype(str)
+            tb['FREQUENCY'] = tb['FREQUENCY'].astype(int)
+            tb['KEYNESS'] = tb['KEYNESS'].astype(float)
+            # read stoplist
+            stoplist = []
+            with open (args.stop_file,'r',encoding=encoding_set) as fh:
+                for line in fh:
+                    if len(line.strip()) !=0:
+                        stoplist.append(line.strip())
+            # set option
+            if args.extra is not None:
+                extra = int(args.extra)
+            else:
+                extra = 0
+            # add to stoplist if option not 0
+            if extra != 0:
+                has_num = re.compile('[0-9]')
+                if extra == 1:
+                    for kv in tb.itertuples(index=False):
+                        if len(re.findall(has_num,str(kv[1]))) !=0:
+                            if str(kv[1]) not in stoplist:
+                                stoplist.append(str(kv[1]))
+                elif extra == 2:
+                    for kv in tb.itertuples(index=False):
+                        if len(str(kv[1])) == 1:
+                            if str(kv[1]) not in stoplist:
+                                stoplist.append(str(kv[1]))
+                        else:
+                            if len(re.findall(has_num, str(kv[1])))!=0:
+                                if str(kv[1]) not in stoplist:
+                                    stoplist.append(str(kv[1]))
+            # set col name
+            colname ='WORD'
+            # delete and create new table
+            new_tb = tb[~tb[colname].isin(stoplist)]
+            tb = None 
+            # make data string format
+            i = 0
+            keywords = []
+            keywords.append('N\tWORD\tFREQUENCY\tKEYNESS')
+            for kv in new_tb.itertuples(index=False):
+                    keywords.append(str(kv[0]) + '\t' + str(kv[1]) + '\t' + str(kv[2])  +  '\t' + str(kv[3]))
+            # create keywords object for saving xls
+            kwlst = Keywords(encoding=encoding_set)
+            kwlst.read_str('\n'.join(keywords))
+            keywords = None
+            # save replacing the replacing the existent file
+            kwlst.save_xls(self.workspace + self.corpus_in_use + '/output/keywords.xlsx')
+
+    #
+    # UNIQ
+    #
+    
+    def do_uniq(self,s):
+        """\nDescription: Filters out repeated lines in a file.
+        \nUsage: uniq -f [source file]   
+        \n\nOptions: 
+        \n--case [string]    - make lower or upper case
+        \n--e [string]       - encoding (utf-8 is the default)  
+        """
+        try:
+            parser = argparse.ArgumentParser()
+            parser.add_argument('-f', action='store', dest='source_file', type=str)
+            parser.add_argument('--case', action='store', dest='case', type=str)
+            parser.add_argument('--e', action='store', dest='encoding', type=str)
+            args = parser.parse_args(s.split())
+        except:
+            args = None
+        if args is not None:
+            # get args
+            filename = args.source_file
+            if args.case is not None:
+                case = str(args.case).lower()
+            else:
+                case = None
+            if args.encoding is not None:
+                encoding = str(args.encoding)
+            else:
+                encoding = 'utf-8'
+            # get items and filter
+            initial_number_of_items = 0
+            final_number_of_items = 0
+            if os.path.exists(filename):
+                d = {}
+                with open(filename,'r',encoding=encoding) as fh:
+                    for line in fh:
+                        if len(line) != 0:
+                            initial_number_of_items+=1
+                            if case == None:
+                                item = str(line).strip() 
+                            elif case == 'lower':
+                                item = str(line).lower().strip()
+                            elif case == 'upper':
+                                item = str(line).upper().strip()
+                            else:
+                                item = str(line).strip()
+                            if item not in d:
+                                d[item]=0
+                # make sorted data for saving
+                s = []                
+                for item in sorted(d):
+                    final_number_of_items+=1
+                    s.append(item)
+                d = None
+                # save file
+                out_filename = self.workspace + self.corpus_in_use + '/output/uniq.txt' 
+                with open (out_filename,'w',encoding=encoding) as fh:
+                    fh.write('\n'.join(s))
+                s = None
+                # print message
+                print('')
+                print('Before: ' + str(initial_number_of_items))
+                print('After: ' + str(final_number_of_items))
+                print('Deleted: ' + str(initial_number_of_items-final_number_of_items))
+                print('')
+            else:
+                print('Error: File not found or not valid.')
+                
+    
+    #
+    # COUNT
+    #
+    
+    def do_count(self,s):
+        """\nDescription: Counts the items in each line of a file and returns a frequency list.
+        \nUsage: count -f [source file]   
+        \n\nOptions: 
+        \n--case [string]    - make lower or upper case
+        \n--e [string]       - encoding (utf-8 is the default)  
+        """
+        try:
+            parser = argparse.ArgumentParser()
+            parser.add_argument('-f', action='store', dest='source_file', type=str)
+            parser.add_argument('--case', action='store', dest='case', type=str)
+            parser.add_argument('--e', action='store', dest='encoding', type=str)
+            args = parser.parse_args(s.split())
+        except:
+            args = None
+        if args is not None:
+            # get args
+            filename = args.source_file
+            if args.case is not None:
+                case = str(args.case).lower()
+            else:
+                case = None
+            if args.encoding is not None:
+                encoding = str(args.encoding)
+            else:
+                encoding = 'utf-8'
+            # get items and filter
+            tokens = 0
+            types = 0
+            typetoken = 0
+            if os.path.exists(filename):
+                c = Counter()
+                with open(filename,'r',encoding=encoding) as fh:
+                    for line in fh:
+                        if len(line) != 0:
+                            tokens+=1
+                            if case == None:
+                                item = str(line).strip() 
+                            elif case == 'lower':
+                                item = str(line).lower().strip()
+                            elif case == 'upper':
+                                item = str(line).upper().strip()
+                            else:
+                                item = str(line).strip()
+                            c[item]+=1
+                            
+                # make sorted data for saving
+                s = []
+                i = 0
+                for kv in c.most_common():
+                    types+=1
+                    i+=1
+                    s.append(str(i) + '\t' + str(kv[0]) + '\t' + str(kv[1]) )
+                c = None
+                typetoken = (types/float(tokens))*100
+                # save file
+                out_filename = self.workspace + self.corpus_in_use + '/output/count.txt' 
+                with open (out_filename,'w',encoding=encoding) as fh:
+                    fh.write('\n'.join(s))
+                s = None
+                # print message
+                print('')
+                print('Tokens: ' + str(tokens))
+                print('Types: ' + str(types))
+                print('Type/token ratio: ' + str(round(typetoken,2)))
+                print('')
+            else:
+                print('Error: File not found or not valid.')
+
+
+                
+    
 
 if __name__ == '__main__':
     prompt = KitPrompt()
