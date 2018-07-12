@@ -4,6 +4,7 @@ from io import StringIO
 import xlsxwriter 
 
 
+
 class Keywords(object):
     
     def __init__(self,**kwargs):
@@ -71,12 +72,12 @@ class Keywords(object):
             i+=1
             worksheet.write(i,0, int(i),col_A_format)
             if kv[3] < 0:
-                worksheet.write(i,1, kv[1],col_B_red_format)
-                worksheet.write(i,2, kv[2],col_B_red_format)
-                worksheet.write(i,3, kv[3],col_B_red_format)
+                worksheet.write(i,1, str(kv[1]),col_B_red_format)
+                worksheet.write(i,2, int(kv[2]),col_B_red_format)
+                worksheet.write(i,3, float(kv[3]),col_B_red_format)
             else:
-                worksheet.write(i,1, kv[1],col_B_format)
-                worksheet.write(i,2, kv[2],col_C_format)
-                worksheet.write(i,3, kv[3],col_D_format)
+                worksheet.write(i,1, str(kv[1]),col_B_format)
+                worksheet.write(i,2, int(kv[2]),col_C_format)
+                worksheet.write(i,3, float(kv[3]),col_D_format)
                  
         workbook.close()

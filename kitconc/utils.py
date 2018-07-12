@@ -189,6 +189,30 @@ def load_merge_tags_rules(filename,**kwargs):
                     rule=(fields[0].strip(),fields[1].strip(),fields[2].strip())
                     rules.append(rule)
     return rules 
+
+
+def remove_lines(filename):
+    import pandas as pd
+    tb = pd.read_excel(filename)
+    print(tb.head())
+    keywords = []
+    stoplist = ['economia','liquidez','dinheiro', 'maior','menor']
+    
+    new_tb = tb[~tb['WORD'].isin(stoplist)]
+
+    
+    for kv in new_tb.itertuples(index=False):
+        if kv[1] in stoplist:
+            print (kv[1])
+            #keywords.append(str(kv[0]) + '\t' + kv[1] + '\t' + str(kv[2])  +  '\t' + str(kv[3]))
+    
+    print(new_tb.head())
+            
+    
+     
+    
+    
+    
                 
                 
                 

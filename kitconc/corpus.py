@@ -278,8 +278,8 @@ class Corpus (object):
                 if  k not in dic:
                     dic[k] = item[2]
         
-        print(dic)
-        input('')
+        #print(dic)
+        #input('')
         # set required paths
         tagged_path = self.workspace + self.corpus_name + "/tagged"
         # get corpus files in a list 
@@ -330,8 +330,8 @@ class Corpus (object):
         dic = None
         merge_rules = None
         
-        for k in replace_rules:
-            print(k,replace_rules[k])
+        #for k in replace_rules:
+            #print(k,replace_rules[k])
          
     
     #-----------------------------------------------------------------------------------------------------
@@ -912,6 +912,34 @@ class Corpus (object):
     #----------------------------------------------------------------------------------------------------- 
     
     def collocates(self,wordlist,node,**kwargs):
+        """
+        Generates a list of collocates.
+        
+        Parameters
+        ----------
+        
+        - node : str
+        Search word or phrase (max. 4 words).
+        
+        - pos : str
+        POS for word or phrase.
+        
+        - coll_pos : str
+        POS for filtering.
+        
+        - regex : boolean
+        Use regular expression for search word matching.
+        
+        - limit : int
+        Number of concordance lines to return.
+        
+        - show_progress : boolean
+        Prints a progress message if value is True.
+        
+        Returns
+        -------
+        Collocates object
+        """
         #args
         left_span = kwargs.get('left_span',1)
         right_span = kwargs.get('right_span',1)
@@ -1975,7 +2003,11 @@ class Corpus (object):
         for sent in sents:
             new_sents.append(utils.sent2conll2000(sent))
         return '\n\n'.join(new_sents)
-        
+
+    #-----------------------------------------------------------------------------------------------------
+    # 
+    #-----------------------------------------------------------------------------------------------------
+    
             
         
         
