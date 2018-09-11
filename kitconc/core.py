@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-import os 
+import os  
 import pickle 
 import urllib.request  
 from tempfile import NamedTemporaryFile
 from shutil import unpack_archive
+
 
 class Examples(object):
     

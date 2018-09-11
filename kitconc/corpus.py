@@ -33,7 +33,7 @@ class Corpus (object):
     TREE_TAGGER_FORMAT = 'treetagger'
     TAB_SEPARATED_FORMAT = 'tab'
     
-    def __init__(self,workspace,corpus_name,language='english',encoding='utf-8'):
+    def __init__(self,workspace,corpus_name,**kwargs):
         """
         All needed functions for text processing are accessed through this object. 
         
@@ -62,11 +62,32 @@ class Corpus (object):
             self.workspace = workspace
         else:
             self.workspace = workspace + '/'
+        
+        # check corpus already exists
+        
+        if os.path.exists(self.workspace + corpus_name + '/info.pickle'):
+            with open(self.workspace + corpus_name + '/info.pickle','rb') as fh:
+                info = pickle.load(fh)
+            language = info['language']
+            encoding = info['encoding']
+        else:
+            # get kwargs
+            language = kwargs.get('language','english')
+            encoding = kwargs.get('encoding','utf-8')
+        # set variables 
         self.corpus_name = corpus_name
         self.language = language 
         self.encoding = encoding
         self.output_path = self.workspace + self.corpus_name + '/output/'
     
+    
+    def create_workspace_folder(self,foldername):
+        """Creates a workspace folder"""
+        if not os.path.exists(foldername) and os.path.isdir(foldername):
+            os.mkdir(foldername)
+            return True 
+        else:
+            return False 
     
     #-----------------------------------------------------------------------------------------------------
     # ADD TEXTS
@@ -562,6 +583,21 @@ class Corpus (object):
     #-----------------------------------------------------------------------------------------------------
     
     def wfreqinfiles(self,wordlist,**kwargs):
+        """
+        Generates a frequency list based on word occurrence in corpus text files.
+        
+        Parameters
+        ----------
+        - lowercase: boolean
+        Letters are converted or not to lowercase.
+        
+        - show_progress : boolean
+        Prints a progress message if value is True.
+        
+        Returns
+        -------
+        Wfreqinfiles object
+        """
         #args
         lowercase= kwargs.get('lowercase',True)
         show_progress=kwargs.get('show_progress',False)
@@ -917,6 +953,9 @@ class Corpus (object):
         
         Parameters
         ----------
+        
+        - wordlist : Wordlist
+        Wordlist object.
         
         - node : str
         Search word or phrase (max. 4 words).
