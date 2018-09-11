@@ -76,7 +76,7 @@ Creating a wordlist
 from kitconc.corpus import Corpus
 
 # reference to corpus 
-corpus = Corpus('workspace','job_ads', language='english',encoding='utf-8')
+corpus = Corpus('workspace','job_ads')
 
 # make wordlist 
 wordlist = corpus.wordlist()
@@ -97,7 +97,7 @@ Extracting keywords
 from kitconc.corpus import Corpus
 
 # reference to corpus 
-corpus = Corpus('workspace','job_ads', language='english',encoding='utf-8')
+corpus = Corpus('workspace','job_ads')
 
 # make wordlist
 wordlist = corpus.wordlist()
@@ -122,7 +122,7 @@ Creating concordance lines
 from kitconc.corpus import Corpus
 
 # reference to corpus 
-corpus = Corpus('workspace','job_ads', language='english',encoding='utf-8')
+corpus = Corpus('workspace','job_ads')
 
 # make concordance lines 
 kwic = corpus.kwic('experience')
@@ -141,7 +141,7 @@ Finding collocates
 from kitconc.corpus import Corpus
 
 # reference to corpus 
-corpus = Corpus('workspace','job_ads', language='english',encoding='utf-8')
+corpus = Corpus('workspace','job_ads')
 
 # make wordlist 
 wordlist = corpus.wordlist()
@@ -167,7 +167,7 @@ Making clusters
 from kitconc.corpus import Corpus
 
 # reference to corpus 
-corpus = Corpus('workspace','job_ads', language='english',encoding='utf-8')
+corpus = Corpus('workspace','job_ads')
 
 # make clusters
 clusters = corpus.clusters('experience', size=3, min_freq = 3,min_range=2)
@@ -186,7 +186,7 @@ Creating dispersion plots
 from kitconc.corpus import Corpus
 
 # reference to corpus 
-corpus = Corpus('workspace','job_ads', language='english',encoding='utf-8')
+corpus = Corpus('workspace','job_ads')
 
 # make dispersion plots
 dispersion = corpus.dispersion('experience')
@@ -205,7 +205,7 @@ Creating keywords dispersion plots
 from kitconc.corpus import Corpus
 
 # reference to corpus 
-corpus = Corpus('workspace','job_ads', language='english',encoding='utf-8')
+corpus = Corpus('workspace','job_ads')
 
 # make wordlist
 wordlist = corpus.wordlist()
