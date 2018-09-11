@@ -2005,7 +2005,7 @@ class Corpus (object):
         text = None 
         filename = files[text_id]
         sents = []
-        with open(self.workspace + self.corpus_name + "/tagged/" + filename,'r') as fh:
+        with open(self.workspace + self.corpus_name + "/tagged/" + filename,'r',encoding=self.encoding) as fh:
             for line in fh:
                 tokens = line.strip().split(' ')
                 sent = []
@@ -2026,7 +2026,7 @@ class Corpus (object):
         text = None 
         filename = files[text_id]
         sents = []
-        with open(self.workspace + self.corpus_name + "/tagged/" + filename,'r') as fh:
+        with open(self.workspace + self.corpus_name + "/tagged/" + filename,'r',encoding=self.encoding) as fh:
             for line in fh:
                 tokens = line.strip().split(' ')
                 sent = []
