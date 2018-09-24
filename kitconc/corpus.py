@@ -12,6 +12,7 @@ from kitconc.keywords import Keywords
 from kitconc.wtfreq import WTfreq
 from kitconc.wfreqinfiles import Wfreqinfiles
 from kitconc.kwic import Kwic
+from kitconc.concordance import Concordance
 from kitconc.collocates import Collocates
 from kitconc.ngrams import Ngrams
 from kitconc.clusters import Clusters
@@ -740,7 +741,9 @@ class Corpus (object):
                         sent_id+=1
                         tokens = line.strip().split(' ')
                         if len(tokens) != 0:
+                            word_token_id = 0
                             for token in tokens:
+                                word_token_id+=1
                                 if limit != 0 and len(ids) == limit:
                                     break 
                                 token_id+=1
@@ -921,7 +924,7 @@ class Corpus (object):
                                             
                                     # add if matching   
                                     if flag_node == True and flag_pos == True:
-                                        ids.append((token_id,sent_id,file_id))
+                                        ids.append((token_id,sent_id,file_id,word_token_id))
             # make kwic
             if len(ids) != 0:
                 for idx in ids:
@@ -929,7 +932,7 @@ class Corpus (object):
                     l = (idx[0]-(cols+node_size),idx[0]-node_size)
                     n = (idx[0]-node_size, (idx[0]-node_size)+ node_size)
                     r = (idx[0],idx[0]+cols)
-                    kwic_lines.append ( str(j) + '\t' + ' '.join(  text[l[0]:l[1]]) + '\t' +  ' '.join(text[n[0]:n[1]]) + '\t' + ' '.join(text[r[0]:r[1]]) + '\t' + filename + '\t' + str(token_id) + '\t' + str(sent_id) + '\t' +str(file_id))
+                    kwic_lines.append ( str(j) + '\t' + ' '.join(  text[l[0]:l[1]]) + '\t' +  ' '.join(text[n[0]:n[1]]) + '\t' + ' '.join(text[r[0]:r[1]]) + '\t' + filename + '\t' + str(idx[3]) + '\t' + str(idx[1]) + '\t' +str(file_id))
             
             # print progress
             if show_progress == True:
@@ -942,6 +945,297 @@ class Corpus (object):
         k.read_str('\n'.join(kwic_lines))
         kwic_lines = None
         return k
+    
+    def concordance(self,node,**kwargs):
+        """
+        Generates concordance lines.
+        
+        Parameters
+        ----------
+        
+        - node : str
+        Search word or phrase (max. 4 words).
+        
+        - pos : str
+        POS for word or phrase.
+        
+        - regex : boolean
+        Use regular expression for search word matching.
+        
+        - limit : int
+        Number of concordance lines to return.
+        
+        - show_progress : boolean
+        Prints a progress message if value is True.
+        
+        Returns
+        -------
+        Kwic object
+        """
+        # args
+        pos = kwargs.get('pos',None)
+        horizon = kwargs.get('horizon',12)
+        limit = kwargs.get('limit',0)
+        regex = kwargs.get('regex',False) 
+        show_progress = kwargs.get('show_progress',False)
+        # splits search word
+        node = node.strip().split(' ')
+        # checks pos for each search word
+        if pos == None:
+            pos = []
+            for i in range(len(node)):
+                pos.append(None)
+        else:
+            pos = pos.strip().split(' ')
+        # sets the horizon size
+        if horizon < 5:
+            horizon = 5
+        cols = horizon
+        hfix = []
+        for i in range(horizon):
+            hfix.append((' '))
+        # node and dq size 
+        node_size = len(node)
+        dq = deque(maxlen=node_size)
+        # set required paths
+        tagged_path = self.workspace + self.corpus_name + "/tagged/"
+        # get corpus files in a list 
+        files = os.listdir(tagged_path)
+        total_files = len(files)
+        # loop
+        sorted(files)
+        file_id = 0
+        kwic_lines =[]
+        kwic_lines.append('N\tLEFT\tNODE\tRIGHT\tFILENAME\tTOKEN_ID\tSENT_ID\tFILE_ID')
+        conc_indexes = []
+        i = 0
+        j = 0
+        for filename in files:
+            file_id+=1
+            sent_id = 0
+            token_id = len(hfix)
+            ids = []
+            text = []
+            text = hfix
+            # search
+            with open(tagged_path + '/' +filename,'r',encoding=self.encoding) as fh:
+                for line in fh:
+                    if len(line.strip()) != 0:
+                        sent_id+=1
+                        tokens = line.strip().split(' ')
+                        if len(tokens) != 0:
+                            word_token_id = 0
+                            for token in tokens:
+                                word_token_id+=1
+                                if limit != 0 and len(ids) == limit:
+                                    break 
+                                token_id+=1
+                                wt = nltk.str2tuple(token)
+                                # add for text source
+                                if len(wt) >= 2:
+                                    text.append((wt[0]))
+                                    # add for matching
+                                    dq.append(wt)
+                                    #try match
+                                    flag_pos = False
+                                    flag_node = False
+                                    
+                                    if len(dq) == node_size:
+                                        # check node matching
+                                        # wild char
+                                        new_node = [None,None,None,None]
+                                        # 1
+                                        if node_size == 1:
+                                            if node[0] == '*':
+                                                new_node[0] = dq[0][0]
+                                            else:
+                                                new_node[0] = node[0].lower()
+                                        # 2
+                                        elif node_size == 2:
+                                            if node[0] == '*':
+                                                new_node[0] = dq[0][0]
+                                            else:
+                                                new_node[0] = node[0].lower()
+                                            if node[1] == '*':
+                                                new_node[1] = dq[1][0]
+                                            else:
+                                                new_node[1] = node[1].lower()
+                                        # 3
+                                        elif node_size == 3:
+                                            if node[0] == '*':
+                                                new_node[0] = dq[0][0]
+                                            else:
+                                                new_node[0] = node[0].lower()
+                                            if node[1] == '*':
+                                                new_node[1] = dq[1][0]
+                                            else:
+                                                new_node[1] = node[1].lower()
+                                            if node[2] == '*':
+                                                new_node[2] = dq[2][0]
+                                            else:
+                                                new_node[2] = node[2].lower()
+                                        # 4
+                                        elif node_size == 4:
+                                            if node[0] == '*':
+                                                new_node[0] = dq[0][0]
+                                            else:
+                                                new_node[0] = node[0].lower()
+                                            if node[1] == '*':
+                                                new_node[1] = dq[1][0]
+                                            else:
+                                                new_node[1] = node[1].lower()
+                                            if node[2] == '*':
+                                                new_node[2] = dq[2][0]
+                                            else:
+                                                new_node[2] = node[2].lower()
+                                            if node[3] == '*':
+                                                new_node[3] = dq[3][0]
+                                            else:
+                                                new_node[3] = node[3].lower()                                             
+                                        # check node matching 
+                                        # 1
+                                        if node_size == 1:
+                                            if regex == False:
+                                                if dq[0][0].lower() == new_node[0].lower():
+                                                    flag_node = True
+                                            else:
+                                                if len(re.findall(new_node[0],dq[0][0]))!= 0:
+                                                    flag_node = True
+                                        # 2
+                                        elif node_size == 2:
+                                            if regex == False:
+                                                if dq[0][0].lower() == new_node[0].lower() and dq[1][0].lower() == new_node[1].lower():
+                                                    flag_node = True
+                                            else:
+                                                if len(re.findall(new_node[0],dq[0][0]))!= 0 and len(re.findall(new_node[1],dq[1][0]))!= 0:
+                                                    flag_node = True
+                                                
+                                        # 3
+                                        elif node_size == 3:
+                                            if regex == False:
+                                                if dq[0][0].lower() == new_node[0].lower() and dq[1][0].lower() == new_node[1].lower() and dq[2][0].lower() == new_node[2].lower():
+                                                    flag_node = True
+                                            else:
+                                                if len(re.findall(new_node[0],dq[0][0]))!= 0 and len(re.findall(new_node[1],dq[1][0]))!= 0 and len(re.findall(new_node[2],dq[2][0]))!= 0:
+                                                    flag_node = True
+                                        # 4
+                                        elif node_size == 4:
+                                            if regex == False:
+                                                if dq[0][0].lower() == new_node[0].lower() and dq[1][0].lower() == new_node[1].lower() and dq[2][0].lower() == new_node[2].lower() and dq[3][0].lower() == new_node[3].lower():
+                                                    flag_node = True
+                                            else:
+                                                if len(re.findall(new_node[0],dq[0][0]))!= 0 and len(re.findall(new_node[1],dq[1][0]))!= 0 and len(re.findall(new_node[2],dq[2][0]))!= 0 and len(re.findall(new_node[3],dq[3][0]))!= 0:
+                                                    flag_node = True
+                                        # check pos matching None
+                                        if node_size == 1 and pos[0] == None:
+                                            flag_pos = True
+                                        elif node_size == 2 and pos == [None,None]:
+                                            flag_pos = True
+                                        elif node_size ==  3 and pos == [None,None,None]:
+                                            flag_pos = True
+                                        elif node_size == 4 and pos == [None,None,None,None]:
+                                            flag_pos = True
+                                        else:
+                                            # check wild char
+                                            new_pos = [None,None,None,None]
+                                            # 1
+                                            if node_size == 1:
+                                                if pos[0] == '*':
+                                                    new_pos[0] = dq[0][1]
+                                                else:
+                                                    new_pos[0] = pos[0] 
+                                            # 2    
+                                            elif node_size == 2:
+                                                    if pos[0] == '*':
+                                                        new_pos[0] = dq[0][1]
+                                                    else:
+                                                        new_pos[0] = pos[0]
+                                                    if pos[1] == '*':
+                                                        new_pos[1] = dq[1][1]
+                                                    else:
+                                                        new_pos[1] =pos[1]
+                                            # 3 
+                                            elif node_size == 3:
+                                                    if pos[0] == '*':
+                                                        new_pos[0] = dq[0][1]
+                                                    else:
+                                                        new_pos[0] = pos[0]
+                                                    if pos[1] == '*':
+                                                        new_pos[1] = dq[1][1]
+                                                    else:
+                                                        new_pos[1] = pos[1]
+                                                    if pos[2] == '*':
+                                                        new_pos[2] = dq[2][1]
+                                                    else:
+                                                        new_pos[2] = pos[2]
+                                            # 4
+                                            if node_size == 4:
+                                                    if pos[0] == '*':
+                                                        new_pos[0] = dq[0][1]
+                                                    else:
+                                                        new_pos[0] = pos[0]
+                                                    if pos[1] == '*':
+                                                        new_pos[1] = dq[1][1]
+                                                    else:
+                                                        new_pos[1] = pos[1]
+                                                    if pos[2] == '*':
+                                                        new_pos[2] = dq[2][1]
+                                                    else:
+                                                        new_pos[2] = pos[2]
+                                                    if pos[3] == '*':
+                                                        new_pos[3] = dq[3][1]
+                                                    else:
+                                                        new_pos[3] = pos[3]
+                                                        
+                                            # check pos matching not None    
+                                            # 1
+                                            if len(pos) == 1:
+                                                if pos[0] != None and new_pos[0] == dq[0][1]:
+                                                    flag_pos = True
+                                            # 2
+                                            elif len(pos) == 2:
+                                                if pos[0] != None and new_pos[0] == dq[0][1] and new_pos[1] == dq[1][1]:
+                                                    flag_pos = True
+                                            # 3
+                                            elif len(pos) == 3:
+                                                if pos[0] != None and new_pos[0] == dq[0][1] and new_pos[1] == dq[1][1] and new_pos[2] == dq[2][1]:
+                                                    flag_pos = True
+                                            # 4
+                                            elif len(pos) == 4:
+                                                if pos[0] != None and new_pos[0] == dq[0][1] and new_pos[1] == dq[1][1] and new_pos[2] == dq[2][1] and new_pos[3] == dq[3][1]:
+                                                    flag_pos = True     
+                                            
+                                    # add if matching   
+                                    if flag_node == True and flag_pos == True:
+                                        ids.append((token_id,sent_id,file_id,word_token_id))
+            # make conc indexes 
+            if len(ids) != 0:
+                for idx in ids:
+                    j+=1
+                    conc_indexes.append((filename,idx[3],idx[1],file_id))
+            
+            # print progress
+            if show_progress == True:
+                i+=1
+                print("{1}% ..... {0} ".format (filename, round((i/float(total_files)) * 100)) )
+        
+        files = None
+        
+        s = []
+        s.append('N\tCONCORDANCE\tFILENAME\tTOKEN_ID\tSENT_ID\tFILE_ID')
+        i = 0
+        for item in conc_indexes:
+            i+=1
+            sent = self.textfile_get_tokenized_sent(item[3], item[2])
+            s.append(str(i) + '\t' +  ' '.join(sent) + '\t' + str(item[0]) + '\t' + str(item[1]) + '\t' + str(item[2]) + '\t' + str(item[3]) )
+        conc_indexes = None
+        
+        # make concordance
+        concordance = Concordance()
+        concordance.read_str('\n'.join(s))
+        s = None 
+        
+        return concordance 
     
     #-----------------------------------------------------------------------------------------------------
     # COLLOCATES
@@ -2042,48 +2336,79 @@ class Corpus (object):
         for sent in sents:
             new_sents.append(utils.sent2conll2000(sent))
         return '\n\n'.join(new_sents)
+    
+    
+    def textfile_get_tokenized_sent(self,text_id,sent_id):
+        # set required paths
+        tagged_path = self.workspace + self.corpus_name + "/tagged/"
+        # get corpus files in a list 
+        files = os.listdir(tagged_path)
+        # sort
+        sorted(files)
+        # get filename 
+        textid = 0
+        filename = None
+        for f in files:
+            textid +=1
+            if text_id == textid:
+                filename = f 
+                break
+        files = None  
+        # get sent
+        tokenized_sent = [] 
+        sentid = 0
+        with open(self.workspace + self.corpus_name + "/tagged/" + filename,'r',encoding=self.encoding) as fh:
+            for line in fh:
+                if len(line.strip()) != 0:
+                    sentid+=1
+                    if sent_id == sentid:
+                        for token in line.strip().split(' '):
+                            tokenized_sent.append(nltk.str2tuple(token)[0])
+                        break
+        return tokenized_sent
+    
+    def textfile_get_tagged_sent(self,text_id,sent_id):
+        # set required paths
+        tagged_path = self.workspace + self.corpus_name + "/tagged/"
+        # get corpus files in a list 
+        files = os.listdir(tagged_path)
+        # sort
+        sorted(files)
+        # get filename 
+        textid = 0
+        filename = None
+        for f in files:
+            textid +=1
+            if text_id == textid:
+                filename = f 
+                break
+        files = None
+        # get sent
+        tokenized_sent = [] 
+        sentid = 0
+        with open(self.workspace + self.corpus_name + "/tagged/" + filename,'r',encoding=self.encoding) as fh:
+            for line in fh:
+                if len(line.strip()) != 0:
+                    sentid+=1
+                    if sent_id == sentid:
+                        for token in line.strip().split(' '):
+                            tokenized_sent.append(nltk.str2tuple(token))
+                        break
+        return tokenized_sent
+                
+                
+                                
+            
+                                
+                                
+                                 
+                                
+    
+    
+    
+    
+    
 
     #-----------------------------------------------------------------------------------------------------
     # 
     #-----------------------------------------------------------------------------------------------------
-    
-            
-        
-        
-        
-        
-        
-                
-            
-    
-    
-            
-            
-            
-            
-            
-            
-            
-            
-            
-        
-    
-        
-        
-        
-        
-        
-        
-            
-        
-        
-        
-
-        
-        
-    
-      
-        
-        
-                 
-         
