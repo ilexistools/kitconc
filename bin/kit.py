@@ -466,6 +466,57 @@ class KitPrompt(Cmd):
                     kwic.save_xls(self.workspace + self.corpus_in_use + '/output/kwic.xlsx', width=width)
         except Exception as e:
                 print(e)
+    
+    
+    def do_concordance(self,s):
+        """\nDescription: Creates concordance lines. 
+        \nUsage: concordance -n [node]
+        \n\nOptions: 
+        \n--pos [pos]         - (str) POS tag(s) for search node
+        \n--regex [regex]     - (str) regular expression
+        \n--limit [limit]     - (int) number 
+        """
+        
+        try:
+            parser = argparse.ArgumentParser()
+            parser.add_argument('-n', action='store', dest='node',nargs='+', type=str)
+            parser.add_argument('--pos', action='store', dest='pos', type=str)
+            parser.add_argument('--regex', action='store', dest='regex', type=str)
+            parser.add_argument('--limit', action='store', dest='limit', type=int)
+            args = parser.parse_args(s.split())
+            
+            if len(args.node) > 1:
+                node = ' '.join(args.node)
+            else:
+                node = args.node[0].strip()
+             
+            if args.pos is None:
+                pos = None
+            else:
+                pos = args.pos
+            
+            if args.regex is None:
+                regex = False 
+            else:
+                if args.regex == '1' or args.regex == 'True':
+                    regex = True
+            
+           
+            
+            if args.limit is None:
+                limit = 0
+            else:
+                limit = int(args.limit) 
+            
+            
+            
+            if self.corpus_in_use is not None:
+                    corpus_info = self.__corpus_info(self.corpus_in_use)
+                    corpus = Corpus(self.workspace,self.corpus_in_use,language=corpus_info['language'],encoding=corpus_info['encoding'])
+                    conc = corpus.concordance(node,pos=pos,regex=regex,limit=limit,show_progress=True)
+                    conc.save_xls(self.workspace + self.corpus_in_use + '/output/concordance.xlsx')
+        except Exception as e:
+                print(e)
         
     #
     # COLOCATES
