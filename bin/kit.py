@@ -381,6 +381,26 @@ class KitPrompt(Cmd):
         except Exception as e:
                 print(e)
     
+    def do_keynessxrange(self,s):
+        """\nDescription: Extracts keywords from the current corpus and multiplies the keyness value by range. 
+        \nUsage: keynessxrange
+        """
+        try:
+            if self.corpus_in_use is not None:
+                    corpus_info = self.__corpus_info(self.corpus_in_use)
+                    corpus = Corpus(self.workspace,self.corpus_in_use,language=corpus_info['language'],encoding=corpus_info['encoding'])
+                    wordlist = corpus.wordlist(show_progress=True)
+                    freqinfiles = corpus.wfreqinfiles(wordlist,show_progress=True)
+                    keywords = corpus.keywords(wordlist, show_progress=True)
+                    wordlist = None
+                    keynessrange = corpus.keynessxrange(keywords, freqinfiles)
+                    keywords = None
+                    freqinfiles = None
+                    keynessrange.save_xls(self.workspace + self.corpus_in_use + '/output/keynessxrange.xlsx')
+                    keynessrange = None
+        except Exception as e:
+                print(e)
+    
     #
     # KWIC
     #
