@@ -135,23 +135,26 @@ class Corpus (object):
         i = 0
         # tag other languages 
         for filename in sorted(files):
-            i +=1
-            tagged_sents = []
-            f = open(source_folder + "/" + filename,'r',encoding=self.encoding)
-            sents = tokenizer.tokenize(f.read())
-            f.close()
-            for sent in sents:
-                str_sent = []
-                for token in tagger.tag(nltk.tokenize.word_tokenize(sent, language=self.language)):
-                    if token == ('/','/'): # this is a temporary fix for slash problems
-                        token = ('/','|')  # 
-                    str_sent.append(nltk.tuple2str(token))
-                tagged_sents.append(' '.join(str_sent))
-                    
-            with open(self.workspace + self.corpus_name + "/tagged/" + filename ,'w',encoding=self.encoding) as fh:
-                fh.write('\n'.join(tagged_sents))
-            if show_progress == True:
-                print("{1}% ..... {0} ".format (filename, round((i/float(total_files)) * 100)) )
+            if os.path.isfile(source_folder + '/' + filename):
+                i +=1
+                tagged_sents = []
+                f = open(source_folder + "/" + filename,'r',encoding=self.encoding)
+                sents = tokenizer.tokenize(f.read())
+                f.close()
+                for sent in sents:
+                    str_sent = []
+                    for token in tagger.tag(nltk.tokenize.word_tokenize(sent, language=self.language)):
+                        if token == ('/','/'): # this is a temporary fix for slash problems
+                            token = ('/','|')  # 
+                        str_sent.append(nltk.tuple2str(token))
+                    tagged_sents.append(' '.join(str_sent))
+                        
+                with open(self.workspace + self.corpus_name + "/tagged/" + filename ,'w',encoding=self.encoding) as fh:
+                    fh.write('\n'.join(tagged_sents))
+                if show_progress == True:
+                    print("{1}% ..... {0} ".format (filename, round((i/float(total_files)) * 100)) )
+            else:
+                total_files-=1
         # set corpus info
         corpus_info = {}
         corpus_info['workspace'] = self.workspace
@@ -2287,8 +2290,12 @@ class Corpus (object):
         keyrange.df = tb 
         return keyrange 
     
+    #-----------------------------------------------------------------------------------------------------
+    # TEXTFILE
+    #-----------------------------------------------------------------------------------------------------
     
     def textfile_get_tagged_sents(self,text_id):
+        """Returns tagged sentences from a specified file."""
         # set required paths
         tagged_path = self.workspace + self.corpus_name + "/tagged/"
         # get corpus files in a list 
@@ -2296,7 +2303,6 @@ class Corpus (object):
         # sort
         sorted(files)
         # get
-        text = None 
         filename = files[text_id]
         sents = []
         with open(self.workspace + self.corpus_name + "/tagged/" + filename,'r',encoding=self.encoding) as fh:
@@ -2310,6 +2316,7 @@ class Corpus (object):
         return sents 
     
     def textfile_get_tokenized_sents(self,text_id):
+        """Returns tokenized sentences from a specified file."""
         # set required paths
         tagged_path = self.workspace + self.corpus_name + "/tagged/"
         # get corpus files in a list 
@@ -2317,7 +2324,6 @@ class Corpus (object):
         # sort
         sorted(files)
         # get
-        text = None 
         filename = files[text_id]
         sents = []
         with open(self.workspace + self.corpus_name + "/tagged/" + filename,'r',encoding=self.encoding) as fh:
@@ -2339,6 +2345,7 @@ class Corpus (object):
     
     
     def textfile_get_tokenized_sent(self,text_id,sent_id):
+        """Returns a tokenized sentence from a specified file."""
         # set required paths
         tagged_path = self.workspace + self.corpus_name + "/tagged/"
         # get corpus files in a list 
@@ -2368,6 +2375,7 @@ class Corpus (object):
         return tokenized_sent
     
     def textfile_get_tagged_sent(self,text_id,sent_id):
+        """Returns a tagged sentence from a specified file."""
         # set required paths
         tagged_path = self.workspace + self.corpus_name + "/tagged/"
         # get corpus files in a list 
@@ -2397,7 +2405,70 @@ class Corpus (object):
         return tokenized_sent
                 
                 
-                                
+    #-----------------------------------------------------------------------------------------------------
+    #  TEXTS 
+    #-----------------------------------------------------------------------------------------------------
+    
+    def texts_count(self):
+        """Returns the number of texts in the corpus."""
+        tagged_path = self.workspace + self.corpus_name + "/tagged/"
+        total_count =  len(os.listdir(tagged_path))
+        return total_count 
+        
+    def texts_get_ids(self):
+        """Returns the texts ids from corpus files in a dictionary."""
+        # set required paths
+        tagged_path = self.workspace + self.corpus_name + "/tagged/"
+        # get corpus files in a list 
+        files = os.listdir(tagged_path)
+        # sort
+        sorted(files)
+        # get filename 
+        textid = 0
+        fileids = {}
+        for filename in files:
+            textid +=1
+            fileids[textid] = filename
+        return fileids
+    
+    def texts_get_filenames(self):
+        """Returns a list with the filenames in the corpus."""
+        # set required paths
+        tagged_path = self.workspace + self.corpus_name + "/tagged/"
+        # get corpus files in a list 
+        files = os.listdir(tagged_path)
+        # sort
+        sorted(files)
+        # get filenames
+        filenames = []
+        for filename in files:
+            filenames.append(filename)
+        return filenames
+    
+    #-----------------------------------------------------------------------------------------------------
+    #  STATISTICS 
+    #-----------------------------------------------------------------------------------------------------
+    
+    def statistics_get_composition(self):
+        """Returns the number of tokens, types and type token ratio in a list."""
+        wordlist = self.wordlist()
+        composition=(wordlist.tokens,wordlist.types,wordlist.typetoken)
+        return composition 
+    
+        
+    
+    
+    
+    
+    
+    
+    
+    
+      
+         
+       
+    
+                       
             
                                 
                                 
