@@ -4,6 +4,8 @@ import pickle
 import urllib.request  
 from tempfile import NamedTemporaryFile
 from shutil import unpack_archive
+import nltk 
+
 
 
 class Examples(object):
@@ -113,6 +115,36 @@ class Config(object):
         except:
             flag = None
         return flag
+
+class Resources(object):
+    
+    def __init__(self):
+        self.__path = os.path.dirname(os.path.abspath(__file__)) 
+    
+    def load_sent_tokenizer(self,language='portuguese'):
+        """Returns a stored tokenizer from the data folder according to the specified language."""
+        # load tokenizer
+        tokenizer = None
+        tokenizer_path = self.__path + '/data/tokenizer_' + language + '.pickle'
+        with open(tokenizer_path, 'rb') as fh:
+            tokenizer = pickle.load(fh)
+        return tokenizer
+    
+    
+    def load_tagger(self,language='portuguese'):
+        """Returns a stored tagger from the data folder according to the specified language."""
+        # load tagger
+        tagger = None 
+        tagger_path = self.__path + '/data/tagger_' + language  + '.pickle'
+        with open(tagger_path, 'rb') as fh:
+            tagger = pickle.load(fh)
+        return tagger
+    
+    def train_tagger(self,tagged_sents,**kwargs):
+        """Trains a tagger"""
+        show_progress = kwargs.get('show_progress',True)
+        
+         
 
 
 

@@ -19,6 +19,8 @@ from kitconc.clusters import Clusters
 from kitconc.dispersion import Dispersion
 from kitconc.keywords_dispersion import KeywordsDispersion
 from kitconc.keynessxrange import Keynessxrange
+from kitconc.compared_collocates import ComparedCollocates
+from kitconc.collocations import Collocations
 from kitconc import utils  
 
 class Corpus (object):
@@ -59,10 +61,16 @@ class Corpus (object):
         Corpus object
         """
         self.__path = os.path.dirname(os.path.abspath(__file__))
+        # normalize workspace path 
         if str(workspace).endswith('/'):
             self.workspace = workspace
         else:
             self.workspace = workspace + '/'
+        
+        # check workspace path exists
+        # if not create it 
+        if os.path.exists(self.workspace) == False:
+            os.mkdir(self.workspace)
         
         # check corpus already exists
         
@@ -139,7 +147,7 @@ class Corpus (object):
                 i +=1
                 tagged_sents = []
                 f = open(source_folder + "/" + filename,'r',encoding=self.encoding)
-                sents = tokenizer.tokenize(f.read())
+                sents = tokenizer.tokenize(str(f.read()).replace('\t',' '))
                 f.close()
                 for sent in sents:
                     str_sent = []
@@ -165,7 +173,76 @@ class Corpus (object):
         fh = open(self.workspace + self.corpus_name + '/info.pickle','wb')
         pickle.dump(corpus_info,fh)
         fh.close()
+    #-----------------------------------------------------------------------------------------------------
+    # ADD WITHOUT TAGGING
+    #-----------------------------------------------------------------------------------------------------
 
+    
+    def add_texts_without_tagging(self,source_folder,**kwargs):
+        """
+        Adds texts to the corpus.
+        Texts are not tagged and saved in a corpus folder for analysis
+        
+        Parameters
+        ----------
+        
+        - souce_folder : str
+        A string path where texts for processing are stored. 
+        
+        - show_progress : boolean
+        Prints a progress message if value is True.
+        
+        Returns
+        -------
+        None
+        """
+        # args
+        show_progress=kwargs.get('show_progress',False)
+        # create all folders for the new corpus
+        if not os.path.exists(self.workspace + self.corpus_name):
+            os.mkdir(self.workspace + self.corpus_name)
+        if not os.path.exists(self.workspace + self.corpus_name + '/tagged'):
+            os.mkdir(self.workspace + self.corpus_name + '/tagged')
+        if not os.path.exists(self.workspace + self.corpus_name + '/output'):
+            os.mkdir(self.workspace + self.corpus_name + '/output')
+        # load tokenizer
+        tokenizer_path = self.__path + '/data/tokenizer_' + self.language + '.pickle'
+        with open(tokenizer_path, 'rb') as fh:
+            tokenizer = pickle.load(fh)
+        # get files
+        files = os.listdir(source_folder)
+        total_files = len(files)
+        i = 0
+        # tag other languages 
+        for filename in sorted(files):
+            if os.path.isfile(source_folder + '/' + filename):
+                i +=1
+                tagged_sents = []
+                f = open(source_folder + "/" + filename,'r',encoding=self.encoding)
+                sents = tokenizer.tokenize(str(f.read()).replace('\t',' '))
+                f.close()
+                for sent in sents:
+                    str_sent = []
+                    for token in nltk.tokenize.word_tokenize(sent, language=self.language):
+                        str_sent.append(token + '/*')
+                    tagged_sents.append(' '.join(str_sent))
+                        
+                with open(self.workspace + self.corpus_name + "/tagged/" + filename ,'w',encoding=self.encoding) as fh:
+                    fh.write('\n'.join(tagged_sents))
+                if show_progress == True:
+                    print("{1}% ..... {0} ".format (filename, round((i/float(total_files)) * 100)) )
+            else:
+                total_files-=1
+        # set corpus info
+        corpus_info = {}
+        corpus_info['workspace'] = self.workspace
+        corpus_info['corpus_name'] = self.corpus_name
+        corpus_info['language'] = self.language
+        corpus_info['encoding'] = self.encoding
+        # save corpus info 
+        fh = open(self.workspace + self.corpus_name + '/info.pickle','wb')
+        pickle.dump(corpus_info,fh)
+        fh.close()
     
     #-----------------------------------------------------------------------------------------------------
     # ADD FROM TAGGED TEXTS
@@ -2454,6 +2531,186 @@ class Corpus (object):
         wordlist = self.wordlist()
         composition=(wordlist.tokens,wordlist.types,wordlist.typetoken)
         return composition 
+    
+    #-----------------------------------------------------------------------------------------------------
+    #  COMPARE COLLOCATES
+    #-----------------------------------------------------------------------------------------------------
+    
+    def compared_collocates(self,col1,col2,**kwargs):
+        """Compares two sets of collocates"""
+        show_progress = kwargs.get('show_progress',False)
+        # kwargs
+        stat_cutoff = kwargs.get('stat_cutoff',0)
+        
+        # get all data in dictionaries
+        # and filter association measures with stat_cutoff:
+        # words = all words from col1 and col2
+        # w1 = col1 data dict
+        # w2 = col2 data dict
+        words = {}
+        w1 = {}
+        for row in col1.df.itertuples(index=False):
+            if row[5] >= stat_cutoff:
+                k = row[1]
+                v = (row[2],row[5])
+                w1[k]=v
+                if k not in words:
+                    words[k]= 0
+        col1 = None 
+        w2 = {}
+        for row in col2.df.itertuples(index=False):
+            if row[5] >= stat_cutoff:
+                k = row[1]
+                v = (row[2],row[5])
+                w2[k]=v
+                if k not in words:
+                    words[k]= 0
+        col2 = None
+        # put all data together,
+        # calculate percent difference
+        # and make table   
+        tb = []
+        tb.append('N\tWORD\tFREQ1\tFREQ2\tASSOCIATION1\tASSOCIATION2\tDIFFERENCE')
+        i=0
+        for w in sorted(words):
+            i+=1
+            # get data
+            if w in w1:
+                w1_f = w1[w][0]
+                w1_am = w1[w][1]
+            else:
+                w1_f = 0
+                w1_am = 0.0
+            if w in w2:
+                w2_f = w2[w][0]
+                w2_am = w2[w][1]
+            else:
+                w2_f = 0
+                w2_am = 0.0
+            # calcucale percent difference
+            if w1_am <= w2_am: # ensure n2 is larger
+                n1 = w1_am 
+                n2 = w2_am 
+            else:
+                n1 = w2_am 
+                n2 = w1_am 
+            pd = round(((n2-n1) / float(n2)) * 100,2)
+            # add to table
+            tb.append('\t'.join([str(i), str(w),str(w1_f),str(w2_f),str(w1_am),str(w2_am),str(pd)]))
+
+        comparison = ComparedCollocates()
+        comparison.read_str('\n'.join(tb))
+        tb = None
+        comparison.df.sort_values('DIFFERENCE',ascending=True,inplace=True)
+        j=0
+        for i in comparison.df.index:
+            j+=1
+            comparison.df.at[i, 'N'] = j
+        comparison.df.reset_index(drop=True,inplace=True)
+        return comparison 
+
+
+    #-----------------------------------------------------------------------------------------------------
+    #  COLLOCATIONS
+    #-----------------------------------------------------------------------------------------------------
+    
+    def collocations(self,wordlist,kwic,**kwargs):
+        #kwargs
+        lowercase = kwargs.get('lowercase',True) 
+        horizon = kwargs.get('horizon',5)
+        measure = kwargs.get('measure','tscore')
+        # check stat measure
+        if measure == 'tscore':
+            stat = 1
+        elif measure == 'mutual information':
+            stat = 2
+        # pattern for avoiding punctuation
+        ptn = re.compile("\W+")
+        # wordlist to dic
+        freqlist = {}
+        tokens = 0
+        for row in wordlist.df.itertuples(index=False):
+            freqlist[row[1]]=row[2]
+            tokens+=row[2]
+        wordlist = None 
+        # dictionaries and counters
+        left_counter = Counter()
+        right_counter = Counter()
+        words = {}
+        node_freq = 0
+        for row in kwic.df.itertuples(index=False):
+            node_freq+=1
+            # get horizons
+            if lowercase == True:
+                left = list(reversed(row[1].lower().split(' ')[-horizon:]))
+                right = row[1].lower().split(' ')[0:horizon]
+            else:
+                left = list(reversed(row[1].split(' ')[-horizon:]))
+                right = row[1].split(' ')[0:horizon]
+            # mapping left     
+            i = 0
+            for word in left:
+                if len(re.findall(ptn, word)) == 0:
+                    i+=1
+                    left_counter[(i,word)]+=1
+                    if word not in words:
+                        words[word] = freqlist[word]
+            # mapping right
+            i=0
+            for word in right:
+                if len(re.findall(ptn, word)) == 0:
+                    i+=1
+                    right_counter[(i,word)]+=1
+                    if word not in words:
+                        words[word] = freqlist[word]
+        kwic = None 
+        freqlist = None 
+        # make data table
+        tb = []
+        tb.append('\t'.join(['N','WORD','L5','L4','L3','L2','L1','R1','R2','R3','R4','R5','LEFT','RIGHT','TOTAL','ASSOCIATION']))
+        i=0
+        for word in words:
+            total = 0
+            total_left = 0
+            total_right = 0
+            lv = ['0','0','0','0','0','0']
+            for hw,freq  in left_counter.most_common():
+                if hw[1] == word:
+                    lv[hw[0]] = str(freq)
+                    total_left+=freq
+            rv = ['0','0','0','0','0','0']
+            for hw,freq  in right_counter.most_common():
+                if hw[1] == word:
+                    rv[hw[0]] = str(freq)
+                    total_right+=freq
+            # calculate stat measure
+            total = total_left + total_right
+            if stat == 1:
+                m = utils.tscore(total, words[word], node_freq, tokens, 1)
+            elif stat == 2:
+                m = utils.mutual_information(total, words[word], node_freq, tokens, 1)
+            i+=1
+            tb.append('\t'.join([str(i),word,lv[5],lv[4],lv[3],lv[2],lv[1],rv[1],rv[2],rv[3],rv[4],rv[5],str(total_left),str(total_right),str(total),str(m)]))
+        
+        words = None
+        left_counter =None
+        right_counter = None
+        
+        collocations = Collocations()
+        collocations.read_str('\n'.join(tb))
+        tb=None
+        collocations.df.sort_values('ASSOCIATION',ascending=False,inplace=True)
+        j=0
+        for i in collocations.df.index:
+            j+=1
+            collocations.df.at[i, 'N'] = j
+        collocations.df.reset_index(drop=True,inplace=True)
+        return collocations
+        
+
+       
+        
+        
     
         
     
