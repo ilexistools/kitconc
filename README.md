@@ -22,10 +22,10 @@ Requirements
 
 Kitconc requires a Python 3.6 (or later) installation along with:
 
-* NLTK
+* nltk
 * pandas
 * XlsxWrite
-* sckit-learn
+* matplotlib
 
 It is suggested that users install Anaconda Platform as an easy option. 
 
