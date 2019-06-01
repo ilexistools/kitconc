@@ -69,6 +69,8 @@ corpus = Corpus('workspace','job_ads', language='english',encoding='utf-8')
 corpus.add_texts('JOB_ADS',show_progress=True)
 ```
 <a href='https://raw.githubusercontent.com/ilexistools/kitconc-examples/master/images/corpus.png'>See results...</a>
+.. image:: https://raw.githubusercontent.com/ilexistools/kitconc-examples/master/images/corpus.png
+
 
 Creating a wordlist 
 -------------
