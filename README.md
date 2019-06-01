@@ -29,7 +29,16 @@ Kitconc requires a Python 3.6 (or later) installation along with:
 
 It is suggested that users install Anaconda Platform as an easy option. 
 
-Installation
+Installation with pip
+=========
+(Make sure you have Python 3.6 (or later) and the required packages.)
+
+Use the following command:
+```bash
+pip install kitconc
+```
+
+Installation from GitHub
 =========
 (Make sure you have Python 3.6 (or later) and the required packages.)
 
@@ -69,8 +78,6 @@ corpus = Corpus('workspace','job_ads', language='english',encoding='utf-8')
 corpus.add_texts('JOB_ADS',show_progress=True)
 ```
 <a href='https://raw.githubusercontent.com/ilexistools/kitconc-examples/master/images/corpus.png'>See results...</a>
-.. image:: https://raw.githubusercontent.com/ilexistools/kitconc-examples/master/images/corpus.png
-
 
 Creating a wordlist 
 -------------
