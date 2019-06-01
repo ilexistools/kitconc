@@ -84,10 +84,10 @@ wordlist = corpus.wordlist()
 # print the top 25 most frequent words
 print(wordlist.df.head(25))
 
-# save in Excel
+# save as Excel
 # * corpus.output_path is a default folder
 # * inside the corpus folder (your_corpus/output/)
-wordlist.save_xls(corpus.output_path + 'wordlist.xlsx')
+wordlist.save_excel(corpus.output_path + 'wordlist.xlsx')
 ```
 <a href='https://raw.githubusercontent.com/ilexistools/kitconc-examples/master/images/wordlist.png'>See results...</a>
 
@@ -111,8 +111,8 @@ keywords = corpus.keywords(wordlist)
 # print the top 25 keywords
 print(keywords.df.head(25))
 
-# save in Excel
-keywords.save_xls(corpus.output_path + 'keywords.xlsx') 
+# save as Excel
+keywords.save_excel(corpus.output_path + 'keywords.xlsx') 
 ```
 <a href='https://raw.githubusercontent.com/ilexistools/kitconc-examples/master/images/keywords.png'>See results...</a>
 
@@ -131,7 +131,7 @@ kwic = corpus.kwic('experience')
 print(kwic.df.head(10))
 
 # save in Excel
-kwic.save_xls(corpus.output_path + 'kwic_experience.xlsx')
+kwic.save_excel(corpus.output_path + 'kwic_experience.xlsx')
 ```
 <a href='https://raw.githubusercontent.com/ilexistools/kitconc-examples/master/images/concordance.png'>See results...</a>
 
@@ -153,11 +153,11 @@ collocates = corpus.collocates(wordlist, 'experience',coll_pos='NN JJ', left_spa
 #collocates = corpus.collocates(wordlist, 'experience',coll_pos='NN JJ', left_span = 3, right_span=3,
 #measure=corpus.MUTUAL_INFORMATION)
 
-# print top 25 collocates
+# print the top 25 collocates
 print(collocates.df.head(25))
 
-# save in Excel
-collocates.save_xls(corpus.output_path + 'collocates_experience.xlsx')
+# save as Excel
+collocates.save_excel(corpus.output_path + 'collocates_experience.xlsx')
 ```
 <a href='https://raw.githubusercontent.com/ilexistools/kitconc-examples/master/images/collocates.png'>See results...</a>
 
@@ -172,10 +172,10 @@ corpus = Corpus('workspace','job_ads')
 # make clusters
 clusters = corpus.clusters('experience', size=3, min_freq = 3,min_range=2)
 
-# print top 25 clusters
+# print the top 25 clusters
 print(clusters.df.head(25))
 
-# save in Excel
+# save as Excel
 clusters.save_xls(corpus.output_path + 'clusters_experience.xlsx')
 ```
 <a href='https://raw.githubusercontent.com/ilexistools/kitconc-examples/master/images/clusters.png'>See results...</a>
@@ -194,8 +194,8 @@ dispersion = corpus.dispersion('experience')
 # print some data
 print(dispersion.df.head(25))
 
-# save in Excel
-dispersion.save_xls(corpus.output_path + 'dispersion_experience.xlsx')
+# save as Excel
+dispersion.save_excel(corpus.output_path + 'dispersion_experience.xlsx')
 ```
 <a href='https://raw.githubusercontent.com/ilexistools/kitconc-examples/master/images/dispersion.png'>See results...</a>
 
@@ -220,8 +220,8 @@ dispersion = corpus.keywords_dispersion(keywords)
 # print some data
 print(dispersion.df.head(25))
 
-# save in Excel
-dispersion.save_xls(corpus.output_path + 'dispersion_keywords.xlsx')
+# save as Excel
+dispersion.save_excel(corpus.output_path + 'dispersion_keywords.xlsx')
 ```
 <a href='https://raw.githubusercontent.com/ilexistools/kitconc-examples/master/images/dispersion_keywords.png'>See results...</a>
 
