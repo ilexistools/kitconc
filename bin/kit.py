@@ -2,13 +2,12 @@
 import os, sys,subprocess  
 from cmd import Cmd
 import argparse
-import pickle
 import pandas as pd
-import re 
-from collections import Counter 
+import re
+import kitconc  
 from kitconc.corpus import Corpus
-from kitconc import utils 
-from kitconc.corpus import Keywords
+from kitconc import kit_tools
+
 
   
 class KitPrompt(Cmd):
@@ -50,11 +49,8 @@ class KitPrompt(Cmd):
 
     def do_version(self,args):
         """\nShows version\n"""
-        print ("\nKitconc 5.0.0\n")
-    
-    def do_dev(self,args):
-        """\nShows developer info\n"""
-        print ("\nJosé Lopes Moreira Filho\njlopes@usp.br\n")
+        print ("\nKitconc " + kitconc.version.__version__)
+        print ("José Lopes Moreira Filho\njlopes@usp.br\n")
     
     def do_cls(self,args):
         """\nClear screen\n"""
@@ -135,19 +131,20 @@ class KitPrompt(Cmd):
     def __corpus_exists(self,corpus_name):
         flag = False
         if self.workspace is not None:
-            if os.path.exists(self.workspace + '/' + corpus_name + '/info.pickle'):
+            if os.path.exists(self.workspace + '/' + corpus_name + '/info.tab'):
                 flag = True
         return flag 
     
-    def __corpus_info(self,corpus_name):
-        corpus_info = None
-        if self.workspace is not None:
-            filename = self.workspace + '/' + corpus_name + '/info.pickle'
-            if os.path.exists(filename):
-                fh = open(filename,'rb')
-                corpus_info = pickle.load(fh)
-                fh.close()
-        return corpus_info  
+    
+    def __corpus_info (self,corpus_name):
+        info = {}
+        with open(self.workspace + corpus_name + '/info.tab','r',encoding='utf-8') as fh:
+            for line in fh:
+                if len(line.strip()) !=0:
+                    fields = line.strip().split('\t')
+                    if len(fields) >= 2:
+                        info[fields[0].replace(':','')]=fields[1]
+        return info  
                 
 
     #
@@ -176,6 +173,7 @@ class KitPrompt(Cmd):
             try:
                 corpus = Corpus(self.workspace,args.name,language=args.language, encoding = encoding)
                 corpus.add_texts(args.source_folder, show_progress=True)
+                os.system('cls' if os.name=='nt' else 'clear')
             except Exception as e:
                 print(e)
     
@@ -314,9 +312,9 @@ class KitPrompt(Cmd):
                 corpus_info = self.__corpus_info(self.corpus_in_use)
                 corpus = Corpus(self.workspace,self.corpus_in_use,language=corpus_info['language'],encoding=corpus_info['encoding'])
                 wordlist = corpus.wordlist(show_progress=True)
-                #wordlist.save_tab(self.workspace + self.corpus_in_use + '/output/wordlist.tab')
-                wordlist.save_xls(self.workspace + self.corpus_in_use + '/output/wordlist.xlsx')
+                wordlist.save_excel(self.workspace + self.corpus_in_use + '/output/wordlist.xlsx')
                 wordlist = None
+                os.system('cls' if os.name=='nt' else 'clear')
         except Exception as e:
                 print(e)
     
@@ -333,9 +331,9 @@ class KitPrompt(Cmd):
                     corpus_info = self.__corpus_info(self.corpus_in_use)
                     corpus = Corpus(self.workspace,self.corpus_in_use,language=corpus_info['language'],encoding=corpus_info['encoding'])
                     wtfreq = corpus.wtfreq(show_progress=True)
-                    #wtfreq.save_tab(self.workspace + self.corpus_in_use + '/output/wtfreq.tab')
-                    wtfreq.save_xls(self.workspace + self.corpus_in_use + '/output/wtfreq.xlsx')
+                    wtfreq.save_excel(self.workspace + self.corpus_in_use + '/output/wtfreq.xlsx')
                     wtfreq = None
+                    os.system('cls' if os.name=='nt' else 'clear')
         except Exception as e:
                 print(e)
     
@@ -354,9 +352,9 @@ class KitPrompt(Cmd):
                     wordlist = corpus.wordlist(show_progress=True)
                     wfreqinfiles = corpus.wfreqinfiles(wordlist, show_progress=True) 
                     wordlist = None
-                    #freqinfiles.save_tab(self.workspace + self.corpus_in_use + '/output/freqinfiles.tab')
-                    wfreqinfiles.save_xls(self.workspace + self.corpus_in_use + '/output/wfreqinfiles.xlsx')
+                    wfreqinfiles.save_excel(self.workspace + self.corpus_in_use + '/output/wfreqinfiles.xlsx')
                     wfreqinfiles = None
+                    os.system('cls' if os.name=='nt' else 'clear')
         except Exception as e:
                 print(e)
     
@@ -373,11 +371,12 @@ class KitPrompt(Cmd):
                     corpus_info = self.__corpus_info(self.corpus_in_use)
                     corpus = Corpus(self.workspace,self.corpus_in_use,language=corpus_info['language'],encoding=corpus_info['encoding'])
                     wordlist = corpus.wordlist(show_progress=True)
+                    os.system('cls' if os.name=='nt' else 'clear')
                     keywords = corpus.keywords(wordlist, show_progress=True) 
                     wordlist = None
-                    #keywords.save_tab(self.workspace + self.corpus_in_use + '/output/keywords.tab')
-                    keywords.save_xls(self.workspace + self.corpus_in_use + '/output/keywords.xlsx')
+                    keywords.save_excel(self.workspace + self.corpus_in_use + '/output/keywords.xlsx')
                     keywords = None
+                    os.system('cls' if os.name=='nt' else 'clear')
         except Exception as e:
                 print(e)
     
@@ -396,8 +395,9 @@ class KitPrompt(Cmd):
                     keynessrange = corpus.keynessxrange(keywords, freqinfiles)
                     keywords = None
                     freqinfiles = None
-                    keynessrange.save_xls(self.workspace + self.corpus_in_use + '/output/keynessxrange.xlsx')
+                    keynessrange.save_excel(self.workspace + self.corpus_in_use + '/output/keynessxrange.xlsx')
                     keynessrange = None
+                    os.system('cls' if os.name=='nt' else 'clear')
         except Exception as e:
                 print(e)
     
@@ -483,7 +483,8 @@ class KitPrompt(Cmd):
                     corpus = Corpus(self.workspace,self.corpus_in_use,language=corpus_info['language'],encoding=corpus_info['encoding'])
                     kwic = corpus.kwic(node,pos=pos,regex=regex,horizon=horizon,limit=limit,show_progress=True)
                     kwic.sort(sort1, sort2, sort3)  
-                    kwic.save_xls(self.workspace + self.corpus_in_use + '/output/kwic.xlsx', width=width)
+                    kwic.save_excel(self.workspace + self.corpus_in_use + '/output/kwic.xlsx', width=width)
+                    os.system('cls' if os.name=='nt' else 'clear')
         except Exception as e:
                 print(e)
     
@@ -534,7 +535,8 @@ class KitPrompt(Cmd):
                     corpus_info = self.__corpus_info(self.corpus_in_use)
                     corpus = Corpus(self.workspace,self.corpus_in_use,language=corpus_info['language'],encoding=corpus_info['encoding'])
                     conc = corpus.concordance(node,pos=pos,regex=regex,limit=limit,show_progress=True)
-                    conc.save_xls(self.workspace + self.corpus_in_use + '/output/concordance.xlsx')
+                    conc.save_excel(self.workspace + self.corpus_in_use + '/output/concordance.xlsx')
+                    os.system('cls' if os.name=='nt' else 'clear')
         except Exception as e:
                 print(e)
         
@@ -617,7 +619,8 @@ class KitPrompt(Cmd):
                 wordlist = corpus.wordlist()
                 collocates = corpus.collocates(wordlist,node,pos=pos,regex=regex,left_span=ls,right_span=rs, 
                                                coll_pos=cpos,limit=limit,measure=stat,show_progress=True)
-                collocates.save_xls(self.workspace + self.corpus_in_use + '/output/collocates.xlsx')
+                collocates.save_excel(self.workspace + self.corpus_in_use + '/output/collocates.xlsx')
+                os.system('cls' if os.name=='nt' else 'clear')
         except Exception as e:
                 print(e) 
         
@@ -683,7 +686,8 @@ class KitPrompt(Cmd):
                 corpus_info = self.__corpus_info(self.corpus_in_use)
                 corpus = Corpus(self.workspace,self.corpus_in_use,language=corpus_info['language'],encoding=corpus_info['encoding'])
                 ngrams = corpus.ngrams(size=size,min_freq=minfreq,min_range=minrange,tag1=tag1,tag2=tag2,tag3=tag3,tag4=tag4, show_progress=True)
-                ngrams.save_xls(self.workspace + self.corpus_in_use + '/output/ngrams.xlsx')
+                ngrams.save_excel(self.workspace + self.corpus_in_use + '/output/ngrams.xlsx')
+                os.system('cls' if os.name=='nt' else 'clear')
         except Exception as e:
                 print(e) 
         
@@ -752,7 +756,8 @@ class KitPrompt(Cmd):
                 corpus_info = self.__corpus_info(self.corpus_in_use)
                 corpus = Corpus(self.workspace,self.corpus_in_use,language=corpus_info['language'],encoding=corpus_info['encoding'])
                 clusters = corpus.clusters(node,size=size,min_freq=minfreq,min_range=minrange,tag1=tag1,tag2=tag2,tag3=tag3,tag4=tag4, show_progress=True)
-                clusters.save_xls(self.workspace + self.corpus_in_use + '/output/clusters.xlsx')
+                clusters.save_excel(self.workspace + self.corpus_in_use + '/output/clusters.xlsx')
+                os.system('cls' if os.name=='nt' else 'clear')
         except Exception as e:
                 print(e)
         
@@ -796,7 +801,8 @@ class KitPrompt(Cmd):
                 corpus_info = self.__corpus_info(self.corpus_in_use)
                 corpus = Corpus(self.workspace,self.corpus_in_use,language=corpus_info['language'],encoding=corpus_info['encoding'])
                 dispersion = corpus.dispersion(node,pos=pos,regex=regex, show_progress=True)
-                dispersion.save_xls(self.workspace + self.corpus_in_use + '/output/dispersion.xlsx')
+                dispersion.save_excel(self.workspace + self.corpus_in_use + '/output/dispersion.xlsx')
+                os.system('cls' if os.name=='nt' else 'clear')
         except Exception as e:
                 print(e)
     
@@ -825,60 +831,12 @@ class KitPrompt(Cmd):
                 wordlist = None
                 dispersion = corpus.keywords_dispersion(keywords,limit=limit, show_progress=True)
                 keywords = None
-                dispersion.save_xls(self.workspace + self.corpus_in_use + '/output/keywords_dispersion.xlsx')
+                dispersion.save_excel(self.workspace + self.corpus_in_use + '/output/keywords_dispersion.xlsx')
+                os.system('cls' if os.name=='nt' else 'clear')
         except Exception as e:
                 print(e)
     
-    #
-    # CREATE TAGGED
-    #
-    def do_create_tagged(self,s):
-        """\nDescription: Creates a corpus from tagged texts. 
-        \nUsage: create_tagged -n [name] -f [source_folder] -l [language] --e [encoding]  
-        """
-        try:
-            parser = argparse.ArgumentParser()
-            parser.add_argument('-n', action='store', dest='name', type=str)
-            parser.add_argument('-f', action='store', dest='source_folder', type=str)
-            parser.add_argument('-l', action='store', dest='language', type=str)
-            parser.add_argument('--e', action='store', dest='encoding', type=str)
-            args = parser.parse_args(s.split())
-        except:
-            args = None
-        
-        if args is not None:
-            if args.encoding!=None:
-                encoding = args.encoding
-            else:
-                encoding='utf-8'
-            try:
-                corpus = Corpus(self.workspace,args.name,language=args.language, encoding = encoding)
-                corpus.add_tagged_texts(args.source_folder, show_progress=True)
-            except Exception as e:
-                print(e)
-
-    #
-    # MERGE TAGGED TOKENS
-    #
-    def do_merge_tokens(self,s):
-        """\nDescription: Merges tagged tokens in a corpus.
-        \nUsage: merge_tokens -f [merge rules file]
-        """
-        try:
-            parser = argparse.ArgumentParser()
-            parser.add_argument('-f', action='store', dest='source_folder', type=str)
-            args = parser.parse_args(s.split())
-        except:
-            args = None
-        
-        if args is not None:
-            try:
-                corpus_info = self.__corpus_info(self.corpus_in_use)
-                corpus = Corpus(self.workspace,self.corpus_in_use,language=corpus_info['language'],encoding=corpus_info['encoding'])
-                merge_rules = utils.load_merge_tags_rules(args.source_folder)
-                corpus.merge_tagged_tokens(merge_rules,show_progress=True)
-            except Exception as e:
-                print(e)
+    
     #
     # STOPLIST
     #
@@ -953,156 +911,14 @@ class KitPrompt(Cmd):
             for kv in new_tb.itertuples(index=False):
                     keywords.append(str(kv[0]) + '\t' + str(kv[1]) + '\t' + str(kv[2])  +  '\t' + str(kv[3]))
             # create keywords object for saving xls
-            kwlst = Keywords(encoding=encoding_set)
+            kwlst =kit_tools.Keywords(encoding=encoding_set)
             kwlst.read_str('\n'.join(keywords))
             keywords = None
             # save replacing the replacing the existent file
-            kwlst.save_xls(self.workspace + self.corpus_in_use + '/output/keywords.xlsx')
+            kwlst.save_excel(self.workspace + self.corpus_in_use + '/output/keywords.xlsx')
+            os.system('cls' if os.name=='nt' else 'clear')
 
-    #
-    # UNIQ
-    #
     
-    def do_uniq(self,s):
-        """\nDescription: Filters out repeated lines in a file.
-        \nUsage: uniq -f [source file]   
-        \n\nOptions: 
-        \n--case [string]    - make lower or upper case
-        \n--e [string]       - encoding (utf-8 is the default)  
-        """
-        try:
-            parser = argparse.ArgumentParser()
-            parser.add_argument('-f', action='store', dest='source_file', type=str)
-            parser.add_argument('--case', action='store', dest='case', type=str)
-            parser.add_argument('--e', action='store', dest='encoding', type=str)
-            args = parser.parse_args(s.split())
-        except:
-            args = None
-        if args is not None:
-            # get args
-            filename = args.source_file
-            if args.case is not None:
-                case = str(args.case).lower()
-            else:
-                case = None
-            if args.encoding is not None:
-                encoding = str(args.encoding)
-            else:
-                encoding = 'utf-8'
-            # get items and filter
-            initial_number_of_items = 0
-            final_number_of_items = 0
-            if os.path.exists(filename):
-                d = {}
-                with open(filename,'r',encoding=encoding) as fh:
-                    for line in fh:
-                        if len(line) != 0:
-                            initial_number_of_items+=1
-                            if case == None:
-                                item = str(line).strip() 
-                            elif case == 'lower':
-                                item = str(line).lower().strip()
-                            elif case == 'upper':
-                                item = str(line).upper().strip()
-                            else:
-                                item = str(line).strip()
-                            if item not in d:
-                                d[item]=0
-                # make sorted data for saving
-                s = []                
-                for item in sorted(d):
-                    final_number_of_items+=1
-                    s.append(item)
-                d = None
-                # save file
-                out_filename = self.workspace + self.corpus_in_use + '/output/uniq.txt' 
-                with open (out_filename,'w',encoding=encoding) as fh:
-                    fh.write('\n'.join(s))
-                s = None
-                # print message
-                print('')
-                print('Before: ' + str(initial_number_of_items))
-                print('After: ' + str(final_number_of_items))
-                print('Deleted: ' + str(initial_number_of_items-final_number_of_items))
-                print('')
-            else:
-                print('Error: File not found or not valid.')
-                
-    
-    #
-    # COUNT
-    #
-    
-    def do_count(self,s):
-        """\nDescription: Counts the items in each line of a file and returns a frequency list.
-        \nUsage: count -f [source file]   
-        \n\nOptions: 
-        \n--case [string]    - make lower or upper case
-        \n--e [string]       - encoding (utf-8 is the default)  
-        """
-        try:
-            parser = argparse.ArgumentParser()
-            parser.add_argument('-f', action='store', dest='source_file', type=str)
-            parser.add_argument('--case', action='store', dest='case', type=str)
-            parser.add_argument('--e', action='store', dest='encoding', type=str)
-            args = parser.parse_args(s.split())
-        except:
-            args = None
-        if args is not None:
-            # get args
-            filename = args.source_file
-            if args.case is not None:
-                case = str(args.case).lower()
-            else:
-                case = None
-            if args.encoding is not None:
-                encoding = str(args.encoding)
-            else:
-                encoding = 'utf-8'
-            # get items and filter
-            tokens = 0
-            types = 0
-            typetoken = 0
-            if os.path.exists(filename):
-                c = Counter()
-                with open(filename,'r',encoding=encoding) as fh:
-                    for line in fh:
-                        if len(line) != 0:
-                            tokens+=1
-                            if case == None:
-                                item = str(line).strip() 
-                            elif case == 'lower':
-                                item = str(line).lower().strip()
-                            elif case == 'upper':
-                                item = str(line).upper().strip()
-                            else:
-                                item = str(line).strip()
-                            c[item]+=1
-                            
-                # make sorted data for saving
-                s = []
-                i = 0
-                for kv in c.most_common():
-                    types+=1
-                    i+=1
-                    s.append(str(i) + '\t' + str(kv[0]) + '\t' + str(kv[1]) )
-                c = None
-                typetoken = (types/float(tokens))*100
-                # save file
-                out_filename = self.workspace + self.corpus_in_use + '/output/count.txt' 
-                with open (out_filename,'w',encoding=encoding) as fh:
-                    fh.write('\n'.join(s))
-                s = None
-                # print message
-                print('')
-                print('Tokens: ' + str(tokens))
-                print('Types: ' + str(types))
-                print('Type/token ratio: ' + str(round(typetoken,2)))
-                print('')
-            else:
-                print('Error: File not found or not valid.')
-
-
                 
     
 
