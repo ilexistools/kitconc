@@ -130,7 +130,7 @@ kwic = corpus.kwic('experience')
 # print 10 lines of concordances
 print(kwic.df.head(10))
 
-# save in Excel
+# save as Excel
 kwic.save_excel(corpus.output_path + 'kwic_experience.xlsx')
 ```
 <a href='https://raw.githubusercontent.com/ilexistools/kitconc-examples/master/images/concordance.png'>See results...</a>
