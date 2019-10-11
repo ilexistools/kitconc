@@ -66,12 +66,12 @@ See how easy it is to use Kitconc:
 Adding a corpus
 -------------
 ```python
-from kitconc.corpus import Corpus 
+from kitconc.kit_corpus import Corpus 
 
 # create a corpus
 # * 'workspace' is the folder path to store the corpus data
 # * 'job_ads' is the corpus name
-corpus = Corpus('workspace','job_ads', language='english',encoding='utf-8')
+corpus = Corpus('workspace','job_ads', language='english')
 
 # add texts
 # * 'JOB_ADS' is the folder path for the raw corpus (.txt files)  
@@ -82,7 +82,7 @@ corpus.add_texts('JOB_ADS',show_progress=True)
 Creating a wordlist 
 -------------
 ```python
-from kitconc.corpus import Corpus
+from kitconc.kit_corpus import Corpus
 
 # reference to corpus 
 corpus = Corpus('workspace','job_ads')
@@ -103,7 +103,7 @@ wordlist.save_excel(corpus.output_path + 'wordlist.xlsx')
 Extracting keywords 
 -------------
 ```python
-from kitconc.corpus import Corpus
+from kitconc.kit_corpus import Corpus
 
 # reference to corpus 
 corpus = Corpus('workspace','job_ads')
@@ -128,7 +128,7 @@ keywords.save_excel(corpus.output_path + 'keywords.xlsx')
 Creating concordance lines 
 -------------
 ```python
-from kitconc.corpus import Corpus
+from kitconc.kit_corpus import Corpus
 
 # reference to corpus 
 corpus = Corpus('workspace','job_ads')
@@ -147,7 +147,7 @@ kwic.save_excel(corpus.output_path + 'kwic_experience.xlsx')
 Finding collocates 
 -------------
 ```python
-from kitconc.corpus import Corpus
+from kitconc.kit_corpus import Corpus
 
 # reference to corpus 
 corpus = Corpus('workspace','job_ads')
@@ -173,7 +173,7 @@ collocates.save_excel(corpus.output_path + 'collocates_experience.xlsx')
 Making clusters 
 -------------
 ```python
-from kitconc.corpus import Corpus
+from kitconc.kit_corpus import Corpus
 
 # reference to corpus 
 corpus = Corpus('workspace','job_ads')
@@ -192,7 +192,7 @@ clusters.save_xls(corpus.output_path + 'clusters_experience.xlsx')
 Creating dispersion plots 
 -------------
 ```python
-from kitconc.corpus import Corpus
+from kitconc.kit_corpus import Corpus
 
 # reference to corpus 
 corpus = Corpus('workspace','job_ads')
@@ -211,7 +211,7 @@ dispersion.save_excel(corpus.output_path + 'dispersion_experience.xlsx')
 Creating keywords dispersion plots 
 -------------
 ```python
-from kitconc.corpus import Corpus
+from kitconc.kit_corpus import Corpus
 
 # reference to corpus 
 corpus = Corpus('workspace','job_ads')
