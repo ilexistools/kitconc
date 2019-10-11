@@ -1,9 +1,11 @@
+# -*- coding: utf-8 -*-
+import setuptools
 from distutils.core import setup
 
 setup(
     name='kitconc',
-    version='1.0.0',
-    author='Jose Lopes Moreira Filho',
+    version='1.3.3',
+    author='José Lopes Moreira Filho',
     author_email='jlopes@usp.br',
     packages=['kitconc'],
     package_data={'kitconc': ['data/*.*']},
@@ -12,6 +14,7 @@ setup(
     license='LICENSE.txt',
     description='A toolkit for Corpus Linguistics Analysis',
     long_description=open('README.txt').read(),
+    long_description_content_type='text/x-rst',
     install_requires=[
         "nltk >= 3.2.5",
         "numpy >= 1.14.0",

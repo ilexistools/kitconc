@@ -1,1 +1,24 @@
-v<version>, <date> -- Initial release.
+Version 1.3.3
+2019-10-10
+- Added kit_cmd to kitconc modules.
+- Kit class can be imported from kit_cmd.
+
+Version 1.3.2
+2019-10-10
+- Add kit.py to scripts folder.
+
+Version 1.3.1
+2019-10-10
+- Add kit.py to scripts folder.
+
+Version 1.3.0
+2019-10-10
+- Fix sqlite3 version.
+
+Version 1.2.0
+2019-10-10
+- Fix sqlite3 version.
+
+Version 1.1.0
+2019-10-10
+- Using sqlite3 to create corpora.
