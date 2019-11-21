@@ -1,3 +1,57 @@
+Version 1.4.3
+2019-11-17
+- Fix showing tools;
+
+Version 1.4.2
+2019-11-17
+- Fix showing corpus info;
+
+Version 1.4.1
+2019-11-17
+- Fix showing texts;
+
+Version 1.4.0
+2019-11-15
+- Add functions in Corpus class; 
+- Fix files2utf8 in kit_util;
+- Add Texts tool for the graphical interface.
+ 
+Version 1.3.9
+2019-11-13
+- Graphical interface for Kitconc concordancer;
+- Fix loading png files for the graphical interface.
+
+Version 1.3.8
+2019-11-13
+- Graphical interface for Kitconc concordancer;
+- Fix loading png files for the graphical interface.
+
+Version 1.3.7
+2019-10-14
+- Graphical interface for Kitconc concordancer
+  
+Version 1.3.6
+2019-10-14
+- Add functions:
+ * tagged_sentence_get()
+ * tagged_sentences_get()
+ * sentences_get()
+ * words_get()
+ * tagged_words_get()
+- Fix download examples in kit_cmd.
+ 
+Version 1.3.5
+2019-10-14
+- Add examples function in kit_cmd.
+- Fix core file handlers.
+- Fix **kwargs for plot_collgraph.
+- Fix printing progress on jupyter notebook or qtconsole.
+
+Version 1.3.4
+2019-10-13
+- Fix for downloading examples from github.
+- Add **kwargs for plot_collgraph in the object Collocates.
+
 Version 1.3.3
 2019-10-10
 - Added kit_cmd to kitconc modules.
