@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# Author: jlopes@usp.br
 import os,sys   
 import nltk
 import sqlite3
@@ -25,6 +26,15 @@ class Corpus (object):
         # script path
         self.__path = os.path.dirname(os.path.abspath(__file__))
         self.resource_data_path = self.__path + '/data/'
+        # check environment
+        self.__shell = False
+        try:
+            from IPython import get_ipython
+            shell = get_ipython().__class__.__name__
+            if shell == 'ZMQInteractiveShell':
+                self.__shell = True   # Jupyter notebook or qtconsole
+        except:
+            pass  
         # constants
         self.MEASURE_MUTUAL_INFORMATION = 'mutual information'
         self.MEASURE_CHI_SQUARE = 'chi-square'
@@ -99,15 +109,16 @@ class Corpus (object):
     # show progress function
     
     def __progress(self, count, total, suffix=''):
-        bar_len = 30
-        filled_len = int(round(bar_len * count / float(total)))
-        percents = round(100.0 * count / float(total), 1)
-        bar = '=' * filled_len + '-' * (bar_len - filled_len)
-        sys.stdout.write('[%s] %s%s ...%s\r' % (bar, percents, '%', suffix))
-        try:
-            sys.stdout.flush()  
-        except:
-            pass 
+        if self.__shell == False:
+            bar_len = 30
+            filled_len = int(round(bar_len * count / float(total)))
+            percents = round(100.0 * count / float(total), 1)
+            bar = '=' * filled_len + '-' * (bar_len - filled_len)
+            sys.stdout.write('[%s] %s%s ...%s\r' % (bar, percents, '%', suffix))
+            try:
+                sys.stdout.flush()  
+            except:
+                pass 
 
     
     # easy connections for sqlite3 databases
@@ -286,6 +297,7 @@ class Corpus (object):
         s.append('Tokens:\t%s' % self.tokens_count())
         s.append('Types:\t%s' % self.types_count())
         s.append('Type/token ratio:\t%s' % self.typetoken_count())
+        s.append('Source:\t%s' % source_folder)
         with open(self.workspace + self.corpus_name + '/info.tab','a',encoding='utf-8') as fh:
             fh.write('\n' + '\n'.join(s))
         # time it end 
@@ -297,6 +309,7 @@ class Corpus (object):
     def regexp(self,item):
         return self.__regex_punct.match(item) is not None 
 
+    # Basic statistics info
     
     def tokens_count(self):
         """Returns the number of tokens.
@@ -332,6 +345,136 @@ class Corpus (object):
         typetoken = round((types/tokens)*100,2)
         return typetoken
     
+    # textfile functions
+    
+    def textfile_get_id(self,filename):
+        """Returns the id number according to the filename of the text.
+        :param  filename: The name of the textfile.
+        :type   filename: str
+        :return: int
+        :rtype: int
+        """
+        conn = self.__conn_indexes()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM textfiles WHERE textfile = '%s'" % filename)
+        try:
+            textfile_id = cursor.fetchone()[0]
+        except:
+            textfile_id = 0
+        conn.close()
+        return textfile_id
+    
+    def textfile_get_filename(self,textfile_id):
+        """Returns the filename according to the id of the text.
+        :param  textfile_id: The id of the textfile.
+        :type   textfile_id: int
+        :return: str
+        :rtype: str
+        """
+        conn = self.__conn_indexes()
+        cursor = conn.cursor()
+        cursor.execute("SELECT textfile FROM textfiles WHERE id = %s" % textfile_id)
+        try:
+            filename = cursor.fetchone()[0]
+        except:
+            filename = ''
+        conn.close()
+        return filename
+        
+    def textfile_get(self,textfile_id):
+        """Returns the text according to the textfile id
+        :param  textfile_id: The id of the textfile.
+        :type   textfile_id: int
+        :return: list
+        :rtype: list
+        """
+        conn = self.__conn_indexes()
+        cursor = conn.cursor()
+        cursor.execute("""SELECT GROUP_CONCAT(word,' ') AS words
+        FROM searches
+        INNER JOIN words ON words.id = searches.word_id 
+        WHERE textfile_id = %s
+        GROUP BY sentence_id """ % textfile_id)
+        text = []
+        for row in cursor.fetchall():
+            text.append(row[0])
+        conn.close()
+        return text
+    
+    def textfile_get_str(self,textfile_id):
+        """Returns the text according to the textfile id
+        :param  textfile_id: The id of the textfile.
+        :type   textfile_id: int
+        :return: str
+        :rtype: str
+        """
+        conn = self.__conn_indexes()
+        cursor = conn.cursor()
+        cursor.execute("""SELECT GROUP_CONCAT(word,' ') AS words
+        FROM searches
+        INNER JOIN words ON words.id = searches.word_id 
+        WHERE textfile_id = %s
+        GROUP BY sentence_id """ % textfile_id)
+        text = []
+        for row in cursor.fetchall():
+            text.append(row[0])
+        conn.close()
+        return '\n'.join(text)
+    
+    def textfile_get_tagged(self,textfile_id):
+        """Returns the tagged text according to the textfile id
+        :param  textfile_id: The id of the textfile.
+        :type   textfile_id: int
+        :return: list
+        :rtype: list
+        """
+        conn = self.__conn_indexes()
+        cursor = conn.cursor()
+        cursor.execute("""SELECT GROUP_CONCAT(word,' ') AS words, GROUP_CONCAT(tag,' ') AS tags
+        FROM searches
+        INNER JOIN words ON words.id = searches.word_id 
+        INNER JOIN tags ON tags.id = searches.tag_id
+        WHERE textfile_id = %s
+        GROUP BY sentence_id """ % textfile_id)
+        text = []
+        for row in cursor.fetchall():
+            words = row[0].strip().split(' ')
+            tags = row[1].strip().split(' ')
+            sent = []
+            for i in range(0, len(words)):
+                sent.append((words[i], tags[i]))
+            text.append(sent)
+        conn.close()
+        return text
+    
+    def textfile_get_tagged_str(self,textfile_id):
+        """Returns the tagged text according to the textfile id
+        :param  textfile_id: The id of the textfile.
+        :type   textfile_id: int
+        :return: str
+        :rtype: str
+        """
+        conn = self.__conn_indexes()
+        cursor = conn.cursor()
+        cursor.execute("""SELECT GROUP_CONCAT(word,' ') AS words, GROUP_CONCAT(tag,' ') AS tags
+        FROM searches
+        INNER JOIN words ON words.id = searches.word_id 
+        INNER JOIN tags ON tags.id = searches.tag_id
+        WHERE textfile_id = %s
+        GROUP BY sentence_id """ % textfile_id)
+        text = []
+        for row in cursor.fetchall():
+            words = row[0].strip().split(' ')
+            tags = row[1].strip().split(' ')
+            sent = []
+            for i in range(0, len(words)):
+                sent.append(words[i] + '/' + tags[i])
+            text.append(' '.join(sent))
+        conn.close()
+        return '\n'.join(text)
+    
+    # textfiles functions
+    
     def textfiles_count(self):
         """Returns the number of textfiles.
         :return: int
@@ -356,10 +499,107 @@ class Corpus (object):
         for row in cursor.fetchall():
             n.append(row[0])
         conn.close()
-        return n 
+        return n
+    
+    def textfiles_get_names(self):
+        """Returns the names of textfiles.
+        :return: generator
+        :rtype: generator
+        """
+        conn = self.__conn_indexes()
+        cursor = conn.cursor()
+        cursor.execute("SELECT textfile FROM textfiles ORDER BY id")
+        for row in cursor.fetchall():
+            yield row[0]
+        conn.close()
+        
+    
+    # words functions
+    
+    def word_get_id(self,word):
+        """Returns the word id number.
+        :param word: word
+        :type str: str
+        :return: int
+        :rtype: int
+        """
+        conn = self.__conn_indexes()
+        cursor = conn.cursor()
+        cursor.execute("""SELECT id FROM words WHERE word = '%s' """ % word)
+        word_id = cursor.fetchone()[0]
+        conn.close()
+        return word_id
+    
+    def words_count(self):
+        """Returns the number of tokens in the corpus.
+        :return: int
+        :rtype: int
+        """
+        conn = self.__conn_indexes()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) AS words FROM searches")
+        total_tokens = cursor.fetchone()[0]
+        conn.close()
+        return total_tokens
+        
+    
+    def words_get(self):
+        """Returns all words (tokens) in the corpus.
+        :return: generator
+        :rtype: generator
+        """
+        conn = self.__conn_indexes()
+        cursor = conn.cursor()
+        cursor.execute("""
+        SELECT word
+        FROM searches
+        INNER JOIN words ON words.id = searches.word_id 
+        GROUP BY word_id
+        """)
+        for row in cursor.fetchall():
+            yield row[0]
+        conn.close()
+    
+    def words_get_tagged(self):
+        """Returns all tagged words in the corpus.
+        :return: generator
+        :rtype: generator
+        """
+        conn = self.__conn_indexes()
+        cursor = conn.cursor()
+        cursor.execute("""
+        SELECT word,tag
+        FROM searches
+        INNER JOIN words ON words.id = searches.word_id 
+        INNER JOIN tags ON tags.id = searches.tag_id 
+        GROUP BY word_id
+        """)
+        for row in cursor.fetchall():
+            yield (row[0],row[1])
+        conn.close()
+        
+    def tagged_words_get(self):
+        """Returns all tagged words in the corpus.
+        :return: generator
+        :rtype: generator
+        """
+        conn = self.__conn_indexes()
+        cursor = conn.cursor()
+        cursor.execute("""
+        SELECT word,tag
+        FROM searches
+        INNER JOIN words ON words.id = searches.word_id 
+        INNER JOIN tags ON tags.id = searches.tag_id 
+        GROUP BY word_id
+        """)
+        for row in cursor.fetchall():
+            yield (row[0],row[1])
+        conn.close()
+    
+    # sentences functions
     
     def sentences_count(self):
-        """Returns the number of sentences.
+        """Returns the number of sentences in the corpus.
         :return: int
         :rtype: int
         """
@@ -369,6 +609,26 @@ class Corpus (object):
         sentences = cursor.fetchone()[0]
         conn.close()
         return sentences
+    
+    def sentences_get(self):
+        """Returns all sentences in the corpus
+        :return: generator
+        :rtype: generator
+        """
+        conn = self.__conn_indexes()
+        cursor = conn.cursor()
+        cursor.execute("""
+        SELECT GROUP_CONCAT(word,' ') AS words
+        FROM searches
+        INNER JOIN words ON words.id = searches.word_id 
+        INNER JOIN tags ON tags.id = searches.tag_id
+        GROUP BY sentence_id
+        """)
+        for row in cursor.fetchall():
+            yield row[0].split(' ')
+        conn.close()
+        
+    # sentence functions
     
     def sentence_get(self,sent_id):
         """Returns a sentence by id number.
@@ -390,19 +650,57 @@ class Corpus (object):
         conn.close()
         return sentence
     
-    def word_get_id(self,word):
-        """Returns the word id number.
-        :param word: word
-        :type str: str
-        :return: int
-        :rtype: int
+    def tagged_sentences_get(self):
+        """Returns all tagged sentences in the corpus
+        :return: generator
+        :rtype: generator
         """
         conn = self.__conn_indexes()
         cursor = conn.cursor()
-        cursor.execute("""SELECT id FROM words WHERE word = '%s' """ % word)
-        word_id = cursor.fetchone()[0]
+        cursor.execute("""
+        SELECT GROUP_CONCAT(word,' ') AS words, GROUP_CONCAT(tag,' ') AS tags
+        FROM searches
+        INNER JOIN words ON words.id = searches.word_id 
+        INNER JOIN tags ON tags.id = searches.tag_id
+        GROUP BY sentence_id 
+        """)
+        for row in cursor.fetchall():
+            tagged_sent = []
+            words = row[0].split(' ')
+            tags = row[1].split(' ')
+            row = None
+            for i in range(0,len(words)):
+                tagged_sent.append((words[i],tags[i]))
+            yield tagged_sent
         conn.close()
-        return word_id
+    
+    def tagged_sentence_get(self,sent_id):
+        """Returns a tagged sentence by id number.
+        :param sent_id: Sentence identification number
+        :type int: int
+        :return: list
+        :rtype: list
+        """
+        conn = self.__conn_indexes()
+        cursor = conn.cursor()
+        cursor.execute("""
+        SELECT GROUP_CONCAT(word,' ') AS words, GROUP_CONCAT(tag,' ') AS tags
+        FROM searches
+        INNER JOIN words ON words.id = searches.word_id 
+        INNER JOIN tags ON tags.id = searches.tag_id
+        WHERE sentence_id = %s
+        GROUP BY sentence_id 
+        """ % str(sent_id))
+        r = cursor.fetchone()
+        conn.close()
+        tagged_sent = []
+        words = r[0].split(' ')
+        tags = r[1].split(' ')
+        r = None
+        for i in range(0,len(words)):
+            tagged_sent.append((words[i],tags[i]))
+        return tagged_sent 
+    
     
     def tag_get_id(self,tag):
         """Returns the tag id number.
@@ -668,7 +966,7 @@ class Corpus (object):
         pos = kwargs.get('pos',None)
         case_sensitive = kwargs.get('case_sensitive',False)
         regexp = kwargs.get('regexp',False)
-        horizon = kwargs.get('horizon',7)
+        horizon = kwargs.get('horizon',10)
         limit = kwargs.get('limit',None)
         show_progress = kwargs.get('show_progress',False)
         # deal with args

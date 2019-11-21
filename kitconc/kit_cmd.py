@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# Author: jlopes@usp.br
 import os, sys,subprocess  
 from cmd import Cmd
 import argparse
@@ -6,6 +7,7 @@ from kitconc import version
 from kitconc.kit_corpus import Corpus
 from kitconc.kit_plots import CollGraph
 from kitconc import kit_util  
+from kitconc.core import Examples 
 import re 
 import pandas as pd 
 
@@ -249,6 +251,13 @@ class Kit(Cmd):
             parser.description='Converts textfiles to utf-8 encoding in a source folder.'
             parser.add_argument('source', type=str, nargs='?',help='source folder with textfiles to be converted')
             parser.add_argument('target', type=str, nargs='?',help='target folder to save the converted files')
+        
+        elif function_name == 'examples':
+            parser = argparse.ArgumentParser()
+            parser.prog= "examples"
+            parser.description='Downloads examples from github.'
+            parser.add_argument('--dest_path', action='store', dest='dest_path', type=str, help='Path to store examples')
+            
             
         
         
@@ -882,6 +891,20 @@ class Kit(Cmd):
                 print('The path provided is not valid.')
         except Exception as e:
             print(e)
+    
+    def do_examples(self,arg):
+        parser = self.get_parser('examples')
+        args = parser.parse_args(self.parse_arg(arg))
+        try:
+            if args.dest_path !=None:
+                ex = Examples()
+                ex.download(dest_path=args.dest_path)
+            else:
+                ex = Examples()
+                ex.download()
+        except Exception as e:
+            print(e)
+        
     
     def run(self):
         print('Welcome to the Kitconc shell. Version: %s' % version.__version__)

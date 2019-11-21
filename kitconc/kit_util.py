@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# Author: jlopes@usp.br
 import os,sys  
 import math
 import time  
@@ -175,19 +176,18 @@ def files2utf8(source_folder,target_folder,source_encoding='mbcs',show_progress=
     i = 0
     total = len(files)
     for filename in files:
-        source_encoding = encoding_get(source_folder + filename)
-        print(source_encoding)
         i+=1
-        if source_encoding != 'utf-8':
-            file2utf8b(source_folder + filename,target_folder + filename,source_encoding)
-        else:
-            with open (source_folder + filename,'r', encoding='utf-8') as fh:
-                content = fh.read()
-            with open(target_folder + filename,'w', encoding='utf-8') as fh:
-                fh.write(content)
-            
-        if show_progress == True:
-            __progress(i, total, '')
+        if os.path.isfile(source_folder + filename)==True:
+            source_encoding = encoding_get(source_folder + filename)
+            if source_encoding != 'utf-8':
+                file2utf8b(source_folder + filename,target_folder + filename,source_encoding)
+            else:
+                with open (source_folder + filename,'r', encoding='utf-8') as fh:
+                    content = fh.read()
+                with open(target_folder + filename,'w', encoding='utf-8') as fh:
+                    fh.write(content)
+            if show_progress == True:
+                __progress(i, total, '')
     # time end
     if show_progress == True:
         t1 = time.time()

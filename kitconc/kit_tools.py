@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# Author: jlopes@usp.br
 import pandas as pd
 from io import StringIO
 import xlsxwriter 
@@ -701,7 +702,15 @@ class Collocates(object):
         return True 
     
     def plot_collgraph(self,**kwargs):
-        collgraph = CollGraph()
+        args_title = kwargs.get('title','Collocations')
+        args_xlabel = kwargs.get('xlabel','position of the collocate')
+        args_ylabel = kwargs.get('ylabel','strength of association')
+        args_node = kwargs.get('node','node')
+        args_cutoff = kwargs.get('cutoff',0.5)
+        args_limit = kwargs.get('limit',20)
+        args_stoplist = kwargs.get('stoplist',[])
+        collgraph = CollGraph(title=args_title,xlabel=args_xlabel,ylabel=args_ylabel,node=args_node,
+                                 cutoff=args_cutoff,limit=args_limit,stoplist=args_stoplist)
         collgraph.plot_graphcoll(self)
 
 

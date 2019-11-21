@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# Author: jlopes@usp.br
 import os 
 import numpy as np
 import matplotlib.pyplot as plt

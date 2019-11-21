@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
+# Author: jlopes@usp.br
 import os  
-import pickle 
-import urllib.request  
-from tempfile import NamedTemporaryFile
-from shutil import unpack_archive
-import nltk 
+import pickle
+import requests, zipfile, io 
+
     
     
 class Examples(object):
@@ -37,32 +36,26 @@ class Examples(object):
         
         # check if it was already downloaded
         if os.path.exists(dest_path + 'kitconc-examples')==True:
-            print('kitconc-examples already exists!')
+            print('The kitconc-examples resource already exists!')
         else:
             # start message
             if show_process == True:
                 print('Downloading...')
-            url = 'https://github.com/ilexistools/kitconc-examples/archive/master.zip'
-            zipurl = url
-            zipresp = urllib.request.urlopen(zipurl)
-            tfile = NamedTemporaryFile()
-            tfile.write(zipresp.read())
-            tfile.seek(0)
-            unpack_archive(tfile.name,dest_path, format = 'zip')
-            zipresp.close()
-            tfile.close()
-            # rename the folder
-            if os.path.exists(dest_path + '/kitconc-examples-master')==True:
-                os.rename(dest_path + '/kitconc-examples-master',dest_path + 'kitconc-examples')
-                # files location message
-                if show_process ==True:
-                    print('Location: ' + dest_path + 'kitconc-examples')
-            # finish message
-            if show_process ==True:
-                print('Done.')
-        
-        
- 
+            try:
+                url = 'https://github.com/ilexistools/kitconc-examples/archive/master.zip'
+                r = requests.get(url)
+                z = zipfile.ZipFile(io.BytesIO(r.content))
+                z.extractall(dest_path)
+                # rename the folder
+                if os.path.exists(dest_path + '/kitconc-examples-master')==True:
+                    os.rename(dest_path + '/kitconc-examples-master',dest_path + 'kitconc-examples')
+                    # files location message
+                    if show_process ==True:
+                        print('Location: ' + dest_path + 'kitconc-examples')
+                print('Done!')
+            except:
+                print('Download was not possible.')
+
 
 
 class Config(object):
@@ -84,8 +77,8 @@ class Config(object):
         flag = False 
         try:
             data_path = self.__path + '/data/tokenizer_' + language + '.pickle'
-            with open (data_path,'wb') as f:
-                pickle.dump(tokenizer,data_path)
+            with open (data_path,'wb') as fh:
+                pickle.dump(tokenizer,fh)
             flag = True
         except:
             flag = None
@@ -96,8 +89,8 @@ class Config(object):
         flag = False 
         try:
             data_path = self.__path + '/data/tagger_' + language + '.pickle'
-            with open (data_path,'wb') as f:
-                pickle.dump(tagger,data_path)
+            with open (data_path,'wb') as fh:
+                pickle.dump(tagger,fh)
             flag = True
         except:
             flag = None
@@ -142,13 +135,7 @@ class Resources(object):
     def train_tagger(self,tagged_sents,**kwargs):
         """Trains a tagger"""
         show_progress = kwargs.get('show_progress',True)
-        
-         
-
-
-
-
-
+    
 
 
  

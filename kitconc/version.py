@@ -1,2 +1,3 @@
 # -*- coding: utf-8 -*-
-__version__ = '1.3.3'
+# Author: jlopes@usp.br
+__version__ = '1.4.3'

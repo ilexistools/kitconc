@@ -1,4 +1,5 @@
-
+# -*- coding: utf-8 -*-
+# Author: jlopes@usp.br
 class sqlFactory:
     
     def __init__(self):
