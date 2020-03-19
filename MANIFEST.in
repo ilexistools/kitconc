@@ -1,6 +1,7 @@
 include *.txt
 recursive-include docs *.txt
 include kitconc/data/*.tab
+include kitconc/data/*.exe
 include kitconc/data/*.pickle
 include kitconc/data/images/*.png
 include kitconc/data/scripts/*.py

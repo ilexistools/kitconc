@@ -1,3 +1,34 @@
+Version 2.0.5
+2020-02-05
+- Fix wordlist limit (minfreq was set to 10 by deafult); 
+
+Version 2.0.4
+2020-02-03
+- Add a function in KitApp to populate dropdown with languages; 
+- Add functions for saving new resources in data folder;
+- Add {'constant_memory': True} to Workbook function in kit_tools to speed up Excel writing files. 
+
+Version 2.0.3
+2020-01-30
+- Requirements update.
+
+
+Version 2.0.2
+2020-01-30
+- Fix get_texts function.
+
+
+Version 2.0.1
+2020-01-30
+- Fix collocates;
+- Fix hello script.
+
+Version 2.0.0
+2020-01-25
+- Sqlite is no longer used;
+- Corpus data is stored in numpy arrays;
+- Now, using Cython to speed up searches;
+
 Version 1.4.3
 2019-11-17
 - Fix showing tools;
