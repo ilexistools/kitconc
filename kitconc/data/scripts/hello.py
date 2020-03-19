@@ -4,7 +4,7 @@ import sys
 from kitconc.kit_corpus import Corpus 
 print('Hello!')
 print('')
-print("""This is an example on how to create a custom scripts.
+print("""This is an example on how to create a custom script.
 \nHere is how arguments are received: 
 """)
 print('Arg 1 - Workspace: %s' % sys.argv[1])
