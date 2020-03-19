@@ -66,8 +66,7 @@ class KitApp(Tk):
         self.popup_menu_tools.add_command(label='Scripts folder...', command=self.__open_scripts_folder)
         # add popup dropdown menu on right click for tools treeview
         self.frm_trv_tools.bind('<Button-3>',self.__popup_tools)
-
-     
+        
     def __add_widgets(self):
         """Adds the fixed widgets to the window"""
         # menu
@@ -76,6 +75,9 @@ class KitApp(Tk):
         file = Menu(menubar, tearoff=0)  
         file.add_command(label="New corpus...",command=self.__newcorpusdialog)  
         file.add_command(label="Delete corpus",command=self.__delete_corpus) 
+        file.add_separator() 
+        file.add_command(label="Import...",command=self.__import_corpus)
+        file.add_command(label="Export...",command=self.__export_corpus)  
         file.add_separator() 
         file.add_command(label="Workspace...",command=self.__set_workspace)  
         file.add_separator()  
@@ -192,6 +194,40 @@ class KitApp(Tk):
         except Exception as e:
             print(e)
     
+    # export corpus
+    def __export_corpus(self):
+        def callback():
+            self.__show_progress('Running Export...')
+            t = threading.Thread (target=self.__exec_export_corpus)
+            t.start()
+        self.after_idle(callback)
+    
+    def __exec_export_corpus(self):
+        if self.kit.corpus_in_use != None:
+            source_folder = filedialog.askdirectory()
+            if len(source_folder)!= 0:
+                self.kit.do_export_corpus(source_folder)
+                messagebox.showinfo('Export corpus', 'Success!\nThe current corpus was saved.')
+        else:
+            messagebox.showwarning('Export corpus', 'Attention!\nYou need to select a corpus to continue.')
+        self.__hide_progress()
+    
+    
+    # import corpus
+    def __import_corpus(self):
+        def callback():
+            self.__show_progress('Running Import...')
+            t = threading.Thread (target=self.__exec_import_corpus)
+            t.start()
+        self.after_idle(callback)
+    
+    def __exec_import_corpus(self):
+        filename = filedialog.askopenfilename()
+        if len(filename)!= 0:
+            self.kit.do_import_corpus(filename)
+            self.__load_corpora()
+        self.__hide_progress()
+    
     # rename dialog
     def __renamedialog(self):
         def callback():
@@ -227,9 +263,24 @@ class KitApp(Tk):
             txt_filename.focus()
         self.after_idle(callback)
     
+    # get languages 
+    def __get_languages(self):
+        I = 11
+        E = 7
+        files = os.listdir(self.__path + '/data/')
+        self.__languages=[]
+        for filename in files:
+            if filename.startswith('pos_tagger_'):
+                size = len(filename)
+                m = size - (I+E)
+                language = filename[I:(I+m)]
+                self.__languages.append(language)
+    
     # new corpus dialog
     def __newcorpusdialog(self):
         def callback():
+            # get languages
+            self.__get_languages()
             self.top = Toplevel()
             self.top.title('New corpus')
             window_height = 180
@@ -258,13 +309,19 @@ class KitApp(Tk):
             txt_corpusname.place(x=10,y=95,width=150)
             lbl_language = ttk.Label(self.top,text='Language')
             lbl_language.place(x=190,y=70)
-            cmb_language = ttk.Combobox(self.top,state='readonly',values=['english','portuguese'])
+            cmb_language = ttk.Combobox(self.top,state='readonly',values= self.__languages)
             cmb_language.place(x=190,y=95,width=150)
             cmb_language.current(0)
+            self.chk_tagged = ttk.Checkbutton(self.top,text='tagged')
+            self.chk_tagged.state(['disabled'])
+            self.chk_tagged.state(['!alternate'])
+            self.chk_tagged.state(['disabled'])
+            self.chk_tagged.state(['!disabled'])
+            self.chk_tagged.place(x=190,y=135)
             btn_create = ttk.Button(self.top,text='Create',width=10,command=self.__newcorpus_create)
             btn_create.place(x=10,y=135)
             btn_cancel = ttk.Button(self.top,text='Cancel',width=10,command=self.__newcorpus_cancel)
-            btn_cancel.place(x=120,y=135)
+            btn_cancel.place(x=95,y=135)
             txt_corpusname.focus()
         self.after_idle(callback)
     
@@ -538,10 +595,11 @@ class KitApp(Tk):
                 files = os.listdir(self.kit.workspace +'/' + self.kit.corpus_in_use + '/output')
                 i = 0
                 for filename in files:
-                    if filename.startswith('~')==False:
-                        self.frm_trv_files.insert('','end',str(i),text=filename.replace('.xlsx',''),image=self.icon_excel)
-                        i+=1
-                        
+                    if filename.endswith('.xlsx') or filename.endswith('.xls'):
+                        if filename.startswith('~')==False:
+                            self.frm_trv_files.insert('','end',str(i),text=filename.replace('.xlsx',''),image=self.icon_excel)
+                            i+=1
+                            
     def __delete_datafile(self):
         def callback():
             if self.kit.corpus_in_use != None:
@@ -591,6 +649,8 @@ class KitApp(Tk):
         self.after_idle(callback)
     
     def __corpus_info(self):
+        import locale
+        locale.setlocale(locale.LC_ALL, '')
         corpus_info = []
         if os.path.exists(self.kit.workspace +'/' + self.kit.corpus_in_use + '/info.tab'):
             with open (self.kit.workspace +'/' + self.kit.corpus_in_use + '/info.tab','r', encoding='utf-8') as fh:
@@ -599,16 +659,15 @@ class KitApp(Tk):
                         fields = line.strip().split('\t')
                         if len(fields) >= 2:
                             if fields[0].startswith('Textfiles'):
-                                corpus_info.append('Texts: ' + fields[1])
+                                corpus_info.append('Texts: %s' % locale.format_string("%d", int(fields[1]), grouping=True) )
                             elif fields[0].startswith('Tokens'):
-                                corpus_info.append('Tokens: ' + fields[1])
+                                corpus_info.append('Tokens: %s' % locale.format_string("%d", int(fields[1]), grouping=True)  )
                             elif fields[0].startswith('Types'):
-                                corpus_info.append('Types: ' + fields[1])
+                                corpus_info.append('Types: %s' % locale.format_string("%d", int(fields[1]), grouping=True) )
                             elif fields[0].startswith('Type/token'):
-                                corpus_info.append('TTR: ' + fields[1])
+                                corpus_info.append('TTR: %s' % round(float(fields[1]),2) )
                             elif fields[0].startswith('Source:'):
                                 self.textfiles_path = fields[1]
-                                break
         return ' - '.join(corpus_info) + '     '
                         
                     
@@ -654,8 +713,12 @@ class KitApp(Tk):
     def __create_corpus(self):
         if len(self.corpusname.get().strip()) !=0 and len(self.source.get().strip()) != 0:
             language = self.top.children['!combobox'].get()
+            if self.chk_tagged.instate(['selected']):
+                tagged = 'True' 
+            else:
+                tagged = 'False'
             self.top.destroy()
-            self.kit.do_create(self.corpusname.get() + ' ' + self.source.get() + ' ' + language)
+            self.kit.do_create(self.corpusname.get() + ' ' + self.source.get() + ' ' + language + ' --tagged ' + tagged)
             self.__load_corpora()
             self.focus()
             self.__hide_progress()
@@ -772,7 +835,7 @@ class KitApp(Tk):
                 self.trv_texts.bind("<Double-1>", lambda event: self.__on_open_text())
                 # get texts
                 corpus = Corpus (self.kit.workspace, self.kit.corpus_in_use)
-                filenames = corpus.textfiles_get_names()
+                filenames = corpus.textfiles()
                 for filename in filenames:
                     self.trv_texts.insert('','end',filename ,text=' ' + filename,image=self.icon_text)
                     
@@ -1243,6 +1306,7 @@ class KitApp(Tk):
         self.__rename_file('wordlist')
         self.__load_datafiles()
         self.__hide_progress()
+        self.frm_lbl_info['text'] = self.__corpus_info() # update corpus info on screen
     
     # wtfreq
     def __on_wtfreq(self):

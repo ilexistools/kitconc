@@ -16,6 +16,8 @@ import pandas as pd
 class Kit(Cmd):
     
     def parse_arg(self,arg):
+        # script path
+        self.__path = os.path.dirname(os.path.abspath(__file__))
         if len(arg.strip()) != 0:
             arg = arg.replace('\t','')
             multi_spaces = re.compile(' +')
@@ -119,6 +121,7 @@ class Kit(Cmd):
             parser.add_argument('name', type=str, nargs='?',help='corpus name for identification')
             parser.add_argument('source', type=str, nargs='?',help='source folder to add textfiles to the corpus')
             parser.add_argument('language', type=str, nargs='?',help='language')
+            parser.add_argument('--tagged', type=str, nargs='?',help='if the texts are tagged or not')
             
         elif function_name == 'use':
             parser = argparse.ArgumentParser()
@@ -257,6 +260,18 @@ class Kit(Cmd):
             parser.prog= "examples"
             parser.description='Downloads examples from github.'
             parser.add_argument('--dest_path', action='store', dest='dest_path', type=str, help='Path to store examples')
+        
+        elif function_name == 'export_corpus':
+            parser = argparse.ArgumentParser()
+            parser.prog= "export_corpus"
+            parser.description='Exports the current corpus to a given destination.'
+            parser.add_argument('dest_path',type=str,nargs='?',help='Path folder to save the corpus')
+        
+        elif function_name == 'import_corpus':
+            parser = argparse.ArgumentParser()
+            parser.prog= "import_corpus"
+            parser.description='Imports a corpus to the current workspace.'
+            parser.add_argument('filename', type=str, nargs='?',help='Path to the corpus file')
             
             
         
@@ -339,20 +354,40 @@ class Kit(Cmd):
             if self.workspace is not None:
                 if self.corpus_in_use == None:
                     files = os.listdir(self.workspace)
-                    corpora = []
-                    df = pd.DataFrame(columns=['Name','Language','Texts','Tokens','Types','TTR'])
-                    
+                    data = []
                     for filename in files:
                         if os.path.isdir(self.workspace + filename):
                             if os.path.exists(self.workspace + filename + '/info.tab') == True:
-                                tb = pd.read_table(self.workspace + filename + '/info.tab',header=None)
-                                reg = []
-                                for row in tb.itertuples(index=False):
-                                    if row[0] not in ['workspace:','encoding:']:
-                                        reg.append(row[1])
-                                if len(reg) >= 6:
-                                    df = df.append(pd.Series(reg, index=df.columns ), ignore_index=True)
-                                corpora.append(filename)
+                                d = {}
+                                with open(self.workspace + filename + '/info.tab','r',encoding='utf-8') as fh:
+                                    for line in fh:
+                                        if len(line.strip())!=0:
+                                            f = line.strip().split('\t')
+                                            k = f[0].replace(':','').lower()
+                                            v = f[1]
+                                            if k not in d:
+                                                d[k]=v
+                                l = []
+                                if 'corpus name' in d:
+                                    l.append(d['corpus name'])
+                                if 'language' in d:
+                                    l.append(d['language'])
+                                if 'textfiles' in d:
+                                    l.append(d['textfiles'])
+                                if 'tokens' in d:
+                                    l.append(d['tokens'])
+                                else:
+                                    l.append('0')
+                                if 'types' in d:
+                                    l.append(d['types'])
+                                else:
+                                    l.append('0')
+                                if 'type/token' in d:
+                                    l.append(round(float(d['type/token']),2))
+                                else:
+                                    l.append(0.0)
+                                data.append((l[0],l[1],l[2],l[3],l[4],l[5]))
+                    df = pd.DataFrame(data,columns=['Corpus name','Language','Texts','Tokens','Types','TTR'])
                     if len(df) !=0:
                         print('')
                         print(df.head(len(df)))
@@ -486,8 +521,11 @@ class Kit(Cmd):
     def do_create(self,arg):
         parser = self.get_parser('create')
         args = parser.parse_args(self.parse_arg(arg))
+        tagged = False
+        if args.tagged == 'True':
+            tagged = True
         corpus = Corpus(self.workspace,args.name,args.language)
-        corpus.add_texts(args.source, show_progress=True)
+        corpus.add_texts(args.source,tagged=tagged, show_progress=True)
     
     def do_use(self,s):
         """\nDescription: Sets the current corpus in use.
@@ -541,12 +579,9 @@ class Kit(Cmd):
                             for line in fh:
                                 if len(line.strip())!= 0:
                                     stoplist.append(line.strip())
-                print('Wordlist:')
-                wordlist = corpus.wordlist(show_progress=True)
                 print('Keywords:')
-                keywords = corpus.keywords(wordlist,measure=measure,stoplist=stoplist,show_progress=True)
+                keywords = corpus.keywords(measure=measure,stoplist=stoplist,show_progress=True)
                 keywords.save_excel(self.workspace + self.corpus_in_use + '/output/keywords.xlsx')
-                del wordlist
                 del keywords 
                 print('')
         except Exception as e:
@@ -862,12 +897,13 @@ class Kit(Cmd):
                 arg_lowercase = True 
                 arg_limit = 25
                 if args.lowercase != None:
-                    arg_lowercase = args.lowercase
+                    if args.lowercase == 'y':
+                        arg_lowercase = True
+                    else:
+                        arg_lowercase = False
                 if args.limit != None:
                     arg_limit = int(args.limit)
-                wordlist = corpus.wordlist(show_progress=True)
-                keywords = corpus.keywords(wordlist,show_progress=True)
-                del wordlist 
+                keywords = corpus.keywords()
                 keywords_dispersion = corpus.keywords_dispersion(keywords,lowercase=arg_lowercase,limit=arg_limit,show_progress=True)
                 keywords_dispersion.save_excel(self.workspace + self.corpus_in_use + '/output/keywords_dispersion.xlsx')
                 print('')
@@ -904,7 +940,27 @@ class Kit(Cmd):
                 ex.download()
         except Exception as e:
             print(e)
-        
+    
+    def do_export_corpus(self,arg):
+        parser = self.get_parser('export_corpus')
+        args = parser.parse_args(self.parse_arg(arg))
+        try:
+            if args.dest_path !=None:
+                subprocess.call(['python',self.__path +'/export_corpus.py', self.workspace,self.corpus_in_use, args.dest_path])
+        except Exception as e:
+            print(e)
+    
+    def do_import_corpus(self,arg):
+        parser = self.get_parser('import_corpus')
+        args = parser.parse_args(self.parse_arg(arg))
+        try:
+            if args.filename!=None:
+                if os.path.exists(args.filename):
+                    import zipfile
+                    with zipfile.ZipFile(args.filename, 'r') as zip_ref:
+                        zip_ref.extractall(self.workspace)
+        except Exception as e:
+            print(e)
     
     def run(self):
         print('Welcome to the Kitconc shell. Version: %s' % version.__version__)

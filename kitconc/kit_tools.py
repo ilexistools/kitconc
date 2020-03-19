@@ -47,7 +47,7 @@ class Wordlist(object):
     def save_excel(self,filename):
         # create Excel
         style = xStyles() # style object
-        workbook = xlsxwriter.Workbook(filename)
+        workbook = xlsxwriter.Workbook(filename,{'constant_memory': True})
         worksheet = workbook.add_worksheet()
         worksheet.name = 'Wordlist'
         # resize columns
@@ -77,11 +77,12 @@ class Wordlist(object):
             worksheet.write(i,1, str(row[1]),word_style)    # WORD 
             worksheet.write(i,2, int(row[2]),freq_style)    # FREQ
             worksheet.write(i,3, float(row[3]),p_style)     # %
-        # corpus info
-        worksheet.write('J2', self.tokens ,info_style)
-        worksheet.write('K2', self.types,info_style)
-        worksheet.write('L2', self.typetoken,info_style)
-        worksheet.write('M2', self.hapax,info_style)
+            if i == 1:
+                # corpus info
+                worksheet.write('J2', self.tokens ,info_style)
+                worksheet.write('K2', self.types,info_style)
+                worksheet.write('L2', self.typetoken,info_style)
+                worksheet.write('M2', self.hapax,info_style)
         # close
         workbook.close()
         return True
@@ -103,7 +104,7 @@ class Keywords(object):
     def save_excel(self,filename):
         # create Excel
         style = xStyles() # style object
-        workbook = xlsxwriter.Workbook(filename)
+        workbook = xlsxwriter.Workbook(filename,{'constant_memory': True})
         worksheet = workbook.add_worksheet()
         worksheet.name = 'Keywords'
         # resize columns
@@ -148,7 +149,7 @@ class WTfreq(object):
     def save_excel(self,filename):
         # create Excel
         style = xStyles() # style object
-        workbook = xlsxwriter.Workbook(filename)
+        workbook = xlsxwriter.Workbook(filename,{'constant_memory': True})
         worksheet = workbook.add_worksheet()
         worksheet.name = 'WTfreq'
         # resize columns
@@ -196,7 +197,7 @@ class Wfreqinfiles(object):
     def save_excel(self,filename):
         # create Excel
         style = xStyles() # style object
-        workbook = xlsxwriter.Workbook(filename)
+        workbook = xlsxwriter.Workbook(filename,{'constant_memory': True})
         worksheet = workbook.add_worksheet()
         worksheet.name='Range'
         # resize columns
@@ -490,7 +491,7 @@ class Kwic(object):
             kcolor = True
         # create Excel
         style = xStyles()
-        workbook = xlsxwriter.Workbook(filename)
+        workbook = xlsxwriter.Workbook(filename,{'constant_memory': True})
         worksheet = workbook.add_worksheet()
         worksheet.name = "KWIC"
         # resize columns
@@ -570,7 +571,7 @@ class Concordance(object):
         node_color = kwargs.get('node_color','#cc0066')
         # create Excel
         style = xStyles()
-        workbook = xlsxwriter.Workbook(filename)
+        workbook = xlsxwriter.Workbook(filename,{'constant_memory': True})
         worksheet = workbook.add_worksheet()
         worksheet.name = "CONCORDANCE"
         # resize columns
@@ -622,7 +623,6 @@ class Concordance(object):
             s = []
             # in the beginning
             if position == 0:
-                print(self.node_length)
                 s=[ns,self.__norm(' '.join(tokens[0:self.node_length]))] + [hs, ' ' + self.__norm(' '.join(tokens[self.node_length:]))]
             # in the end
             elif (position+self.node_length) == tokens_length:
@@ -665,7 +665,7 @@ class Collocates(object):
     def save_excel(self,filename):
         # create Excel
         style = xStyles()
-        workbook = xlsxwriter.Workbook(filename)
+        workbook = xlsxwriter.Workbook(filename,{'constant_memory': True})
         worksheet = workbook.add_worksheet()
         worksheet.name = 'Collocates'
         # resize columns
@@ -730,7 +730,7 @@ class Ngrams(object):
     def save_excel(self,filename):
         # create Excel
         style = xStyles()
-        workbook = xlsxwriter.Workbook(filename)
+        workbook = xlsxwriter.Workbook(filename,{'constant_memory': True})
         worksheet = workbook.add_worksheet()
         worksheet.name = 'N-grams'
         # resize columns
@@ -779,7 +779,7 @@ class Clusters(object):
     def save_excel(self,filename):
         # create Excel
         style = xStyles()
-        workbook = xlsxwriter.Workbook(filename)
+        workbook = xlsxwriter.Workbook(filename,{'constant_memory': True})
         worksheet = workbook.add_worksheet()
         worksheet.name = 'Clusters'
         # resize columns
@@ -875,7 +875,7 @@ class Dispersion(object):
             return im
         # create Excel
         style = xStyles()
-        workbook = xlsxwriter.Workbook(filename)
+        workbook = xlsxwriter.Workbook(filename,{'constant_memory': True})
         worksheet = workbook.add_worksheet()
         worksheet.name = 'Dispersion'
         # resize columns
@@ -898,26 +898,11 @@ class Dispersion(object):
         worksheet.write('H1', 'S4',header_style)
         worksheet.write('I1', 'S5',header_style)
         worksheet.write('J1', 'PLOT',header_style)
-        worksheet.write('L1', 'SECTION',header_style)
-        worksheet.write('M1', 'HITS',header_style)
-        worksheet.write('N1', '%',header_style)
-        worksheet.write('L2', 'S1',header_style)
-        worksheet.write('L3', 'S2',header_style)
-        worksheet.write('L4', 'S3',header_style)
-        worksheet.write('L5', 'S4',header_style)
-        worksheet.write('L6', 'S5',header_style)
-        # set contents
-        worksheet.write('M2', int(self.total_s1),freq_style)
-        worksheet.write('M3', int(self.total_s2),freq_style)
-        worksheet.write('M4', int(self.total_s3),freq_style)
-        worksheet.write('M5', int(self.total_s4),freq_style)
-        worksheet.write('M6', int(self.total_s5),freq_style)
+        #worksheet.write('L1', 'SECTION',header_style)
+        #worksheet.write('M1', 'HITS',header_style)
+        #worksheet.write('N1', '%',header_style)
+       
         total = float(self.total_s1 + self.total_s2 + self.total_s3 + self.total_s4 + self.total_s5)
-        worksheet.write('N2', round((self.total_s1 / total) * 100,2),freq_style)
-        worksheet.write('N3', round((self.total_s2 / total) * 100,2),freq_style)
-        worksheet.write('N4', round((self.total_s3 / total) * 100,2),freq_style)
-        worksheet.write('N5', round((self.total_s4 / total) * 100,2),freq_style)
-        worksheet.write('N6', round((self.total_s5 / total) * 100,2),freq_style) 
         create_temp_folder(self.output_path + 'temp')
         i = 0
         for row in self.df.itertuples(index=False):
@@ -955,9 +940,43 @@ class Dispersion(object):
             else:
                 worksheet.write(i,8, float(row[8]),freq_style) # S5
             
+            """
+            # set section total contents
+            if i == 2:
+                #worksheet.write('L2', 'S1',header_style)
+                worksheet.write('M2', int(self.total_s1),freq_style)
+                worksheet.write('N2', round((self.total_s1 / total) * 100,2),freq_style)
+            elif i == 3:
+                #worksheet.write('L3', 'S2',header_style)
+                worksheet.write('M3', int(self.total_s2),freq_style)
+                worksheet.write('N3', round((self.total_s2 / total) * 100,2),freq_style)
+            elif i == 4:
+                #worksheet.write('L4', 'S3',header_style)
+                worksheet.write('M4', int(self.total_s3),freq_style)
+                worksheet.write('N4', round((self.total_s3 / total) * 100,2),freq_style)
+            elif i == 5:
+                #worksheet.write('L5', 'S4',header_style)
+                worksheet.write('M5', int(self.total_s4),freq_style)
+                worksheet.write('N5', round((self.total_s4 / total) * 100,2),freq_style)
+            elif i == 6:
+                #worksheet.write('L6', 'S5',header_style)
+                worksheet.write('M6', int(self.total_s5),freq_style)
+                worksheet.write('N6', round((self.total_s5 / total) * 100,2),freq_style)
+            """
+            
             img = draw_barcode(self.dpts[row[1]])
             img.save(self.output_path + 'temp/' + str(i) + '.jpg')
             worksheet.insert_image('J' + str(i+1), self.output_path + 'temp/' + str(i) + '.jpg')
+            
+            
+            
+            
+            
+            
+            
+             
+                
+            
         # close
         workbook.close()
         remove_temp_folder(self.output_path + 'temp')
@@ -1025,7 +1044,7 @@ class KeywordsDispersion(object):
             return im
         # create Excel
         style = xStyles()
-        workbook = xlsxwriter.Workbook(filename)
+        workbook = xlsxwriter.Workbook(filename,{'constant_memory': True})
         worksheet = workbook.add_worksheet()
         worksheet.name = 'Keywords Dispersion'
         # resize columns
@@ -1141,7 +1160,7 @@ class Keynessxrange(object):
     def save_excel(self,filename):
         # create Excel
         style = xStyles()
-        workbook = xlsxwriter.Workbook(filename)
+        workbook = xlsxwriter.Workbook(filename,{'constant_memory': True})
         worksheet = workbook.add_worksheet()
         worksheet.name = 'KeywordsxRange'
         # resize columns
@@ -1187,7 +1206,7 @@ class ComparedCollocates(object):
     def save_excel(self,filename):
         # create Excel
         style = xStyles()
-        workbook = xlsxwriter.Workbook(filename)
+        workbook = xlsxwriter.Workbook(filename,{'constant_memory': True})
         worksheet = workbook.add_worksheet()
         worksheet.name = 'Comparison'
         # resize columns
@@ -1237,7 +1256,7 @@ class Collocations(object):
     def save_excel(self,filename):
         # create Excel
         style = xStyles()
-        workbook = xlsxwriter.Workbook(filename)
+        workbook = xlsxwriter.Workbook(filename,{'constant_memory': True})
         worksheet = workbook.add_worksheet()
         worksheet.name = 'Collocations'
         # resize columns

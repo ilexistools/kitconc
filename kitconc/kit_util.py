@@ -3,6 +3,7 @@
 import os,sys  
 import math
 import time  
+import string 
 
 def __progress(count, total, suffix=''):
         bar_len = 30
@@ -145,7 +146,7 @@ def file2utf8(source_file,target_file,source_encoding='mbcs'):
     with codecs.open(source_file, "r", source_encoding,errors="surrogateescape") as sourceFile:
         with codecs.open(target_file, "w", "utf-8") as targetFile:
             while True:
-                contents = sourceFile.read(BLOCKSIZE)
+                contents = ''.join(filter(lambda x: x in string.printable, sourceFile.read(BLOCKSIZE)))
                 if not contents:
                     break
                 targetFile.write(contents)

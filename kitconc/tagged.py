@@ -15,18 +15,7 @@ class Tagging(object):
         self.corpus_name =  sys.argv[3]
         self.language =  sys.argv[4]
         self.source_folder =  sys.argv[5]
-        # load sent tokenizer
-        sent_tokenizer_path = self.resource_path + 'sent_tokenizer_' + self.language + '.pickle'
-        with open(sent_tokenizer_path, 'rb') as fh:
-            self.sent_tokenizer = pickle.load(fh)
-        # load word tokenizer
-        word_tokenizer_path = self.resource_path + 'word_tokenizer_' + self.language +  '.pickle'
-        with open(word_tokenizer_path, 'rb') as fh:
-            self.word_tokenizer = pickle.load(fh)
-        # load tagger 
-        tagger_path = self.resource_path+ 'pos_tagger_' + self.language +  '.pickle'
-        with open(tagger_path, 'rb') as fh:
-            self.tagger = pickle.load(fh)
+        
         # normalize source_folder path
         if not self.source_folder.endswith('/'):
             self.source_folder = self.source_folder + '/'
@@ -58,8 +47,27 @@ class Tagging(object):
                 self.unique_t[token[1]]=None
             s.append("%s\t%s\t%s\t%s" % (token[0],token[1],sent_id,file_id))
         return '\n'.join(s)
-            
     
+    def str2tuple(self,s):
+        sep='/'
+        loc = s.rfind(sep)
+        if loc >= 0:
+            return (s[:loc], s[loc + len(sep) :])
+        else:
+            return (s, 'N')  
+        
+    def get_tagged_sent(self,s):
+        tagged_sent = []
+        items = s.split(' ')
+        for item in items:
+            f = item.strip().split('/')
+            if len(f)==2:
+                tagged_sent.append((f[0],f[1]))
+            else:
+                tagged_sent.append(self.str2tuple(item.strip()))
+        return tagged_sent
+             
+        
     def tag_file(self,filename):
         self.unique_w = collections.defaultdict()
         self.unique_t = collections.defaultdict()
@@ -68,10 +76,9 @@ class Tagging(object):
         with open(self.source_folder + filename[0],'r',encoding='utf-8') as fh:
             for line in fh:
                 if len(line.strip()) != 0:
-                    sents = self.sent_tokenizer.tokenize(line.strip())
-                    for sent in sents:
-                        sent_id+=1
-                        tagged_sents.append(self.sent2str(self.tagger.tag(self.word_tokenizer.tokenize(sent)),sent_id,filename[1]))
+                    sent_id+=1
+                    tagged_sent = self.get_tagged_sent(line.strip())
+                    tagged_sents.append(self.sent2str(tagged_sent,sent_id,filename[1]))
         
         with open(self.workspace + self.corpus_name + '/data/tmp1/' + filename[0],'w',encoding='utf-8') as fh2:
             fh2.write('\n'.join(tagged_sents))
