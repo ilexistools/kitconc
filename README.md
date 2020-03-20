@@ -61,6 +61,9 @@ Usage example
 
 See how easy it is to use Kitconc:
 
+Kitconc notebook:
+https://github.com/ilexistools/kitconc-examples/blob/master/notebook/Kitconc-examples.ipynb
+
 (<a href='https://github.com/ilexistools/kitconc-examples'>Download examples...</a>)
 
 Dowloading examples
