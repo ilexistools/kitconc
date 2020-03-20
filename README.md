@@ -231,4 +231,6 @@ Tutorials (Youtube)
 <a href='https://www.youtube.com/watch?v=cstsc2RvHIg&t=3s'>01. Installing Kitconc</a><br>
 <a href='https://www.youtube.com/watch?v=1UI2P8GJz7g'>02. Running Kitconc GUI</a><br>
 <a href='https://www.youtube.com/watch?v=TxHonT1CcrY'>03. Creating a corpus</a><br>
+<a href='https://www.youtube.com/watch?v=GDQLLyIhICI'>04. Wordlist</a><br>
+<a href='https://www.youtube.com/watch?v=qleBPL9pRTc'>05. Keywords</a><br>
 
