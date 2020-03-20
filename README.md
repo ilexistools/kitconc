@@ -219,3 +219,10 @@ collocates.plot_collgraph(node='skills')
 ```
 <a href='https://raw.githubusercontent.com/ilexistools/kitconc-examples/master/images/img12.jpg'>View plot...</a>
 
+Graphical User Interface
+-------------
+```python
+from kitconc.kit_app import KitApp 
+KitApp().run()
+```
+<iframe width="560" height="315" src="https://www.youtube.com/embed/cstsc2RvHIg" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
