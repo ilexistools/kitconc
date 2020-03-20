@@ -225,4 +225,6 @@ Graphical User Interface
 from kitconc.kit_app import KitApp 
 KitApp().run()
 ```
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/cstsc2RvHIg/0.jpg)](https://www.youtube.com/watch?v=cstsc2RvHIg)
+
 <iframe width="560" height="315" src="https://www.youtube.com/embed/cstsc2RvHIg" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
