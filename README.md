@@ -52,7 +52,7 @@ python setup.py install
 Language resources
 =========
 
-Kitconc comes with some language resources for portuguese and english corpora.
+Kitconc comes with some basic language resources for portuguese and english corpora.
 It also has functions for adding your own language resources.
 
 Usage example
