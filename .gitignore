@@ -1,4 +1,6 @@
 kitconc.egg-info
-dist
-build
+dist/
+build/
 kticonc.tmp
+.dea/
+build/
