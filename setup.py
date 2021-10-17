@@ -70,7 +70,7 @@ else:
 
 setup(
     name='kitconc',
-    version='2.1.4',
+    version='2.2.0',
     author='José Lopes Moreira Filho',
     author_email='jlopes@usp.br',
     packages=['kitconc'],

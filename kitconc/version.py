@@ -1,3 +1,3 @@
 # -*- coding: utf-8 -*-
 # Author: jlopes@usp.br
-__version__ = '2.1.4'
+__version__ = '2.2.0'

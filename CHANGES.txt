@@ -1,3 +1,4 @@
-Version 2.1.4
-2021-08-15
-- The 'Corpora' module is added to the kit_app file.
+Version 2.2.0
+2021-11-01
+- Added new functionalities:
+
