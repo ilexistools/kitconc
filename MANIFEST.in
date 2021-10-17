@@ -1,0 +1,10 @@
+include *.txt
+recursive-include docs *.txt
+include kitconc/*.c
+include kitconc/data/*.tab
+include kitconc/data/*.exe
+include kitconc/data/*.pickle
+include kitconc/data/*.ttf
+include kitconc/data/images/*.png
+include kitconc/data/images/*.ico
+include kitconc/data/scripts/*.py
