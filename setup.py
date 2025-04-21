@@ -24,19 +24,20 @@ if not is_installed('numpy>=1.14.0'):
     sys.exit(1)
 
 install_req = [
-    "chardet==5.2.0",
-    "ipython==9.1.0",
-    "matplotlib==3.10.1",
-    "nltk==3.9.1",
-    "numpy==2.2.4",
-    "pandas==2.2.3",
-    "Pillow==11.2.1",
-    "Requests==2.32.3",
-    "setuptools==65.5.0",
-    "spacy==3.6.1",
-    "ttkbootstrap==1.12.0",
-    "xlsxwriter==3.2.3"
+    "numpy>=1.24.0,<2.0.0",
+    "pandas>=2.2.0,<3.0.0",
+    "matplotlib>=3.7.0,<4.0.0",
+    "xlsxwriter>=3.2.3,<4.0.0",
+    "ttkbootstrap>=1.12.0,<2.0.0",
+    "pillow>=11.2.0,<12.0.0",
+    "requests>=2.31.0,<3.0.0",
+    "nltk>=3.9.1,<4.0.0",
+    "chardet>=5.2.0,<6.0.0",
+    "ipython>=9.1.0,<10.0.0",
+    "spacy>=3.6.1,<4.0.0",
+    "setuptools>=65.5.0,<70.0.0"
 ]
+
 
 
 setup(

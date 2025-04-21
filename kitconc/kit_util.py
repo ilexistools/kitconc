@@ -59,13 +59,17 @@ def sent2conll2000(sent):
 
     
 def chi_square(freq_stdc,freq_refc,tk_stdc,tk_refc):
-    a = freq_stdc 
-    b = freq_refc 
-    c = tk_stdc - a 
-    d = tk_refc - b 
-    N = a + b + c + d
-    chi = N * (a*d-b*c)** 2/((a+b)*(c+d)*(a+c)*(b+d))
-    chi = round(chi,2) 
+    try:
+        a = freq_stdc 
+        b = freq_refc 
+        c = tk_stdc - a 
+        d = tk_refc - b 
+        N = a + b + c + d
+        chi = N * (a*d-b*c)** 2/((a+b)*(c+d)*(a+c)*(b+d))
+        chi = round(chi,2) 
+    except Exception as e:
+        print(f"Error on chi_squqre: {e}")
+        chi = 0.0
     return chi 
 
 def observed_expected(ab,a,b,N, h=1):
@@ -94,28 +98,32 @@ def tscore(ab,a,b,N, h=1):
 
 def ll(freq_stdc,freq_refc,tk_stdc,tk_refc):
     """Calculates the log-likelihood value"""
-    O = float(freq_stdc+freq_refc)
-    N1 = float(tk_stdc)
-    N2 = float(tk_refc)
-    E1 = N1*O/(N1+N2) 
-    E2 = N2*O/(N1+N2)
-    if freq_stdc < 1 or E1 < 1:
-        v1 = 0
-    else:
-        v1 = math.log(freq_stdc/E1)
-    if freq_refc < 1 or E2 < 1:
-        v2 = 0
-    else:
-        v2 = math.log(freq_refc/E2)
-    LL = round(2 * ((freq_stdc * v1)+(freq_refc * v2)),2)
-    Norm_stdc = freq_stdc/float(tk_stdc)
-    Norm_refc = freq_refc/float(tk_refc)
-    if Norm_stdc == 0:
-        Norm_stdc = 0.5 / float(tk_stdc)
-    if Norm_refc == 0:
-        Norm_refc = 0.5 / float(tk_refc)
-    if Norm_stdc < Norm_refc:
-        LL = - LL
+    try:
+        O = float(freq_stdc+freq_refc)
+        N1 = float(tk_stdc)
+        N2 = float(tk_refc)
+        E1 = N1*O/(N1+N2) 
+        E2 = N2*O/(N1+N2)
+        if freq_stdc < 1 or E1 < 1:
+            v1 = 0
+        else:
+            v1 = math.log(freq_stdc/E1)
+        if freq_refc < 1 or E2 < 1:
+            v2 = 0
+        else:
+            v2 = math.log(freq_refc/E2)
+        LL = round(2 * ((freq_stdc * v1)+(freq_refc * v2)),2)
+        Norm_stdc = freq_stdc/float(tk_stdc)
+        Norm_refc = freq_refc/float(tk_refc)
+        if Norm_stdc == 0:
+            Norm_stdc = 0.5 / float(tk_stdc)
+        if Norm_refc == 0:
+            Norm_refc = 0.5 / float(tk_refc)
+        if Norm_stdc < Norm_refc:
+            LL = - LL
+    except Exception as e:
+        print(f"Error on ll: {e}")
+        LL = 0.0
     return LL
 
 
