@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Author: jlopes@usp.br
+# Author: jlopes@alumni.usp.br
 import os,sys  
 import math
 import time  

@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# Author: jlopes@alumni.usp.br
 import os 
 import numpy as np 
 import pickle 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Author: jlopes@usp.br
+# Author: jlopes@alumni.usp.br
 import os
 import pickle  
 from string import punctuation
@@ -146,7 +146,8 @@ class spacyModels(object):
         try:
             import spacy 
             return spacy.load(model_name,disable=self.disable)
-        except:
+        except Exception as e:
+            print(f"Error on loading spaCy: {e}")
             return None 
 
 class nltkTrainModel(object):

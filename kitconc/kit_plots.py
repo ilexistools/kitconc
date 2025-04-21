@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# Author: jlopes@usp.br
+# Author: jlopes@alumni.usp.br
 import os 
 import numpy as np
-from kitconc import wordle
+
 
 
 class HeatMap():
@@ -43,73 +43,6 @@ class HeatMap():
         matplotlib.pyplot.show()
             
         
-
-class WordCloud(object):
-    
-    def __init__(self,**kwargs):
-        self.__path = os.path.dirname(os.path.abspath(__file__))
-        self.limit = kwargs.get('limit',400)
-        self.theme = kwargs.get('theme',wordle.THEME_GRAYISH_COLORS)
-        self.vertical = kwargs.get('vertical',True)
-        self.stoplist = kwargs.get('stoplist',[])
-        self.format = kwargs.get('format','plot')
-    
-    def plot_wordlist(self,wordlist):
-        tokens,freq = [],[]
-        i = 0
-        for row in wordlist.df.itertuples(index=False):
-            if row[1] not in self.stoplist:
-                tokens.append(row[1])
-                freq.append(row[2])
-                i+=1
-                if i >= self.limit:
-                    break 
-        vert = 0 
-        if self.vertical == True:
-            vert = 0.2
-        if self.format == 'plot':
-            wordle.plot(tokens,freq,theme=self.theme,vertical=vert)
-        else:
-            wordle.show_image(tokens,freq,theme=self.theme,vertical=vert)
-            
-    
-    def plot_keywords(self,keywords):
-        tokens,freq = [],[]
-        i = 0
-        for row in keywords.df.itertuples(index=False):
-            if row[1] not in self.stoplist:
-                tokens.append(row[1])
-                freq.append(row[3])
-                i+=1
-                if i >= self.limit:
-                    break 
-        vert = 0 
-        if self.vertical == True:
-            vert = 0.2
-        if self.format == 'plot':
-            wordle.plot(tokens,freq,theme=self.theme,vertical=vert)
-        else:
-            wordle.show_image(tokens,freq,theme=self.theme,vertical=vert) 
-    
-    def plot_wfreqinfiles(self,wfreqinfiles):
-        tokens,freq = [],[]
-        i = 0
-        for row in wfreqinfiles.df.itertuples(index=False):
-            if row[1] not in self.stoplist:
-                tokens.append(row[1])
-                freq.append(row[2])
-                i+=1
-                if i >= self.limit:
-                    break 
-        vert = 0 
-        if self.vertical == True:
-            vert = 0.2
-        if self.format == 'plot':
-            wordle.plot(tokens,freq,theme=self.theme,vertical=vert)
-        else:
-            wordle.show_image(tokens,freq,theme=self.theme,vertical=vert) 
-        
-
 class CollDist(object):
     
     def __init__(self):

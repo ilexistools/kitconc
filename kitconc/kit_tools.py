@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Author: jlopes@usp.br
+# Author: jlopes@alumni.usp.br
 import pandas as pd
 from io import StringIO
 import xlsxwriter 
@@ -320,8 +320,13 @@ class Kwic(object):
             self.df['Sort'] = df1['Col1'] 
         # sort
         self.df.sort_values(['Sort'], ascending=[True],inplace=True)
+        try:
+            self.df = self.df.drop('Sort',1)
+        except:
+            self.df = self.df.drop('Sort', axis=1)
+
+            
         
-        self.df = self.df.drop('Sort',1)
         
         
     def __get_node_column(self,column_name):    

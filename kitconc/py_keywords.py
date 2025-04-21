@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Author: jlopes@usp.br
+# Author: jlopes@alumni.usp.br
 import os 
 from kitconc.py_wordlist import make_wordlist 
 import math 

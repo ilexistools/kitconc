@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Author: jlopes@usp.br
+# Author: jlopes@alumni.usp.br
 import os, sys 
 import pickle 
 import multiprocessing as mp 
@@ -60,27 +60,38 @@ class Tagging(object):
         return '\n'.join(s)
 
 
-    def tag_file(self,filename):
+    def tag_file(self, filename):
+        # Ensure tmp1, tmp2, and tmp3 directories exist
+        tmp1_dir = os.path.join(self.workspace, self.corpus_name, 'data', 'tmp1')
+        tmp2_dir = os.path.join(self.workspace, self.corpus_name, 'data', 'tmp2')
+        tmp3_dir = os.path.join(self.workspace, self.corpus_name, 'data', 'tmp3')
+        os.makedirs(tmp1_dir, exist_ok=True)
+        os.makedirs(tmp2_dir, exist_ok=True)
+        os.makedirs(tmp3_dir, exist_ok=True)
+
         self.unique_w = collections.defaultdict()
         self.unique_t = collections.defaultdict()
         sent_id = 0
         tagged_sents = []
-        with open(self.source_folder + filename[0],'r',encoding='utf-8') as fh:
+        with open(self.source_folder + filename[0], 'r', encoding='utf-8') as fh:
             for line in fh:
                 if len(line.strip()) != 0:
                     sents = self.sent_tokenizer.tokenize(line.strip())
                     for sent in sents:
-                        sent_id+=1
-                        tagged_sents.append(self.sent2str(self.tagger.tag(self.word_tokenizer.tokenize(sent)),sent_id,filename[1]))
+                        sent_id += 1
+                        tagged_sents.append(self.sent2str(self.tagger.tag(self.word_tokenizer.tokenize(sent)), sent_id, filename[1]))
         
-        with open(self.workspace + self.corpus_name + '/data/tmp1/' + filename[0],'w',encoding='utf-8') as fh2:
+        # Write to tmp1 directory
+        with open(os.path.join(tmp1_dir, filename[0]), 'w', encoding='utf-8') as fh2:
             fh2.write('\n'.join(tagged_sents))
-
-        with open(self.workspace+self.corpus_name + '/data/tmp2/' + filename[0],'wb') as fh:
-            pickle.dump(self.unique_w,fh)
         
-        with open(self.workspace+self.corpus_name + '/data/tmp3/' + filename[0],'wb') as fh:
-            pickle.dump(self.unique_t,fh)
+        # Write to tmp2 and tmp3 directories
+        with open(os.path.join(tmp2_dir, filename[0]), 'wb') as fh:
+            pickle.dump(self.unique_w, fh)
+        
+        with open(os.path.join(tmp3_dir, filename[0]), 'wb') as fh:
+            pickle.dump(self.unique_t, fh)
+
     
     def unique(self):
         idx = collections.defaultdict()

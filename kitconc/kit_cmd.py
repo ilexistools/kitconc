@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-# Author: jlopes@usp.br
+# Author: jlopes@alumni.usp.br
 import os, sys,subprocess  
 from cmd import Cmd
 import argparse
 from kitconc import version 
 from kitconc.kit_corpus import Corpus
 from kitconc.kit_plots import CollGraph
-from kitconc.kit_plots import WordCloud
 from kitconc import kit_util  
 from kitconc.core import Examples 
 from kitconc.kit_models import Models
@@ -940,81 +939,14 @@ class Kit(Cmd):
                 if args.limit != None:
                     arg_limit = int(args.limit)
                 keywords = corpus.keywords()
-                keywords_dispersion = corpus.keywords_dispersion(keywords,lowercase=arg_lowercase,limit=arg_limit,show_progress=True)
+                try:
+                    keywords_dispersion = corpus.keywords_dispersion(keywords,lowercase=arg_lowercase,limit=arg_limit,show_progress=True)
+                except Exception as e:
+                    print(f"Error on corpus.keywords_dispersion: {e}")
                 keywords_dispersion.save_excel(self.workspace + self.corpus_in_use + '/output/keywords_dispersion.xlsx')
                 print('')
         except Exception as e:
-            print(e)
-    
-    def do_wordcloud(self,arg):
-        parser = self.get_parser('wordcloud')
-        args = parser.parse_args(self.parse_arg(arg))
-        try:
-            if self.corpus_in_use is not None:
-                corpus_info = self.__corpus_info(self.corpus_in_use)
-                corpus = Corpus(self.workspace,self.corpus_in_use,corpus_info['language'])
-                # args
-                arg_wordlist = 'frequency'
-                arg_theme = 2
-                arg_vertical = True
-                arg_stoplist = 'y'
-                arg_limit = 400
-                arg_format = 'plot'
-                # wordlist
-                if args.wordlist != None:
-                    if args.wordlist in ['frequency','keyness','range']:
-                        arg_wordlist = args.wordlist
-                # theme
-                if args.theme != None:
-                    if int(args.theme) in [0,1,2,3]:
-                        arg_theme = int(args.theme) 
-                # vertical 
-                if args.vertical != None:
-                    if args.vertical == 'y':
-                        arg_vertical = True
-                    else:
-                        arg_vertical = False
-                # stoplist 
-                if args.stoplist != None:
-                    if args.stoplist == 'n':
-                        arg_stoplist = 'n'
-                    else:
-                        arg_stoplist = 'y'
-                # get stoplist 
-                stoplist = []
-                if arg_stoplist == 'y':
-                    with open (corpus.resource_data_path + 'stoplist_' + corpus.language + '.tab','r') as fh:
-                        for line in fh:
-                            if len(line.strip())!= 0:
-                                stoplist.append(line.strip())
-                # limit 
-                if args.limit != None:
-                    if int(args.limit) > 400:
-                        arg_limit = 400
-                    else:
-                        arg_limit = int(args.limit)
-                # format 
-                if args.format != None:
-                    if args.format == 'plot':
-                        arg_format = 'plot'
-                    else:
-                        arg_format = 'image' 
-                # get data and plot it 
-                if arg_wordlist == 'frequency':
-                    wordlist = corpus.wordlist(show_progress=True)
-                    wordcloud = WordCloud(theme=arg_theme,vertical=arg_vertical,stoplist=stoplist,limit=arg_limit,format=arg_format)
-                    wordcloud.plot_wordlist(wordlist)
-                elif arg_wordlist == 'keyness':
-                    keywords = corpus.keywords(show_progress=True)
-                    wordcloud = WordCloud(theme=arg_theme,vertical=arg_vertical,stoplist=stoplist,limit=arg_limit,format=arg_format)
-                    wordcloud.plot_keywords(keywords)
-                elif arg_wordlist == 'range':
-                    wfreqinfiles = corpus.wfreqinfiles(show_progress=True)
-                    wordcloud = WordCloud(theme=arg_theme,vertical=arg_vertical,stoplist=stoplist,limit=arg_limit,format=arg_format)
-                    wordcloud.plot_wfreqinfiles(wfreqinfiles)
-                print('')
-        except Exception as e:
-            print(e)
+            print(f"Error on keywords dispersion: {e}")
     
     def do_text2utf8(self,arg):
         parser = self.get_parser('text2utf8')
