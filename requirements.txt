@@ -6,7 +6,7 @@ numpy==2.2.5
 pandas==2.2.3
 Pillow==11.2.1
 Requests==2.32.3
-setuptools==65.5.0
+setuptools==70.0.0
 spacy==3.6.1
 ttkbootstrap==1.12.0
 xlsxwriter==3.2.3
