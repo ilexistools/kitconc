@@ -1,0 +1,99 @@
+Game Tester
+About the Job
+Description: An individual contributor that executes test plans on pre-release versions of software to detect and record product defects. Conducts compliance testing to ensure software meets regulatory and/or performance standards or requirements. Tests software for reliability, consistency, absence of product defects and compliance. Compiles lists of defects or design / compliance issues found during testing. Assists in preparing bug reports. Assists in reporting compliance issues to designated manager. 
+ 
+EXPERIENCE: TYPICALLY HAS 1 TO 3 YEARS OF RELEVANT EXPERIENCE.
+ 
+Supervision of Others
+
+ Minimal supervision of others (unless to coordinate joint testing of shared features)
+
+ May involve coordination of offshore resources
+Scope of Work
+
+ Act as Feature Test Owner
+
+ May act as POC for development pod on a large team (Poker) or POC for a small game team (Looney Tunes Dash)
+ Accountability/Impact
+
+ Contributes to successful completion of projects
+
+ Identifies areas for test team process improvements and proposes solutions
+
+ Owns testing on one or more features
+
+ Provides guidance and training to other team members on owned features
+
+ Provides accurate estimates and works with team lead and manager to build project plan
+
+ Communicates feature status with team lead and stakeholders
+Skill Area: Testing
+
+ Executes test scripts (manual or automated)
+
+ Investigates failures to determine root cause
+
+ Opens bugs as appropriate for failures
+
+ Performs validation testing on resolved issues
+
+ Gives feedback on games (fun, balance, difficulty, etc.)
+
+ Executes existing test plans
+
+ Creates test plans for individual features
+
+ Performs exploratory testing using given guidelines
+
+ Understands the use of different types of functional testing (smoke, regression, exploratory, integration, etc.)
+
+ Estimates effort required to test a feature
+
+ Mitigates risk of feature readiness by identifying additional test support (e.g., admin tools, environment setup, backend work)
+
+ Critically analyzes feature risks and identifies testing to mitigate them
+Skill Area: Communication
+
+ Gives feedback to studio on qualitative issues (ex. game balance, fun, effectiveness of tutorials, etc.)
+
+ All feedback and defect reports contain clear and concise repro steps, screenshots, and other important information
+
+ Maintains and updates feature artifacts
+
+ Tracks metrics for owned features and pod
+
+ Maintains and updates feature test plans
+
+ Has productive verbal and written conversations with feature owners (engineers, PMs, producers, etc.)
+Skill Area: Test Design
+
+ Creates test plans for stand-alone features
+Skill Area: Technical Knowledge
+
+ Understands how software and computers work
+
+ Learns new technologies as needed
+
+ Reads error logs, determines root causes, and performs basic troubleshooting
+
+ Possesses basic understanding of mobile submission testing (i.e., devices, OS, build upload, provisioning)
+Skill Area: Leadership
+
+ Provides direction to vendors and test analysts on owned features
+
+ Suggests test team process improvements to make testing more efficient and/or effective
+Requirements:
+
+ SCOPE: Applies acquired job skills to implement assigned tasks of work group / team. 
+
+ ROLE IN STRATEGY / PLANNING: Supports the attainment of some short-term outcomes of assigned unit / team. 
+
+ KNOWLEDGE / PROBLEM SOLVING: Carries out routine tasks and procedures. Regularly uses independent judgement within defined procedures. 
+
+ NEGOTIATIONS / INTERACTIONS: Interacts with peers, to share routine information. 
+
+ ASSIGNMENT OF WORK: Receives work in the form of short-term assignments with processes outlined. 
+
+ OVERSIGHT RECEIVED: Operates within the context of defined procedures. 
+ 
+EXPERIENCE: Typically has 1 to 3 years of experience.

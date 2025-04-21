@@ -220,13 +220,15 @@ class KitApp(Window):
         frm_btns = ttk.Frame(self.frm_lbl_corpora)
         frm_btns.pack(fill="x", padx=5, pady=5)
 
+        """
         self.frm_btn_newcorpus = ttk.Button(frm_btns, text=self.__gui_lang[24], command=self.__newcorpusdialog, bootstyle="primary")
         self.frm_btn_newcorpus.pack(side="left", padx=5)
         self.frm_btn_deletecorpus = ttk.Button(frm_btns, text=self.__gui_lang[25], command=self.__delete_corpus, bootstyle="danger")
         self.frm_btn_deletecorpus.pack(side="left", padx=5)
         self.frm_btn_workspace = ttk.Button(frm_btns, text=self.__gui_lang[26], command=self.__set_workspace, bootstyle="info")
         self.frm_btn_workspace.pack(side="left", padx=5)
-
+        """
+        
          # Tools – Solid Buttons com destaque no selecionado
         tools_frame = ttk.LabelFrame(main_frame, text=self.__gui_lang[46] if hasattr(self, '__gui_lang') else 'Tools')
         tools_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=5, pady=(0, 5))

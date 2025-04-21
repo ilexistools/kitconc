@@ -1,0 +1,33 @@
+Senior Product Manager for AWS Partner Ecosystem Web Experience
+
+Job Description
+
+Amazon Web Services (AWS) is the pioneer and recognized leader in Cloud Computing. Our web services provide a platform for IT infrastructure in-the-cloud that is used by hundreds of thousands of developers and businesses around the world.
+
+AWS Partner Network serves tens of thousands of industry-leading software and consulting partners around the world. To take our partner experience to the next level, we will launch a new world-class web experience that enables our AWS Partner Network (APN) partners to learn, collaborate, and interact with each other and with AWS in a web-oriented and scalable way.
+
+As the Senior Product Manager for APN, you will define the roadmap for the APN partner web experience by defining the needs of and delivering a new web portal solution for our partners. You will lead the development of the business strategy and vision, driving a world-class user experience for external partners as well as internal teams that provide content and capabilities on the solution. The new web portal will include a social community, personalized content, opportunity registration, program dashboards, and a great mobile experience.
+This is a leadership role that is inherently cross-functional - you will work closely with the development, partner programs, sales, marketing, design, finance and executive teams to develop and run the next-generation partner web experience. A successful candidate will be highly analytical, have consumer or business-facing we product experience, able to work effectively in a matrix organization, adept at optimizing between external and internal tradeoffs, and adept at synthesizing a variety of technologies and user experiences into high quality web experiences. You must be creative and willing to challenge traditional business models and ways of thinking while leveraging proven methods to drive results in a rapidly scaling business.
+
+Responsiblities:
+* Define and lead the strategy for the AWS Partner Network web experience
+* Launch, own and operate the new APN web experience for APN partners
+* Manage the on-going product roadmap, with a keen focus on partner experience and increasing productivity and efficiency
+* Work cross-functionally with program, field, sales, marketing, training and technical teams to drive outcomes and roadmap items
+* Measure effectiveness of web product through traffic analysis, focus groups and surveys
+* Act as a champion for the product both internally and externally
+* Continue to improve on efficiencies, UI and partner experience
+
+
+Basic Qualifications
+
+* Bachelor's degree or higher with a technical discipline
+* 7+ years of professional product management experience
+* 3+ years driving the user experience either on web or mobile platforms
+* Product management experience on consumer or business-facing web and mobile applications
+* Experience leading cross-functional teams to deliver products and projects on tight deadlines
+* Broad technical breadth and depth including familiarity with mobile technology, web services and back-end application infrastructure
+* Excellent verbal and written communication skills
+* An entrepreneurial mentality; willingness to roll up the sleeves and do whatever is necessary to meet goals
+* Strong user experience skills, with a demonstrated success in creating innovative and user-friendly web services and customer-facing features
+* Strong bias for action; ability to juggle multiple competing pri... For full info follow application link.

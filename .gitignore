@@ -87,3 +87,8 @@ Desktop.ini
 *.log
 *.pot
 *.mo
+
+# kitconc
+kitconc.tmp
+kitconc.egg-info
+kitconc_workspace/**/*

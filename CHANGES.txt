@@ -1,4 +1,5 @@
-Version 3.0.0
-2025-04-20
-- Updates for fixing errors.
+Version 3.0.3
+2025-04-21
+- Added examples.
+
 

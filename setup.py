@@ -40,7 +40,7 @@ install_req = [
 
 setup(
     name='kitconc',
-    version='3.0.2',
+    version='3.0.3',
     author='José Lopes Moreira Filho',
     author_email='jlopes@alumni.usp.br',
     packages=find_packages(),

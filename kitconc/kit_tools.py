@@ -1081,67 +1081,37 @@ class KeywordsDispersion(object):
         create_temp_folder(self.output_path + 'temp')
         i = 0
         for row in self.df.itertuples(index=False):
-            i+=1
-            worksheet.write(i,0, int(row[0]),n_style) # N
-            worksheet.write(i,1, str(row[1]),word_style) # WORD 
-            worksheet.write(i,2, float(row[2]),freq_style) # KEYNESS
-            if row[3] == 0:
-                worksheet.write(i,3, float(row[3]),zero_style) # HITS
-            else:
-                worksheet.write(i,3, float(row[3]),freq_style) # HITS
-            if row[4] == 0:
-                worksheet.write(i,4, float(row[4]),zero_style) # S1
-            else:
-                worksheet.write(i,4, float(row[4]),freq_style) # S1
-            if row[5] == 0:
-                worksheet.write(i,5, float(row[5]),zero_style) # S2
-            else:
-                worksheet.write(i,5, float(row[5]),freq_style) # S2
-            if row[6] == 0:
-                worksheet.write(i,6, float(row[6]),zero_style) # S3
-            else:
-                worksheet.write(i,6, float(row[6]),freq_style) # S3
-            if row[7] == 0:
-                worksheet.write(i,7, float(row[7]),zero_style) # S4
-            else:
-                worksheet.write(i,7, float(row[7]),freq_style) # S4
-            if row[8] == 0:
-                worksheet.write(i,8, float(row[8]),zero_style) # S5
-            else:
-                worksheet.write(i,8, float(row[8]),freq_style) # S5
+            i += 1
+            # Escreve os valores fixos (N, WORD, KEYNESS)
+            worksheet.write(i, 0, int(row[0]), n_style)  # N
+            worksheet.write(i, 1, str(row[1]), word_style)  # WORD
+            worksheet.write(i, 2, float(row[2]), freq_style)  # KEYNESS
+            
+            # Escreve HITS e S1-S5 com verificação de zero
+            for col in range(3, 9):  # Colunas 3 a 8 (HITS e S1-S5)
+                value = float(row[col])
+                style = zero_style if value == 0 else freq_style
+                worksheet.write(i, col, value, style)
+            
+            # Gera e insere o código de barras
             img = draw_barcode(self.dpts[row[1]])
-            img.save(self.output_path + 'temp/' + str(i) + '.jpg')
-            worksheet.insert_image('J' + str(i+1), self.output_path + 'temp/' + str(i) + '.jpg')
-            s1 = round((row[4]/row[3])*100,2)
-            s2 = round((row[5]/row[3])*100,2)
-            s3 = round((row[6]/row[3])*100,2)
-            s4 = round((row[7]/row[3])*100,2)
-            s5 = round((row[8]/row[3])*100,2)
+            img.save(f"{self.output_path}temp/{i}.jpg")
+            worksheet.insert_image(f'J{i+1}', f"{self.output_path}temp/{i}.jpg")
             
-            if s1 <=0:
-                worksheet.write(i,10, s1,zero_style) # S1%
-            else:
-                worksheet.write(i,10, s1,freq_style) # S1%
+            # Calcula porcentagens com tratamento de divisão por zero
+            hits = row[3]
+            percentages = []
+            for s_col in range(4, 9):  # S1 a S5 (row[4] a row[8])
+                try:
+                    percent = round((row[s_col] / hits) * 100, 2) if hits != 0 else 0
+                except ZeroDivisionError:
+                    percent = 0
+                percentages.append(percent)
             
-            if s2 <=0:
-                worksheet.write(i,11, s2,zero_style) # S2%
-            else:
-                worksheet.write(i,11, s2,freq_style) # S2%
-            
-            if s3 <=0:
-                worksheet.write(i,12, s3,zero_style) # S3%
-            else:
-                worksheet.write(i,12, s3,freq_style) # S3%
-            
-            if s4 <=0:
-                worksheet.write(i,13, s4,zero_style) # S4%
-            else:
-                worksheet.write(i,13, s4,freq_style) # S4%
-            
-            if s5 <=0:
-                worksheet.write(i,14, s5,zero_style) # S5%
-            else:
-                worksheet.write(i,14, s5,freq_style) # S5%
+            # Escreve as porcentagens (S1% a S5%)
+            for p_col, percent in enumerate(percentages, start=10):  # Colunas 10 a 14
+                style = zero_style if percent <= 0 else freq_style
+                worksheet.write(i, p_col, percent, style)
             
             
         # close
