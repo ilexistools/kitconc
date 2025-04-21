@@ -1,4 +1,4 @@
-Kitconc 3.0.4
+Kitconc 3.0.5
 =========
 
 Kitconc is a package for Corpus Linguistics and text analysis with Python. 
