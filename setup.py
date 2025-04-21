@@ -33,8 +33,6 @@ install_req = [
     "requests>=2.31.0,<3.0.0",
     "nltk>=3.9.1,<4.0.0",
     "chardet>=5.2.0,<6.0.0",
-    "ipython>=9.1.0,<10.0.0",
-    "spacy>=3.6.1,<4.0.0",
     "setuptools>=65.5.0,<70.0.0"
 ]
 
@@ -42,7 +40,7 @@ install_req = [
 
 setup(
     name='kitconc',
-    version='3.0.0',
+    version='3.0.2',
     author='José Lopes Moreira Filho',
     author_email='jlopes@alumni.usp.br',
     packages=find_packages(),

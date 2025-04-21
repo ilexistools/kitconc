@@ -205,10 +205,13 @@ def files2utf8(source_folder,target_folder,source_encoding='mbcs',show_progress=
         print('Total time: %s seconds' % total_time) 
 
 def encoding_get(filename):
-    import chardet
-    with open (filename,'rb') as fh:
-        dados = b''.join([l for l in fh])
-        return chardet.detect(dados)['encoding']
+    try:
+        import chardet
+        with open (filename,'rb') as fh:
+            dados = b''.join([l for l in fh])
+            return chardet.detect(dados)['encoding']
+    except Exception as e:
+        print(f"Error on encoding_get: {e}")
 
     
 
