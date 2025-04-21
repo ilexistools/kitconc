@@ -1,4 +1,4 @@
-Kitconc 3.0.3
+Kitconc 3.0.4
 =========
 
 Kitconc is a package for Corpus Linguistics and text analysis with Python. 
@@ -13,23 +13,23 @@ It contains, among other things, tools for creating:
 * Dispersion plots
 * Excel data files 
 
-The package is built on top of platforms and packages for scientific research: NLTK, pandas, XlsxWrite and sckit-learn. 
-All in Anaconda Platform.
+The package is built on top of platforms and packages for scientific research: numpy, pandas, NLTK,  XlsxWrite and matplotlib. 
+
 
 Requirements
 =========
 
 Kitconc requires a Python 3.10.15 (or later) installation along with:
 
-numpy>=1.24.0,<2.0.0
-pandas>=2.2.0,<3.0.0
-matplotlib>=3.7.0,<4.0.0
-xlsxwriter>=3.2.3,<4.0.0
-ttkbootstrap>=1.12.0,<2.0.0
-pillow>=11.2.0,<12.0.0
-requests>=2.31.0,<3.0.0
-nltk>=3.9.1,<4.0.0
-chardet>=5.2.0,<6.0.0
+* numpy>=1.24.0,<2.0.0
+* pandas>=2.2.0,<3.0.0
+* matplotlib>=3.7.0,<4.0.0
+* xlsxwriter>=3.2.3,<4.0.0
+* ttkbootstrap>=1.12.0,<2.0.0
+* pillow>=11.2.0,<12.0.0
+* requests>=2.31.0,<3.0.0
+* nltk>=3.9.1,<4.0.0
+* chardet>=5.2.0,<6.0.0
 
 It is suggested that users install Anaconda Platform as an easy option. 
 

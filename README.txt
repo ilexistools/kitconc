@@ -13,7 +13,7 @@ It contains, among other things, tools for creating:
 * Dispersion plots;
 * Excel data files. 
 
-The package is built on top of platforms and packages for scientific research: numpy, nltk, pandas, matplotlib and xlsxwrite. 
+The package is built on top of platforms and packages for scientific research: numpy, pandas, NLTK,  XlsxWrite and matplotlib. 
 All in Anaconda Platform.
 
 Requirements
