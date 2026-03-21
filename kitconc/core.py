@@ -46,8 +46,8 @@ class Examples(object):
                     if show_process ==True:
                         print('Location: ' + dest_path + 'kitconc-examples')
                 print('Done!')
-            except:
-                print('Download was not possible.')
+            except (requests.RequestException, IOError, OSError) as e:
+                print(f'Download was not possible: {e}')
 
 class Config(object):
     """This class is used to configure kitconc."""
@@ -85,9 +85,9 @@ class Config(object):
             with open (data_path,'wb') as fh:
                 pickle.dump(sent_tokenizer,fh)
             flag = True
-        except:
+        except (IOError, OSError):
             flag = None
-        return flag 
+        return flag
         
     def add_tokenizer(self,tokenizer,language):
         """Adds a new tokenizer to kitconc resources
@@ -104,9 +104,9 @@ class Config(object):
             with open (data_path,'wb') as fh:
                 pickle.dump(tokenizer,fh)
             flag = True
-        except:
+        except (IOError, OSError):
             flag = None
-        return flag  
+        return flag 
         
     def add_tagger(self,tagger,language):
         """Adds a new tagger to kitconc resources
@@ -123,7 +123,7 @@ class Config(object):
             with open (data_path,'wb') as fh:
                 pickle.dump(tagger,fh)
             flag = True
-        except:
+        except (IOError, OSError):
             flag = None
         return flag
     
@@ -142,7 +142,7 @@ class Config(object):
             with open (data_path,'w',encoding='utf-8') as f:
                 f.write(reflist)
             flag = True
-        except:
+        except (IOError, OSError):
             flag = None
         return flag
     
@@ -161,7 +161,7 @@ class Config(object):
             with open (data_path,'w',encoding='utf-8') as f:
                 f.write(stoplist)
             flag = True
-        except:
+        except (IOError, OSError):
             flag = None
         return flag
 
@@ -200,9 +200,9 @@ class Resources(object):
             with open (data_path,'wb') as fh:
                 pickle.dump(sent_tokenizer,fh)
             flag = True
-        except:
+        except (IOError, OSError):
             flag = None
-        return flag 
+        return flag
         
     def add_tokenizer(self,tokenizer,language):
         """Adds a new tokenizer to kitconc resources
@@ -219,9 +219,9 @@ class Resources(object):
             with open (data_path,'wb') as fh:
                 pickle.dump(tokenizer,fh)
             flag = True
-        except:
+        except (IOError, OSError):
             flag = None
-        return flag  
+        return flag 
         
     def add_tagger(self,tagger,language):
         """Adds a new tagger to kitconc resources
@@ -238,7 +238,7 @@ class Resources(object):
             with open (data_path,'wb') as fh:
                 pickle.dump(tagger,fh)
             flag = True
-        except:
+        except (IOError, OSError):
             flag = None
         return flag
     
@@ -257,7 +257,7 @@ class Resources(object):
             with open (data_path,'w') as f:
                 f.write(reflist)
             flag = True
-        except:
+        except (IOError, OSError):
             flag = None
         return flag
     
@@ -276,7 +276,7 @@ class Resources(object):
             with open (data_path,'w') as f:
                 f.write(stoplist)
             flag = True
-        except:
+        except (IOError, OSError):
             flag = None
         return flag
     

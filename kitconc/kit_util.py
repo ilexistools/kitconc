@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 # Author: jlopes@alumni.usp.br
-import os,sys  
+import os
+import sys
 import math
-import time  
-import string 
+import time
+import string
+import pickle
+from pathlib import Path
+from typing import Any, Optional
 
 def __progress(count, total, suffix=''):
         bar_len = 30
@@ -12,8 +16,8 @@ def __progress(count, total, suffix=''):
         bar = '=' * filled_len + '-' * (bar_len - filled_len)
         sys.stdout.write('[%s] %s%s ...%s\r' % (bar, percents, '%', suffix))
         try:
-            sys.stdout.flush()  
-        except:
+            sys.stdout.flush()
+        except OSError:
             pass
         
 def keywords_reference(filename):
@@ -137,16 +141,121 @@ def logRatio(freq_stdc,freq_refc,tk_stdc,tk_refc):
     lr = math.log2((Norm_stdc/Norm_refc))
     return lr
 
-def dump(obj,filename):
-    import pickle
-    with open(filename,'wb') as fh:
-        pickle.dump(obj,fh)
+def _safe_load_pickle(path: str | Path, base_dir: Optional[str | Path] = None) -> Any:
+    """Loads a pickle file with optional path validation.
 
-def load(filename):
-    import pickle 
-    with open(filename,'rb') as fh:
-        obj = pickle.load(fh)
-    return obj 
+    If base_dir is provided, verifies that the resolved path is inside it
+    to prevent path-traversal attacks.
+    """
+    resolved = Path(path).resolve()
+    if base_dir is not None:
+        base = Path(base_dir).resolve()
+        if not str(resolved).startswith(str(base)):
+            raise ValueError(f"Path traversal detected: {path!r} is outside {base_dir!r}")
+    with open(resolved, 'rb') as fh:
+        return pickle.load(fh)
+
+
+def dump(obj: Any, filename: str) -> None:
+    with open(filename, 'wb') as fh:
+        pickle.dump(obj, fh)
+
+
+def load(filename: str, base_dir: Optional[str] = None) -> Any:
+    """Loads a pickle file. Pass base_dir to restrict loading to that directory."""
+    return _safe_load_pickle(filename, base_dir=base_dir)
+
+
+_SKIP_FILES = {'.DS_Store', 'desktop.ini', 'Thumbs.db'}
+
+
+def _pdf_to_text(pdf_path: str) -> str:
+    """Extracts plain text from a PDF file.
+
+    Strategy:
+    1. Try direct text extraction via pypdf (fast, works for digital PDFs).
+    2. If no text is found, fall back to OCR using pdf2image + pytesseract
+       (handles scanned image PDFs).
+
+    Raises ImportError if required libraries are not installed.
+    """
+    try:
+        import pypdf
+    except ImportError:
+        raise ImportError(
+            "pypdf is required to read PDF files. Install it with: pip install pypdf"
+        )
+
+    # --- Step 1: direct text extraction ---
+    text_parts = []
+    with open(pdf_path, 'rb') as fh:
+        reader = pypdf.PdfReader(fh)
+        for page in reader.pages:
+            text_parts.append(page.extract_text() or '')
+    text = '\n'.join(text_parts).strip()
+
+    if text:
+        return text
+
+    # --- Step 2: OCR fallback for scanned PDFs ---
+    try:
+        from pdf2image import convert_from_path
+        import pytesseract
+    except ImportError:
+        raise ImportError(
+            "This PDF appears to be a scanned image. OCR support requires:\n"
+            "  pip install pdf2image pytesseract\n"
+            "and Tesseract installed on the system (brew install tesseract)."
+        )
+
+    images = convert_from_path(pdf_path)
+    ocr_parts = [pytesseract.image_to_string(img) for img in images]
+    text = '\n'.join(ocr_parts).strip()
+
+    if not text:
+        raise ValueError(
+            f"Could not extract text from '{pdf_path}' (tried direct extraction and OCR). "
+            "The file may be corrupted or contain only non-text content."
+        )
+    return text
+
+
+def prepare_source_folder(source_folder: str) -> tuple:
+    """Ensures source_folder is ready for corpus ingestion.
+
+    If the folder contains PDF files, creates a temporary directory where
+    each PDF is converted to a plain-text .txt file (other files are copied
+    as-is).  Returns ``(effective_folder, temp_folder_or_None)``.
+
+    The caller is responsible for deleting ``temp_folder`` (when not None)
+    after processing.
+    """
+    import shutil
+    import tempfile
+
+    if not source_folder.endswith('/'):
+        source_folder = source_folder + '/'
+
+    all_files = [f for f in os.listdir(source_folder) if f not in _SKIP_FILES]
+    pdf_files = [f for f in all_files if f.lower().endswith('.pdf')]
+
+    if not pdf_files:
+        return source_folder, None
+
+    # At least one PDF — build a temp copy of the folder
+    temp_dir = tempfile.mkdtemp()
+    for filename in all_files:
+        src = source_folder + filename
+        if filename.lower().endswith('.pdf'):
+            text = _pdf_to_text(src)
+            txt_name = filename[:-4] + '.txt'  # replace .pdf → .txt
+            with open(os.path.join(temp_dir, txt_name), 'w', encoding='utf-8') as fh:
+                fh.write(text)
+        else:
+            shutil.copy2(src, os.path.join(temp_dir, filename))
+
+    return temp_dir + '/', temp_dir
+
 
 def file2utf8(source_file,target_file,source_encoding='mbcs'):
     import codecs

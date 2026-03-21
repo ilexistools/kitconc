@@ -300,7 +300,7 @@ def tscore(ab,a,b,N, h=1):
 
 def calc_association(node_count,left_counts,right_counts,dict_words,wordlist,tokens,lowercase,measure):
     """Translates numbers to words and calculates association. Returns a list of collocates."""
-    punct = re.compile('^\W+$')
+    punct = re.compile(r'^\W+$')
     collocates = []
     d = dict()
     if lowercase == True:

@@ -44,7 +44,7 @@ def count_words2(npy_path):
 
 def make_wfreqinfiles(workspace,corpus_name,language,lowercase):
     # compile regex 
-    punct = re.compile('^\W+$')
+    punct = re.compile(r'^\W+$')
     # load word dictionary
     dict_words = load_dict(workspace+corpus_name+'/data/idx/words.pickle')
     # translate

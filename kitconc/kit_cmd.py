@@ -146,8 +146,12 @@ class Kit(Cmd):
             parser = argparse.ArgumentParser()
             parser.prog= "keywords"
             parser.description='Extracts keywords from the current corpus.'
-            parser.add_argument('--measure', action='store', dest='measure', type=str, help='statistic measure (chi-square or log-likelihood) default: log-likelihood')
+            parser.add_argument('--measure', action='store', dest='measure', type=str, help='statistic measure (chi-square, log-likelihood or tf-idf) default: log-likelihood')
             parser.add_argument('--stoplist', action='store', dest='stoplist', type=str, help='use the stoplist to filter keywords: (y or n) default:n')
+            parser.add_argument('--reflang', action='store', dest='reflang', type=str, help='reference language for keyness calculation (e.g. english, portuguese)')
+            parser.add_argument('--nonumbers', action='store', dest='nonumbers', type=str, help='ignore numbers (y or n) default: y')
+            parser.add_argument('--nostrange', action='store', dest='nostrange', type=str, help='ignore words with non-alphabetic characters (y or n) default: y')
+            parser.add_argument('--minchars', action='store', dest='minchars', type=int, help='minimum word length in characters default: 2')
         
         elif function_name == 'kwic':
             parser = argparse.ArgumentParser()
@@ -365,11 +369,11 @@ class Kit(Cmd):
     
     def do_cls(self,args):
         """\nClear screen\n"""
-        os.system('cls' if os.name=='nt' else 'clear') 
+        subprocess.run('cls' if os.name == 'nt' else 'clear', shell=True)
     
     def do_clear(self,args):
         """\nClear screen\n"""
-        os.system('cls' if os.name=='nt' else 'clear')
+        subprocess.run('cls' if os.name == 'nt' else 'clear', shell=True)
     
     def do_ls(self,args):
         """\nDescription: Lists corpora or files in the output corpus folder.
@@ -488,13 +492,11 @@ class Kit(Cmd):
                     if os.path.exists(output_path + args.filename):
                         if os.name == 'nt':
                             #on Windows:
-                            os.system(output_path + args.filename)
+                            os.startfile(output_path + args.filename)
                         else:
-                            #on linux:
-                            opener ="open" if sys.platform == "darwin" else "xdg-open"
-                            output = subprocess.call([opener, output_path + '/' + args.filename])
-                            output.trim()
-                            output = None
+                            #on macOS / linux:
+                            opener = "open" if sys.platform == "darwin" else "xdg-open"
+                            subprocess.call([opener, output_path + args.filename])
                             print('')
                     else:
                         print('\nFile does not exist.')
@@ -606,8 +608,14 @@ class Kit(Cmd):
                             for line in fh:
                                 if len(line.strip())!= 0:
                                     stoplist.append(line.strip())
+                ref_language = args.reflang if args.reflang is not None else None
+                ignore_numbers = args.nonumbers != 'n' if args.nonumbers is not None else True
+                ignore_strange = args.nostrange != 'n' if args.nostrange is not None else True
+                min_chars = args.minchars if args.minchars is not None else 2
                 print('Keywords:')
-                keywords = corpus.keywords(measure=measure,stoplist=stoplist,show_progress=True)
+                keywords = corpus.keywords(measure=measure, stoplist=stoplist, show_progress=True,
+                                           ref_language=ref_language, ignore_numbers=ignore_numbers,
+                                           ignore_strange=ignore_strange, min_chars=min_chars)
                 keywords.save_excel(self.workspace + self.corpus_in_use + '/output/keywords.xlsx')
                 del keywords 
                 print('')

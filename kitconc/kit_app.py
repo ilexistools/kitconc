@@ -8,7 +8,8 @@ from tkinter import messagebox
 import PIL.Image
 import PIL.ImageTk
 import kitconc 
-from kitconc.kit_corpus import Corpus 
+from kitconc.kit_corpus import Corpus
+from kitconc.py_keywords import available_ref_languages
 from kitconc import version 
 from kitconc.kit_cmd import Kit 
 from kitconc.core import Config
@@ -20,7 +21,7 @@ from kitconc import kit_app_language
 from ttkbootstrap import Window
 import ttkbootstrap as tkb
 from ttkbootstrap import Style
-from ttkbootstrap.widgets import Radiobutton
+from ttkbootstrap import Radiobutton
 
 
 class KitApp(Window):
@@ -113,6 +114,7 @@ class KitApp(Window):
 
         # create kit object and set workspace
         self.kit = Kit()
+        self.kit.load_workspace()
         self.kit.corpus_in_use = None
 
         # add widgets to window
@@ -342,6 +344,24 @@ class KitApp(Window):
         
    
     
+    def _center_dialog(self, top: 'Toplevel') -> None:
+        """Center a Toplevel dialog over the main window.
+
+        Uses winfo_reqwidth/reqheight (layout-requested size) instead of
+        winfo_width/height (rendered size, which returns 1 before the window
+        is drawn), so it works correctly in fullscreen mode too.
+        """
+        top.transient(self)
+        top.update_idletasks()
+        w = top.winfo_reqwidth()
+        h = top.winfo_reqheight()
+        # Center relative to the main window, not the screen
+        mx = self.winfo_x() + self.winfo_width() // 2
+        my = self.winfo_y() + self.winfo_height() // 2
+        x = mx - w // 2
+        y = my - h // 2
+        top.geometry(f"{w}x{h}+{x}+{y}")
+
     # export corpus
     def __export_corpus(self):
         if self.implementation == 'CPython':
@@ -385,36 +405,34 @@ class KitApp(Window):
     # rename dialog
     def __renamedialog(self):
         def callback():
-            # window
             self.top = Toplevel()
             self.top.title(self.__gui_lang[64])
-            window_height = 100
-            window_width = 280
-            screen_width = self.top.winfo_screenwidth()
-            screen_height = self.top.winfo_screenheight()
-            x_cordinate = int((screen_width/2) - (window_width/2))
-            y_cordinate = int((screen_height/2) - (window_height/2))
-            self.top.geometry("{}x{}+{}+{}".format(window_width, window_height, x_cordinate, y_cordinate))
             self.top.resizable(False, False)
             self.top.tk.call('wm', 'iconphoto', self.top._w, self.icon_python)
-            self.top.focus()
-            self.top.update_idletasks()
-            # widgets
-            lbl_filename = ttk.Label(self.top,text=self.__gui_lang[65])
-            lbl_filename.place(x=5,y=5)
+            # grid layout
+            main = ttk.Frame(self.top, padding=10)
+            main.pack(fill='both', expand=True)
+            main.columnconfigure(0, weight=1)
+            main.columnconfigure(1, weight=0)
+            ttk.Label(main, text=self.__gui_lang[65]).grid(
+                row=0, column=0, columnspan=2, sticky='w', pady=(0, 4))
             self.newname = StringVar()
-            txt_filename = ttk.Entry(self.top,textvariable=self.newname)
-            txt_filename.place(x=5,y=25,width=150)
-            btn_ok = ttk.Button(self.top,text=self.__gui_lang[66],width=10,command=self.__rename)
-            btn_ok.place(x=5,y=60)
-            btn_cancel = ttk.Button(self.top,text=self.__gui_lang[67],width=10,command=self.__rename_cancel)
-            btn_cancel.place(x=105,y=60)
-            # set focus
+            txt_filename = ttk.Entry(main, textvariable=self.newname, width=28)
+            txt_filename.grid(row=1, column=0, columnspan=2, sticky='ew', pady=(0, 10))
+            btn_frame = ttk.Frame(main)
+            btn_frame.grid(row=2, column=0, columnspan=2, sticky='e')
+            ttk.Button(btn_frame, text=self.__gui_lang[66], width=10,
+                       command=self.__rename).pack(side='left', padx=(0, 5))
+            ttk.Button(btn_frame, text=self.__gui_lang[67], width=10,
+                       command=self.__rename_cancel).pack(side='left')
+            # pre-fill with current filename
             i = self.frm_trv_files.selection()[0]
-            filename = self.frm_trv_files.item(i,'text').strip()
-            if len(filename)!=0:
+            filename = self.frm_trv_files.item(i, 'text').strip()
+            if filename:
                 self.newname.set(filename)
+            self._center_dialog(self.top)
             txt_filename.focus()
+            self.top.grab_set()
         self.after_idle(callback)
     
     # get languages 
@@ -430,8 +448,8 @@ class KitApp(Window):
                     language = filename[:-13]
                     if language not in d:
                         d[language]=None
-                except:
-                    pass 
+                except (ValueError, IndexError):
+                    pass
             elif filename.startswith('pos_tagger_'):
                 try:
                     size = len(filename)
@@ -439,7 +457,7 @@ class KitApp(Window):
                     language = filename[I:(I+m)]
                     if language not in d:
                         d[language]=None
-                except:
+                except (ValueError, IndexError):
                     pass
         for k in d:
             if k != 'language':
@@ -520,22 +538,8 @@ class KitApp(Window):
         # foco inicial
         main.focus_set()
 
-        # força layout para poder medir
-        self.top.update_idletasks()
-        natural_w = self.top.winfo_width()
-        natural_h = self.top.winfo_height()
-
-        # centraliza na tela
-        screen_w = self.top.winfo_screenwidth()
-        screen_h = self.top.winfo_screenheight()
-        x = (screen_w - natural_w) // 2
-        y = (screen_h - natural_h) // 2
-        self.top.geometry(f"{natural_w}x{natural_h}+{x}+{y}")
-
-        # limita tamanho ao natural
-        self.top.maxsize(natural_w, natural_h)
-
-        # torna modal
+        # centraliza sobre a janela principal e torna modal
+        self._center_dialog(self.top)
         self.top.wait_visibility()
         self.top.grab_set()
 
@@ -605,21 +609,8 @@ class KitApp(Window):
         self.language_entry = main.nametowidget(main.grid_slaves(row=1, column=1)[0])
         self.language_entry.focus_set()
 
-        # força layout e calcula tamanho natural
-        self.top.update_idletasks()
-        w = self.top.winfo_width()
-        h = self.top.winfo_height()
-        sw = self.top.winfo_screenwidth()
-        sh = self.top.winfo_screenheight()
-        x = (sw - w) // 2
-        y = (sh - h) // 2
-
-        # aplica tamanho e centraliza
-        self.top.geometry(f"{w}x{h}+{x}+{y}")
-        # opcional: evita que altura seja alterada
-        self.top.minsize(w, h)
-
-        # torna modal
+        # centraliza sobre a janela principal e torna modal
+        self._center_dialog(self.top)
         self.top.wait_visibility()
         self.top.grab_set()
         self.master.wait_window(self.top)
@@ -679,17 +670,8 @@ class KitApp(Window):
             # foco inicial
             self.cmb_language_model.focus_set()
 
-            # calcula tamanho natural e centraliza
-            self.top.update_idletasks()
-            w = self.top.winfo_width()
-            h = self.top.winfo_height()
-            sw = self.top.winfo_screenwidth()
-            sh = self.top.winfo_screenheight()
-            x = (sw - w) // 2
-            y = (sh - h) // 2
-            self.top.geometry(f"{w}x{h}+{x}+{y}")
-
-            # mostra e torna modal
+            # centraliza sobre a janela principal e torna modal
+            self._center_dialog(self.top)
             self.top.deiconify()
             self.top.grab_set()
             self.master.wait_window(self.top)
@@ -911,7 +893,7 @@ class KitApp(Window):
                 if s == True:
                     try:
                         os.remove(self.__path + '/data/scripts/' + filename + '.py')
-                    except:
+                    except (IOError, OSError):
                         pass
             self.focus()
             self.__load_tools()
@@ -1047,7 +1029,7 @@ class KitApp(Window):
                     # create kitconc.bat for desktop
                     s = []
                     # the script uses vb to create a link in the desktop
-                    script = ("""@echo off
+                    script = (r"""@echo off
                     set SCRIPT="%TEMP%\%RANDOM%-%RANDOM%-%RANDOM%-%RANDOM%.vbs"
                     echo Set oWS = WScript.CreateObject("WScript.Shell") >> %SCRIPT%
                     echo sLinkFile = "%USERPROFILE%\Desktop\Kitconc.lnk" >> %SCRIPT%
@@ -1080,14 +1062,16 @@ class KitApp(Window):
     
     def __load_corpora(self):
         try:
+            if self.kit.workspace is None:
+                return
             corpora = []
             for filename in os.listdir(self.kit.workspace):
                 if os.path.isdir(self.kit.workspace + '/' + filename):
                     if os.path.exists(self.kit.workspace + '/' + filename + '/info.tab'):
                         corpora.append(filename)
-            self.frm_cmb_corpora['values'] = corpora 
-        except:
-            pass 
+            self.frm_cmb_corpora['values'] = corpora
+        except (OSError, PermissionError):
+            pass
     
     def __load_datafiles(self):
         if self.kit.corpus_in_use != None:
@@ -1115,7 +1099,7 @@ class KitApp(Window):
                     if s == True:
                         try:
                             os.remove(self.kit.workspace + self.kit.corpus_in_use + '/output/' + filename + '.xlsx')
-                        except:
+                        except (IOError, OSError):
                             pass
                 self.focus()
                 self.__load_datafiles()
@@ -1214,7 +1198,7 @@ class KitApp(Window):
 
                             # clear corpus info
                             self.frm_lbl_info['text']=''
-                    except:
+                    except (OSError, PermissionError):
                         print(self.__gui_lang[126])
             self.focus()
             self.__load_corpora()
@@ -1298,7 +1282,7 @@ class KitApp(Window):
             try:
                 if len(filename) != 0:
                     if self.__platform == 'win32' or self.__platform == 'win64':
-                        os.system('notepad.exe ' + filename)
+                        subprocess.Popen(['notepad.exe', filename])
                     elif self.__platform == 'linux' or self.__platform == 'linux2':
                         subprocess.Popen(['gedit', filename])
                     elif self.__platform == 'darwin':
@@ -1307,9 +1291,9 @@ class KitApp(Window):
                         subprocess.Popen(["xdg-open", filename])
             except Exception as e:
                 print(e)
-                
+
         self.__hide_progress()
-    
+
     # open script
     def __on_open_script(self):
         def callback():
@@ -1317,13 +1301,13 @@ class KitApp(Window):
             t = threading.Thread (target=self.__open_script)
             t.start()
         self.after_idle(callback)
-        
+
     def __open_script(self):
         try:
             if len(self.script_name) != 0:
                 filename = self.__path + '/data/scripts/' + self.script_name + '.py'
                 if self.__platform == 'win32' or self.__platform == 'win64':
-                    os.system('notepad.exe ' + filename)
+                    subprocess.Popen(['notepad.exe', filename])
                 elif self.__platform == 'linux' or self.__platform == 'linux2':
                     subprocess.Popen(['gedit', filename])
                 elif self.__platform == 'darwin':
@@ -1344,7 +1328,7 @@ class KitApp(Window):
         if os.path.exists(output_path  + default_name + '.xlsx'):
             try:
                 os.rename(output_path  + default_name + '.xlsx',output_path  + filename + '.xlsx')
-            except:
+            except OSError:
                 os.remove(output_path  + filename + '.xlsx')
                 os.rename(output_path + default_name + '.xlsx', output_path + filename + '.xlsx')
         self.filename.set(filename)
@@ -1429,7 +1413,11 @@ class KitApp(Window):
 
                 self.rdo_stat2 = ttk.Radiobutton(container, text=self.__gui_lang[145], value=2)
                 self.rdo_stat2.state(['selected', '!alternate', '!disabled'])
-                self.rdo_stat2.pack(anchor="w", pady=(0, 10))
+                self.rdo_stat2.pack(anchor="w", pady=(0, 2))
+
+                self.rdo_stat3 = ttk.Radiobutton(container, text='TF-IDF', value=3)
+                self.rdo_stat3.state(['!selected', '!alternate', '!disabled'])
+                self.rdo_stat3.pack(anchor="w", pady=(0, 10))
 
                 # Label + Entry para nome de arquivo
                 self.lbl_filename = ttk.Label(container, text=self.__gui_lang[146])
@@ -1439,6 +1427,33 @@ class KitApp(Window):
                 self.filename.set(self.__gui_lang[147])
                 self.txt_filename = ttk.Entry(container, textvariable=self.filename)
                 self.txt_filename.pack(fill="x", padx=(0, 10), pady=(0, 10))
+
+                # Filter checkboxes
+                self.chk_nonumbers = ttk.Checkbutton(container, text='Ignore numbers')
+                self.chk_nonumbers.state(['selected', '!alternate', '!disabled'])
+                self.chk_nonumbers.pack(anchor="w", pady=(0, 2))
+
+                self.chk_nostrange = ttk.Checkbutton(container, text='Ignore strange characters')
+                self.chk_nostrange.state(['selected', '!alternate', '!disabled'])
+                self.chk_nostrange.pack(anchor="w", pady=(0, 5))
+
+                # Minimum characters spinbox
+                frm_minchars = ttk.Frame(container)
+                frm_minchars.pack(anchor="w", fill="x", pady=(0, 10))
+                ttk.Label(frm_minchars, text='Min. word length:').pack(side="left")
+                self.spn_minchars = ttk.Spinbox(frm_minchars, from_=1, to=20, width=4)
+                self.spn_minchars.set(2)
+                self.spn_minchars.pack(side="left", padx=(5, 0))
+
+                # Reference language combobox
+                self.lbl_reflang = ttk.Label(container, text='Reference language:')
+                self.lbl_reflang.pack(anchor="w")
+                ref_langs = available_ref_languages()
+                corpus_lang = getattr(self.kit, 'language', '') or ''
+                default_reflang = corpus_lang if corpus_lang in ref_langs else (ref_langs[0] if ref_langs else '')
+                self.cmb_reflang = ttk.Combobox(container, values=ref_langs, state='readonly')
+                self.cmb_reflang.set(default_reflang)
+                self.cmb_reflang.pack(fill="x", padx=(0, 10), pady=(0, 10))
 
                 # Botão de execução
                 self.btn_execute = ttk.Button(container, text=self.__gui_lang[132], command=self.__on_keywords)
@@ -3077,11 +3092,21 @@ class KitApp(Window):
     def __exec_keywords(self):
         stoplist = 'n'
         if self.chk_stoplist.instate(['selected']):
-            stoplist='y'
-        measure = 'log-likelihodd'
+            stoplist = 'y'
+        measure = 'log-likelihood'
         if self.rdo_stat1.instate(['selected']):
             measure = 'chi-square'
-        self.kit.do_keywords('--stoplist ' + stoplist + ' --measure ' + measure )
+        elif self.rdo_stat3.instate(['selected']):
+            measure = 'tf-idf'
+        reflang = self.cmb_reflang.get()
+        reflang_arg = ' --reflang ' + reflang if (reflang and measure != 'tf-idf') else ''
+        nonumbers = 'y' if self.chk_nonumbers.instate(['selected']) else 'n'
+        nostrange = 'y' if self.chk_nostrange.instate(['selected']) else 'n'
+        minchars = self.spn_minchars.get()
+        self.kit.do_keywords('--stoplist ' + stoplist + ' --measure ' + measure + reflang_arg
+                             + ' --nonumbers ' + nonumbers
+                             + ' --nostrange ' + nostrange
+                             + ' --minchars ' + str(minchars))
         # rename 
         self.__rename_file('keywords')
         self.__load_datafiles()
@@ -3497,7 +3522,7 @@ class KitApp(Window):
         # limit
         try:
             limit = int(self.cmb_limit.get())
-        except:
+        except (ValueError, TypeError):
             limit = 200
         # format 
         rformat = self.cmb_format.get()
@@ -3525,7 +3550,12 @@ class KitApp(Window):
         args = ''
         if len(self.script_args.get().strip())!=0:
             args = self.script_args.get().strip()
-        os.system('python ' +  self.__path + '/data/scripts/' + self.script_name  + '.py ' + self.kit.workspace + ' ' + self.kit.corpus_in_use + ' ' + args)
+        import shlex
+        script_path = os.path.join(self.__path, 'data', 'scripts', self.script_name + '.py')
+        extra_args = shlex.split(args) if args else []
+        subprocess.Popen(
+            [sys.executable, script_path, self.kit.workspace, self.kit.corpus_in_use] + extra_args
+        )
         # update window
         self.__load_datafiles()
         self.__hide_progress()

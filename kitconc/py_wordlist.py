@@ -1,21 +1,25 @@
 # -*- coding: utf-8 -*-
 # Author: jlopes@alumni.usp.br
-import os 
+import os
 import pickle
+import re
+from typing import Any, Dict, List, Tuple
+
 import numpy as np
-import re  
 
 
-def load_dict(dict_path):
-    with open(dict_path,'rb') as fh:
+def load_dict(dict_path: str) -> Any:
+    with open(dict_path, 'rb') as fh:
         d = pickle.load(fh)
-    return d 
+    return d
 
-def save_dict(dict_d,dict_path):
-    with open(dict_path,'wb') as fh:
-        pickle.dump(dict_d,fh)
 
-def count_words(npy_path):
+def save_dict(dict_d: Any, dict_path: str) -> None:
+    with open(dict_path, 'wb') as fh:
+        pickle.dump(dict_d, fh)
+
+
+def count_words(npy_path: str) -> Dict[int, int]:
     counter = dict()
     files = os.listdir(npy_path)
     for filename in files:
@@ -28,7 +32,7 @@ def count_words(npy_path):
                 counter[i[x]]=c[x]
     return counter
     
-def make_wordlist(workspace,corpus_name,language,lowercase=True):
+def make_wordlist(workspace: str, corpus_name: str, language: str, lowercase: bool = True) -> Tuple[int, int, float, int, List[Tuple[int, str, int, float]]]:
     # check wordlist saved 
     if os.path.exists(workspace + corpus_name + '/data/idx/wordlistlc.pickle') == True and lowercase == True:
         with open(workspace + corpus_name + '/data/idx/wordlistlc.pickle','rb') as fh:
@@ -38,8 +42,8 @@ def make_wordlist(workspace,corpus_name,language,lowercase=True):
             info = pickle.load(fh)
         return (info[0],info[1],info[2],info[3],wordlist)  
     
-    # compile regex 
-    punct = re.compile('^\W+$')
+    # compile regex
+    punct = re.compile(r'^\W+$')
     
     # make or load wordlist count
     if (os.path.exists(workspace+corpus_name+'/data/idx/wordlist.pickle') == False):

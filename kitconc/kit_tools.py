@@ -320,10 +320,7 @@ class Kwic(object):
             self.df['Sort'] = df1['Col1'] 
         # sort
         self.df.sort_values(['Sort'], ascending=[True],inplace=True)
-        try:
-            self.df = self.df.drop('Sort',1)
-        except:
-            self.df = self.df.drop('Sort', axis=1)
+        self.df = self.df.drop('Sort', axis=1)
 
             
         
@@ -850,21 +847,20 @@ class Dispersion(object):
                 if not os.path.exists(path):
                     if not os.path.isfile(path):
                         os.mkdir(path)
-                flag = True 
-            except:
-                flag = False 
-            return flag 
+                flag = True
+            except (OSError, PermissionError):
+                flag = False
+            return flag
         # function
         def remove_temp_folder(path):
-            flag = True 
+            flag = True
             try:
                 if os.path.exists(path):
                     if not os.path.isfile(path):
                         shutil.rmtree(path)
-                        
-                flag = True 
-            except:
-                flag = False 
+                flag = True
+            except (OSError, PermissionError):
+                flag = False
             return flag
         # function
         def draw_barcode(points):
@@ -1015,25 +1011,25 @@ class KeywordsDispersion(object):
         from PIL import ImageDraw
         # function
         def create_temp_folder(path):
-            flag = True 
+            flag = True
             try:
                 if not os.path.exists(path):
                     if not os.path.isfile(path):
                         os.mkdir(path)
-                flag = True 
-            except:
-                flag = False 
-            return flag 
+                flag = True
+            except (OSError, PermissionError):
+                flag = False
+            return flag
         # function
         def remove_temp_folder(path):
-            flag = True 
+            flag = True
             try:
                 if os.path.exists(path):
                     if not os.path.isfile(path):
                         shutil.rmtree(path)
-                flag = True 
-            except:
-                flag = False 
+                flag = True
+            except (OSError, PermissionError):
+                flag = False
             return flag
         # function
         def draw_barcode(points):

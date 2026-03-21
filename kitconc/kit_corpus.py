@@ -35,7 +35,7 @@ from kitconc import kit_util
 from kitconc import kit_data
 from kitconc import kit_models
 from kitconc.py_wordlist import make_wordlist
-from kitconc.py_keywords import make_keywords
+from kitconc.py_keywords import make_keywords, make_keywords_tfidf, available_ref_languages
 from kitconc.py_wtfreq import make_wtfreq
 from kitconc.py_wfreqinfiles import make_wfreqinfiles
 from kitconc.py_kwic import make_kwic 
@@ -91,8 +91,8 @@ class Corpus (object):
             shell = get_ipython().__class__.__name__
             if shell == 'ZMQInteractiveShell' or shell == 'Shell':
                 self.__shell = True   # Jupyter notebook or qtconsole
-        except:
-            pass  
+        except (ImportError, AttributeError):
+            pass
         # constants
         self.MEASURE_MUTUAL_INFORMATION = 'mutual information'
         self.MEASURE_CHI_SQUARE = 'chi-square'
@@ -245,7 +245,7 @@ class Corpus (object):
             sys.stdout.write('[%s] %s%s ...%s\r' % (bar, percents, '%', suffix))
             try:
                 sys.stdout.flush()
-            except:
+            except OSError:
                 pass
 
 
@@ -312,8 +312,11 @@ class Corpus (object):
         """
         if self.has_empty_files(source_folder):
             raise ValueError(f"Empty file found. Identify and remove empty files in {source_folder} before proceeding.")
-        
-        # args 
+
+        # Convert any PDF files in source_folder to plain text transparently
+        source_folder, _pdf_tmp = kit_util.prepare_source_folder(source_folder)
+
+        # args
         tagged = kwargs.get('tagged', False)
         language_model = kwargs.get('language_model', None)
         show_progress = kwargs.get('show_progress', False)
@@ -435,6 +438,10 @@ class Corpus (object):
             print('Error deleting temp folders')
             print(e)
 
+        # Clean up the PDF conversion temp folder (if any PDFs were converted)
+        if _pdf_tmp is not None:
+            shutil.rmtree(_pdf_tmp, ignore_errors=True)
+
     
 
     def wordlist(self, **kwargs):
@@ -515,23 +522,38 @@ class Corpus (object):
         measure = kwargs.get('measure', 'log-likelihood')
         stoplist = kwargs.get('stoplist', [])
         show_progress = kwargs.get('show_progress', False)
+        ref_language = kwargs.get('ref_language', None)
+        ignore_numbers = kwargs.get('ignore_numbers', True)
+        ignore_strange = kwargs.get('ignore_strange', True)
+        min_chars = kwargs.get('min_chars', 2)
         
         # get statistical measure identifier
+        use_tfidf = (measure == 'tf-idf')
         if measure == 'log-likelihood':
             stat = 1
         elif measure == 'chi-square':
             stat = 2
         else:
             stat = 1
-        
+
         # time start
         if show_progress:
             print('Running...')
             t0 = time.time()
-        
+
         # Generate keywords table
         kwlst = kit_tools.Keywords()
-        k = make_keywords(self.workspace, self.corpus_name, self.language, stat)
+        if use_tfidf:
+            k = make_keywords_tfidf(self.workspace, self.corpus_name, self.language,
+                                    ignore_numbers=ignore_numbers,
+                                    ignore_strange=ignore_strange,
+                                    min_chars=min_chars)
+        else:
+            k = make_keywords(self.workspace, self.corpus_name, self.language, stat,
+                              ref_language=ref_language,
+                              ignore_numbers=ignore_numbers,
+                              ignore_strange=ignore_strange,
+                              min_chars=min_chars)
         kwlst.df = pd.DataFrame(k, columns=['N', 'WORD', 'FREQUENCY', 'KEYNESS'])
         k = None  # Free memory
         
@@ -539,7 +561,8 @@ class Corpus (object):
         kwlst.df = kwlst.df[~kwlst.df['WORD'].isin(stoplist)]
         
         # Sort by keyness score, reassign ranking, and round keyness values
-        kwlst.df['KEYNESS'] = kwlst.df['KEYNESS'].apply(lambda x: round(x, 2))
+        decimals = 6 if use_tfidf else 2
+        kwlst.df['KEYNESS'] = kwlst.df['KEYNESS'].apply(lambda x: round(x, decimals))
         kwlst.df.sort_values('KEYNESS', ascending=False, inplace=True)
         kwlst.df['N'] = [i + 1 for i in range(len(kwlst.df))]
         kwlst.df.reset_index(drop=True, inplace=True)
@@ -1043,7 +1066,7 @@ class Corpus (object):
             stat = 2
         
         # Compile pattern to avoid punctuation-only tokens
-        ptn = re.compile("^\W+$")
+        ptn = re.compile(r"^\W+$")
         
         # Create a wordlist and frequency dictionary
         tpl = make_wordlist(self.workspace, self.corpus_name, self.language, lowercase)

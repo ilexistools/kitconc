@@ -146,7 +146,7 @@ def translate(contexts,dict_words,lowercase,total_files,size):
     r = dict()
     c = dict() 
     n = dict()
-    punct = re.compile('^\W+ | \W+$| \W+ ')
+    punct = re.compile(r'^\W+ | \W+$| \W+ ')
     for d in contexts:
         n=dict()
         for k,v in d.items():

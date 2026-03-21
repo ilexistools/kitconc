@@ -1,21 +1,24 @@
 # -*- coding: utf-8 -*-
 # Author: jlopes@alumni.usp.br
-import os 
-import numpy as np 
-import pickle 
-import re 
-import collections 
-import tempfile 
-import shutil 
+import os
+import pickle
+import re
+import collections
+import tempfile
+import shutil
+from typing import Any, List, Optional
+
+import numpy as np
 
 
-def load_dict(dict_path):
+def load_dict(dict_path: str) -> Any:
     """Loads a dictionary in pickle format."""
-    with open(dict_path,'rb') as fh:
+    with open(dict_path, 'rb') as fh:
         d = pickle.load(fh)
-    return d 
+    return d
 
-def parse_search(workspace,corpus_name,pos):
+
+def parse_search(workspace: str, corpus_name: str, pos: Optional[str | list]) -> Optional[List[np.ndarray]]:
     """Parses the input search and returns a tuple with encoded word and pos node.
     """
     # load dictionaries for encoding words to numbers
@@ -47,7 +50,7 @@ def parse_search(workspace,corpus_name,pos):
     return encoded_pos
 
 
-def unigrams(arr,encoded_pos):
+def unigrams(arr: np.ndarray, encoded_pos: Optional[List[np.ndarray]]) -> collections.Counter:
     if encoded_pos != None:
         dq = collections.deque(maxlen=1)
         counter = collections.Counter()
@@ -63,7 +66,7 @@ def unigrams(arr,encoded_pos):
             counter[dq[0]]+=1
     return counter
     
-def bigrams(arr,encoded_pos):
+def bigrams(arr: np.ndarray, encoded_pos: Optional[List[np.ndarray]]) -> collections.Counter:
     if encoded_pos != None:
         dq = collections.deque(maxlen=2)
         dqt = collections.deque(maxlen=2)
@@ -84,7 +87,7 @@ def bigrams(arr,encoded_pos):
             counter[(dq[0],dq[1])]+=1
     return counter 
 
-def trigrams(arr,encoded_pos):
+def trigrams(arr: np.ndarray, encoded_pos: Optional[List[np.ndarray]]) -> collections.Counter:
     if encoded_pos != None:
         dq = collections.deque(maxlen=3)
         dqt = collections.deque(maxlen=3)
@@ -109,7 +112,7 @@ def trigrams(arr,encoded_pos):
         
     return counter
 
-def quadrigrams(arr,encoded_pos):
+def quadrigrams(arr: np.ndarray, encoded_pos: Optional[List[np.ndarray]]) -> collections.Counter:
     if encoded_pos != None:
         dq = collections.deque(maxlen=4)
         dqt = collections.deque(maxlen=4)
@@ -137,7 +140,7 @@ def quadrigrams(arr,encoded_pos):
         
     return counter 
     
-def quinquegrams(arr,encoded_pos):
+def quinquegrams(arr: np.ndarray, encoded_pos: Optional[List[np.ndarray]]) -> collections.Counter:
     if encoded_pos != None:
         dq = collections.deque(maxlen=5)
         dqt = collections.deque(maxlen=5)
@@ -169,7 +172,7 @@ def quinquegrams(arr,encoded_pos):
 
     
 
-def count_ngrams(npy_path,encoded_pos,size,tmpdir):
+def count_ngrams(npy_path: str, encoded_pos: Optional[List[np.ndarray]], size: int, tmpdir: str) -> dict:
     """Searches the node in every text file and gets contexts."""
     files = os.listdir(npy_path)
     counts = dict()
@@ -201,13 +204,13 @@ def count_ngrams(npy_path,encoded_pos,size,tmpdir):
             pickle.dump(r,fh)
     return counts
 
-def translate(counts, dict_words,lowercase,total_files,size,tmpdir):
+def translate(counts: dict, dict_words: dict, lowercase: bool, total_files: int, size: int, tmpdir: str) -> list:
     """Translate numbers back to words in a list format for kitconc."""
     ngrams = []
     files = os.listdir(tmpdir)
     # unigrams 
     if size == 1:
-        punct = re.compile('^\W+$')
+        punct = re.compile(r'^\W+$')
         # range 
         r = dict()
         for filename in files:
@@ -244,7 +247,7 @@ def translate(counts, dict_words,lowercase,total_files,size,tmpdir):
         dict_words = None
     # multigrams
     else:
-        punct = re.compile('^\W+ | \W+$| \W+ ')
+        punct = re.compile(r'^\W+ | \W+$| \W+ ')
         # range 
         r = dict()
         for filename in files:
@@ -288,7 +291,7 @@ def translate(counts, dict_words,lowercase,total_files,size,tmpdir):
         
 
 
-def make_ngrams(workspace,corpus_name,pos,size,lowercase):
+def make_ngrams(workspace: str, corpus_name: str, pos: Optional[str | list], size: int, lowercase: bool) -> list:
     tmpdir = tempfile.mkdtemp()
     encoded_pos = parse_search(workspace,corpus_name,pos)
     total_files = len(os.listdir(workspace+corpus_name + '/data/npy/'))

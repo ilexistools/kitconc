@@ -6,9 +6,9 @@ from string import punctuation
 from kitconc.core import Config
 import collections 
 try:
-    import nltk 
-except:
-    nltk = None 
+    import nltk
+except ImportError:
+    nltk = None
 
 
 class Models(object):
@@ -40,8 +40,8 @@ class Models(object):
                     language = filename[:-13]
                     if language not in d:
                         d[language]=None
-                except:
-                    pass 
+                except (ValueError, IndexError):
+                    pass
             elif filename.startswith('pos_tagger_'):
                 try:
                     size = len(filename)
@@ -49,7 +49,7 @@ class Models(object):
                     language = filename[I:(I+m)]
                     if language not in d:
                         d[language]=None
-                except:
+                except (ValueError, IndexError):
                     pass
         for k in d:
             if k != 'language':
@@ -94,7 +94,7 @@ class Models(object):
         sent_tokenizer = kwargs.get('sent_tokenizer',None)
         word_tokenizer = kwargs.get('word_tokenizer',None)
         pos_tagger = kwargs.get('pos_tagger',None) 
-        regexp_word = kwargs.get('regexp_word','\w+')
+        regexp_word = kwargs.get('regexp_word',r'\w+')
         reflist_path =kwargs.get('reflist',None)
         stoplist_path = kwargs.get('stoplist',None)
         show_progress = kwargs.get('show_progress',False)
@@ -156,7 +156,7 @@ class nltkTrainModel(object):
         self.sent_tokenizer = kwargs.get('sent_tokenizer',None)
         self.word_tokenizer = kwargs.get('word_tokenizer',None)
         self.pos_tagger = kwargs.get('pos_tagger',None) 
-        self.regexp_word = kwargs.get('regexp_word','\w+')
+        self.regexp_word = kwargs.get('regexp_word',r'\w+')
         self.reflist_path =kwargs.get('reflist',None)
         self.reflist = None
         self.stoplist = None
