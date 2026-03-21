@@ -1,26 +1,7 @@
 # -*- coding: utf-8 -*-
 # Author: jlopes@alumni.usp.br
 
-import sys
 from setuptools import setup, find_packages
-import textwrap
-import pkg_resources
-
-def is_installed(requirement):
-    try:
-        pkg_resources.require(requirement)
-    except pkg_resources.ResolutionError:
-        return False
-    else:
-        return True
-
-if not is_installed('numpy>=1.14.0'):
-    print(textwrap.dedent("""
-        Error: numpy needs to be installed first. You can install it via:
-
-        $ pip install numpy
-    """), file=sys.stderr)
-    sys.exit(1)
 
 install_req = [
     "numpy>=1.26.4,<2.0.0",
@@ -48,7 +29,7 @@ extras_require = {
 
 setup(
     name='kitconc',
-    version='3.0.5',
+    version='3.1.0',
     author='José Lopes Moreira Filho',
     author_email='jlopes@alumni.usp.br',
     packages=find_packages(),
