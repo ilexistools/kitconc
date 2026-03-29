@@ -13,6 +13,8 @@ from kitconc.agent.schemas import (
     KeywordsDispersionRequest,
     KwicRequest,
     TabularResult,
+    SemanticSearchRequest,
+    SemanticSearchResult,
     Text2Utf8Request,
     Text2Utf8Result,
     TrainModelRequest,
@@ -42,4 +44,6 @@ __all__ = [
     "ImportCorpusRequest",
     "TrainModelRequest",
     "TrainModelResult",
+    "SemanticSearchRequest",
+    "SemanticSearchResult",
 ]

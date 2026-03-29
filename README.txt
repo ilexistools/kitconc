@@ -54,6 +54,7 @@ Kitconc now includes an internal action layer for agent/tool orchestration:
 * Full parity with shell commands from kit_cmd.py (do_*)
 * Typed schemas in kitconc.agent.schemas
 * Contract documentation in kitconc/agent/CONTRACT.md
+* Semantic retrieval action: semantic_search(...)
 
 Basic usage:
 
@@ -72,6 +73,9 @@ or:
 
 kitconc-mcp --transport sse --host 127.0.0.1 --port 8001
 
+Includes semantic retrieval tool:
+semantic_search (query, top_k, db_path, model_name)
+
 If you installed only with pip install kitconc and need MCP runtime:
 
 pip install mcp
@@ -83,6 +87,8 @@ What's new in 3.2.0
 * Agent action layer -- kitconc.agent.actions.KitconcActions with command parity from kit_cmd.py
 * Typed schemas -- available in kitconc.agent.schemas
 * MCP server entrypoint -- run with kitconc-mcp
+* Semantic search MCP tool -- semantic_search for sqlite-vec indexes
+* Embedding index hardening -- transactional writes and thread-safe SQLite access
 * Progress flag rename -- use verbose=True (replacing show_progress=True)
 
 What's new in 3.1.0

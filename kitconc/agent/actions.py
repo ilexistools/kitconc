@@ -29,6 +29,8 @@ from kitconc.agent.schemas import (
     Text2Utf8Result,
     TrainModelRequest,
     TrainModelResult,
+    SemanticSearchRequest,
+    SemanticSearchResult,
     WorkspaceRequest,
     WorkspaceResult,
 )
@@ -830,6 +832,65 @@ class KitconcActions:
         target = _normalize_path(dest_path)
         ex.download(dest_path=target)
         return target
+
+    def semantic_search(
+        self,
+        query: str | SemanticSearchRequest,
+        top_k: int | str = 5,
+        db_path: str | None = None,
+        model_name: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Semantic search over a sqlite-vec index.
+
+        Notes
+        -----
+        - Expects an existing index file.
+        - Default DB path: <workspace>/semantic_index.sqlite3
+        """
+        if isinstance(query, SemanticSearchRequest):
+            req = query
+            return self.semantic_search(
+                query=req.query,
+                top_k=req.top_k,
+                db_path=req.db_path,
+                model_name=req.model_name,
+            )
+        if not isinstance(query, str) or not query.strip():
+            raise ValidationError("`query` must be a non-empty string.")
+        try:
+            k = int(top_k)
+        except (TypeError, ValueError):
+            raise ValidationError("`top_k` must be an integer.") from None
+        if k < 1:
+            raise ValidationError("`top_k` must be >= 1.")
+
+        index_path = (
+            _normalize_path(db_path)
+            if db_path is not None
+            else str(Path(self._workspace) / "semantic_index.sqlite3")
+        )
+        if not Path(index_path).exists():
+            raise NotFoundError(f"Semantic index not found: {index_path}")
+
+        try:
+            from embeddings.sqlite_vec_search import SQLiteVecSearch
+        except Exception as exc:
+            raise ActionLayerError(
+                "Embeddings runtime unavailable. Ensure dependencies are installed."
+            ) from exc
+
+        kwargs: dict[str, Any] = {}
+        if model_name is not None and model_name.strip() != "":
+            kwargs["model_name"] = model_name.strip()
+
+        with SQLiteVecSearch(index_path, **kwargs) as index:
+            rows = index.search(query.strip(), top_k=k)
+        return {"db_path": index_path, "rows": rows, "total": len(rows)}
+
+    def semantic_search_typed(self, request: SemanticSearchRequest) -> SemanticSearchResult:
+        data = self.semantic_search(request)
+        return SemanticSearchResult(**data)
 
     def export_corpus(self, dest_path: str | ExportCorpusRequest, corpus_name: str | None = None) -> str:
         if isinstance(dest_path, ExportCorpusRequest):

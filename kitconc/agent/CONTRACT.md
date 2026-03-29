@@ -82,6 +82,7 @@ Selection behavior:
 - `delete_corpus(corpus_name) -> None`
 - `list_output_files(corpus_name=None) -> list[str]`
 - `list_ref_languages() -> list[str]`
+- `semantic_search(query, top_k=5, db_path=None, model_name=None) -> dict`
 - Typed wrappers (migration started):
 - `workspace_typed(request: WorkspaceRequest) -> WorkspaceResult`
 - `create_typed(request: CreateCorpusRequest) -> CorpusInfo`
@@ -92,6 +93,7 @@ Selection behavior:
 - `keywords_dispersion_typed(request: KeywordsDispersionRequest) -> TabularResult`
 - `text2utf8_typed(request: Text2Utf8Request) -> Text2Utf8Result`
 - `train_model_typed(request: TrainModelRequest) -> TrainModelResult`
+- `semantic_search_typed(request: SemanticSearchRequest) -> SemanticSearchResult`
 
 ## Typed Schema Classes
 
@@ -113,6 +115,8 @@ Defined in `kitconc/agent/schemas.py`:
 - `ImportCorpusRequest`
 - `TrainModelRequest`
 - `TrainModelResult`
+- `SemanticSearchRequest`
+- `SemanticSearchResult`
 
 ## Output Conventions
 

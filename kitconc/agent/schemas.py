@@ -149,3 +149,18 @@ class TrainModelResult(SchemaBase):
     language: str
     reflist: str | None
     stoplist: str | None
+
+
+@dataclass
+class SemanticSearchRequest(SchemaBase):
+    query: str
+    top_k: int = 5
+    db_path: str | None = None
+    model_name: str | None = None
+
+
+@dataclass
+class SemanticSearchResult(SchemaBase):
+    db_path: str
+    rows: list[dict[str, Any]]
+    total: int

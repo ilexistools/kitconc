@@ -29,6 +29,7 @@ from pathlib import Path
 import os
 import json
 import sqlite3
+import threading
 import numpy as np
 
 import sqlite_vec  # pip install sqlite-vec
@@ -116,6 +117,7 @@ class SQLiteVecSearch:
         self._conn = sqlite3.connect(
             self.db_path, isolation_level=None, check_same_thread=False
         )
+        self._lock = threading.RLock()
         self._conn.execute("PRAGMA foreign_keys = ON;")
         self._apply_pragmas(pragmas)
         self._load_sqlite_vec()
@@ -136,10 +138,11 @@ class SQLiteVecSearch:
     # ------------------------------------------------------------------ #
 
     def _load_sqlite_vec(self) -> None:
-        self._conn.enable_load_extension(True)
-        sqlite_vec.load(self._conn)
-        self._conn.enable_load_extension(False)
-        self._conn.execute("SELECT vec_version()")  # sanity check
+        with self._lock:
+            self._conn.enable_load_extension(True)
+            sqlite_vec.load(self._conn)
+            self._conn.enable_load_extension(False)
+            self._conn.execute("SELECT vec_version()")  # sanity check
 
     def _apply_pragmas(self, overrides: Optional[Dict[str, Any]]) -> None:
         pragmas: Dict[str, Any] = {
@@ -150,42 +153,44 @@ class SQLiteVecSearch:
         }
         if overrides:
             pragmas.update(overrides)
-        cur = self._conn.cursor()
-        for k, v in pragmas.items():
-            cur.execute(f"PRAGMA {k} = {json.dumps(v)};")
-        cur.close()
+        with self._lock:
+            cur = self._conn.cursor()
+            for k, v in pragmas.items():
+                cur.execute(f"PRAGMA {k} = {json.dumps(v)};")
+            cur.close()
 
     def _create_schema(self) -> None:
-        cur = self._conn.cursor()
-        cur.executescript(
-            """
-            CREATE TABLE IF NOT EXISTS documents (
-                id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                text          TEXT    NOT NULL,
-                metadata_json TEXT    NOT NULL
-            );
+        with self._lock:
+            cur = self._conn.cursor()
+            cur.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS documents (
+                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                    text          TEXT    NOT NULL,
+                    metadata_json TEXT    NOT NULL
+                );
 
-            CREATE TABLE IF NOT EXISTS meta (
-                key   TEXT PRIMARY KEY,
-                value TEXT NOT NULL
-            );
+                CREATE TABLE IF NOT EXISTS meta (
+                    key   TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                );
 
-            CREATE INDEX IF NOT EXISTS idx_documents_id ON documents(id);
-            """
-        )
-        cur.execute(
-            "INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)",
-            ("embedding_dim", str(self._dim)),
-        )
-        cur.execute(
-            f"""
-            CREATE VIRTUAL TABLE IF NOT EXISTS vec_documents USING vec0(
-                doc_id    INTEGER PRIMARY KEY,
-                embedding float[{self._dim}] distance_metric=cosine
-            );
-            """
-        )
-        cur.close()
+                CREATE INDEX IF NOT EXISTS idx_documents_id ON documents(id);
+                """
+            )
+            cur.execute(
+                "INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)",
+                ("embedding_dim", str(self._dim)),
+            )
+            cur.execute(
+                f"""
+                CREATE VIRTUAL TABLE IF NOT EXISTS vec_documents USING vec0(
+                    doc_id    INTEGER PRIMARY KEY,
+                    embedding float[{self._dim}] distance_metric=cosine
+                );
+                """
+            )
+            cur.close()
 
     # ------------------------------------------------------------------ #
     # Embedding                                                             #
@@ -239,32 +244,35 @@ class SQLiteVecSearch:
             texts.append(it["text"])
             doc_rows.append((it["text"], json.dumps(it["metadata"], ensure_ascii=False)))
 
-        cur = self._conn.cursor()
+        with self._lock:
+            cur = self._conn.cursor()
+            try:
+                cur.execute("BEGIN IMMEDIATE")
 
-        cur.executemany(
-            "INSERT INTO documents(text, metadata_json) VALUES (?, ?)",
-            doc_rows,
-        )
+                doc_ids: List[int] = []
+                for row in doc_rows:
+                    cur.execute(
+                        "INSERT INTO documents(text, metadata_json) VALUES (?, ?)",
+                        row,
+                    )
+                    doc_ids.append(int(cur.lastrowid))
 
-        # Retrieve the IDs just inserted (single-writer assumption)
-        n = len(doc_rows)
-        id_rows = cur.execute(
-            "SELECT id FROM documents ORDER BY id DESC LIMIT ?", (n,)
-        ).fetchall()
-        id_rows.reverse()
-        doc_ids = [int(r[0]) for r in id_rows]
+                embs = self._embed(texts)
+                if embs.shape[1] != self._dim:
+                    raise ValueError(
+                        f"Embedding dim mismatch: expected {self._dim}, got {embs.shape[1]}"
+                    )
 
-        embs = self._embed(texts)
-        if embs.shape[1] != self._dim:
-            raise ValueError(
-                f"Embedding dim mismatch: expected {self._dim}, got {embs.shape[1]}"
-            )
-
-        cur.executemany(
-            "INSERT OR REPLACE INTO vec_documents(doc_id, embedding) VALUES (?, ?)",
-            [(doc_ids[i], embs[i]) for i in range(n)],
-        )
-        cur.close()
+                cur.executemany(
+                    "INSERT OR REPLACE INTO vec_documents(doc_id, embedding) VALUES (?, ?)",
+                    [(doc_ids[i], embs[i]) for i in range(len(doc_ids))],
+                )
+                cur.execute("COMMIT")
+            except Exception:
+                cur.execute("ROLLBACK")
+                raise
+            finally:
+                cur.close()
 
     def search(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         """
@@ -281,16 +289,17 @@ class SQLiteVecSearch:
         k = int(max(1, top_k))
         q_emb = self._embed([query])[0]
 
-        cur = self._conn.cursor()
-        matches = cur.execute(
-            """
-            SELECT doc_id, distance
-            FROM vec_documents
-            WHERE embedding MATCH ? AND k = ?;
-            """,
-            (q_emb, k),
-        ).fetchall()
-        cur.close()
+        with self._lock:
+            cur = self._conn.cursor()
+            matches = cur.execute(
+                """
+                SELECT doc_id, distance
+                FROM vec_documents
+                WHERE embedding MATCH ? AND k = ?;
+                """,
+                (q_emb, k),
+            ).fetchall()
+            cur.close()
 
         if not matches:
             return []
@@ -311,17 +320,20 @@ class SQLiteVecSearch:
 
     def count(self) -> int:
         """Return the number of indexed documents."""
-        (n,) = self._conn.execute("SELECT COUNT(*) FROM documents").fetchone()
+        with self._lock:
+            (n,) = self._conn.execute("SELECT COUNT(*) FROM documents").fetchone()
         return int(n)
 
     def vacuum(self) -> None:
         """Compact the database file."""
-        self._conn.execute("VACUUM")
+        with self._lock:
+            self._conn.execute("VACUUM")
 
     def close(self) -> None:
         """Close the SQLite connection."""
         try:
-            self._conn.close()
+            with self._lock:
+                self._conn.close()
         except Exception:
             pass
 
@@ -334,10 +346,11 @@ class SQLiteVecSearch:
         if not id_list:
             return {}
         placeholders = ",".join(["?"] * len(id_list))
-        rows = self._conn.execute(
-            f"SELECT id, text, metadata_json FROM documents WHERE id IN ({placeholders})",
-            id_list,
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                f"SELECT id, text, metadata_json FROM documents WHERE id IN ({placeholders})",
+                id_list,
+            ).fetchall()
         return {
             int(doc_id): {"text": text, "metadata": json.loads(meta_json)}
             for doc_id, text, meta_json in rows
