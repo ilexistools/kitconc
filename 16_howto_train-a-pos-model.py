@@ -23,7 +23,7 @@ for file_id in ids:
 from kitconc.kit_models import Models
 
 models = Models()
-models.nltk_create_model('kitconc_corpora/tagged_sents', 'english-ads', show_progress=True)
+models.nltk_create_model('kitconc_corpora/tagged_sents', 'english-ads', verbose=True)
 
 # Remove the model
 #models.remove_model('english-ads')

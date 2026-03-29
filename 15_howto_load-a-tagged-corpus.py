@@ -22,7 +22,7 @@ for file_id in ids:
 # 2:
 # Now, let's load the tagged corpus and make a wordlist
 new_corpus = Corpus('kitconc_workspace', 'job_ads', 'english')
-new_corpus.add_texts('kitconc_corpora/tagged_sents', tagged = True, show_progress=True)
+new_corpus.add_texts('kitconc_corpora/tagged_sents', tagged = True, verbose=True)
 wordlist = new_corpus.wordlist()
 print(wordlist.df.head(10)) 
 

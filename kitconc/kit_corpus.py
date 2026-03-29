@@ -281,7 +281,7 @@ class Corpus (object):
         2. Handling optional keyword arguments:
             - tagged (bool): Indicates if texts are already tagged (default is False).
             - language_model (object): A language model for tokenization and tagging (default is None).
-            - show_progress (bool): If True, prints progress messages and timing information (default is False).
+            - verbose (bool): If True, prints progress messages and timing information (default is False).
         3. Normalizing the source folder path to ensure it ends with a '/'.
         4. If the corpus language is set to 'no-tagging', a dummy language model is used.
         5. If no language model is provided:
@@ -305,7 +305,7 @@ class Corpus (object):
         source_folder (str): The folder path where the source texts are stored.
         tagged (bool, optional): If True, indicates that the texts are already tagged. Defaults to False.
         language_model (object, optional): A language model for tokenization and tagging. Defaults to None.
-        show_progress (bool, optional): If True, prints progress messages and timing information. Defaults to False.
+        verbose (bool, optional): If True, prints progress messages and timing information. Defaults to False.
 
         Raises:
         ValueError: If an empty file is found in the source folder.
@@ -319,12 +319,12 @@ class Corpus (object):
         # args
         tagged = kwargs.get('tagged', False)
         language_model = kwargs.get('language_model', None)
-        show_progress = kwargs.get('show_progress', False)
+        verbose = kwargs.get('verbose', False)
         if not source_folder.endswith('/'):
             source_folder = source_folder + '/'
         
         # time start
-        if show_progress:
+        if verbose:
             t0 = time.time()
             print('New corpus:')
         
@@ -342,15 +342,15 @@ class Corpus (object):
             # For untagged texts
             if not tagged:
                 if not has_saved_model:
-                    if show_progress:
+                    if verbose:
                         print('Tagging...')
                     resources_path = self.__path + '/data/'
                     subprocess.call([self.interpreter_name, self.__path + '/tagging.py', resources_path, self.workspace, self.corpus_name, self.language, source_folder])
-                    if show_progress:
+                    if verbose:
                         print('Making indexes...')
                     subprocess.call([self.interpreter_name, self.__path + '/indexing.py', self.workspace, self.corpus_name, self.language])
                 else:
-                    if show_progress:
+                    if verbose:
                         print('Tagging...')
                     # Create temp folder
                     if os.path.exists(self.workspace + self.corpus_name + '/data/tmp0'):
@@ -370,26 +370,26 @@ class Corpus (object):
                             tagged_sents.append(' '.join([(token.text + '/' + token.pos_) for token in sent if len(token.text.strip()) != 0]))
                         with open(self.workspace + self.corpus_name + '/data/tmp0/' + filename, 'w', encoding='utf-8') as fh:
                             fh.write('\n'.join(tagged_sents))
-                    if show_progress:
+                    if verbose:
                         print('Loading tagged corpus...')
                     resources_path = self.__path + '/data/'
                     subprocess.call([self.interpreter_name, self.__path + '/tagged.py', resources_path, self.workspace, self.corpus_name, self.language, self.workspace + self.corpus_name + '/data/tmp0/'])
-                    if show_progress:
+                    if verbose:
                         print('Making indexes...')
                     subprocess.call([self.interpreter_name, self.__path + '/indexing.py', self.workspace, self.corpus_name, self.language])
                     # Remove temporary folder
                     shutil.rmtree(self.workspace + self.corpus_name + '/data/tmp0/')
             else:
-                if show_progress:
+                if verbose:
                     print('Loading tagged corpus...')
                 resources_path = self.__path + '/data/'
                 subprocess.call([self.interpreter_name, self.__path + '/tagged.py', resources_path, self.workspace, self.corpus_name, self.language, source_folder])
-                if show_progress:
+                if verbose:
                     print('Making indexes...')
                 subprocess.call([self.interpreter_name, self.__path + '/indexing.py', self.workspace, self.corpus_name, self.language])
         else:
             # Use language model on the fly to tag texts (e.g., using spaCy)
-            if show_progress:
+            if verbose:
                 print('Tagging...')
             # Create temporary folder
             if os.path.exists(self.workspace + self.corpus_name + '/data/tmp0'):
@@ -408,11 +408,11 @@ class Corpus (object):
                 with open(self.workspace + self.corpus_name + '/data/tmp0/' + filename, 'w', encoding='utf-8') as fh:
                     fh.write('\n'.join(tagged_sents))
             # Load tagged texts    
-            if show_progress:
+            if verbose:
                 print('Loading tagged corpus...')
             resources_path = self.__path + '/data/'
             subprocess.call([self.interpreter_name, self.__path + '/tagged.py', resources_path, self.workspace, self.corpus_name, self.language, self.workspace + self.corpus_name + '/data/tmp0/'])
-            if show_progress:
+            if verbose:
                 print('Making indexes...')
             subprocess.call([self.interpreter_name, self.__path + '/indexing.py', self.workspace, self.corpus_name, self.language])
             # Remove temporary folder
@@ -424,7 +424,7 @@ class Corpus (object):
             fh.write('\nTextfiles:\t%s\nSource:\t%s' % (ntexts, source_folder))
         
         # Time end and print total time if progress display is enabled
-        if show_progress:
+        if verbose:
             t1 = time.time()
             total_time = round(t1 - t0, 2)
             print('Total time: %s seconds' % total_time)
@@ -459,7 +459,7 @@ class Corpus (object):
         Keyword Arguments:
         - lowercase (bool): If True (default), converts all letters to lowercase.
         - min_freq (int): Minimum frequency required for a word to be included in the list (default is 1).
-        - show_progress (bool): If True, prints progress messages and the total execution time (default is False).
+        - verbose (bool): If True, prints progress messages and the total execution time (default is False).
 
         Returns:
         Wordlist: An object containing:
@@ -471,12 +471,12 @@ class Corpus (object):
                     greater than or equal to min_freq.
         """
         # args
-        show_progress = kwargs.get('show_progress', False)
+        verbose = kwargs.get('verbose', False)
         min_freq = kwargs.get('min_freq', 1)
         lowercase = kwargs.get('lowercase', True)
         
         # time start
-        if show_progress:
+        if verbose:
             print('Running...')
             t0 = time.time()
         
@@ -488,7 +488,7 @@ class Corpus (object):
         wlst.df['%'] = wlst.df['%'].apply(lambda x: round(x, 2))
         
         # time end
-        if show_progress:
+        if verbose:
             t1 = time.time()
             total_time = round(t1 - t0, 2)
             print('')
@@ -509,7 +509,7 @@ class Corpus (object):
         - measure (str): The statistical measure to use for keyword extraction. Acceptable values are 
                         'log-likelihood' (default) and 'chi-square'. Any other value defaults to 'log-likelihood'.
         - stoplist (list): A list of words to exclude from the keyword extraction process.
-        - show_progress (bool): If True, prints progress messages and timing information during processing.
+        - verbose (bool): If True, prints progress messages and timing information during processing.
         
         Returns:
         Keywords: An object containing a pandas DataFrame with the following columns:
@@ -521,7 +521,7 @@ class Corpus (object):
         # args
         measure = kwargs.get('measure', 'log-likelihood')
         stoplist = kwargs.get('stoplist', [])
-        show_progress = kwargs.get('show_progress', False)
+        verbose = kwargs.get('verbose', False)
         ref_language = kwargs.get('ref_language', None)
         ignore_numbers = kwargs.get('ignore_numbers', True)
         ignore_strange = kwargs.get('ignore_strange', True)
@@ -537,7 +537,7 @@ class Corpus (object):
             stat = 1
 
         # time start
-        if show_progress:
+        if verbose:
             print('Running...')
             t0 = time.time()
 
@@ -568,7 +568,7 @@ class Corpus (object):
         kwlst.df.reset_index(drop=True, inplace=True)
         
         # time end
-        if show_progress:
+        if verbose:
             t1 = time.time()
             total_time = round(t1 - t0, 2)
             print('')
@@ -587,7 +587,7 @@ class Corpus (object):
 
         Keyword Arguments:
         - lowercase (bool): If True (default), converts all letters to lowercase.
-        - show_progress (bool): If True, prints progress messages and timing information during execution.
+        - verbose (bool): If True, prints progress messages and timing information during execution.
 
         Returns:
         WTfreq: An object containing a pandas DataFrame with the following columns:
@@ -599,10 +599,10 @@ class Corpus (object):
         """
         # args
         lowercase = kwargs.get('lowercase', True)
-        show_progress = kwargs.get('show_progress', False)
+        verbose = kwargs.get('verbose', False)
         
         # time start
-        if show_progress:
+        if verbose:
             print('Running...')
             t0 = time.time()
         
@@ -619,7 +619,7 @@ class Corpus (object):
         wt.df.reset_index(drop=True, inplace=True)
         
         # time end and print progress
-        if show_progress:
+        if verbose:
             self.__progress(100, 100, '')
             t1 = time.time()
             total_time = round(t1 - t0, 2)
@@ -639,7 +639,7 @@ class Corpus (object):
 
         Keyword Arguments:
         - lowercase (bool): If True (default), converts all letters to lowercase.
-        - show_progress (bool): If True, prints progress messages and timing information during processing.
+        - verbose (bool): If True, prints progress messages and timing information during processing.
 
         Returns:
         Wfreqinfiles: An object containing a pandas DataFrame with the following columns:
@@ -650,10 +650,10 @@ class Corpus (object):
         """
         # args
         lowercase = kwargs.get('lowercase', True)
-        show_progress = kwargs.get('show_progress', False)
+        verbose = kwargs.get('verbose', False)
         
         # time start
-        if show_progress:
+        if verbose:
             print('Running...')
             t0 = time.time()
         
@@ -670,7 +670,7 @@ class Corpus (object):
         fif.df.reset_index(drop=True, inplace=True)
         
         # time end and print progress
-        if show_progress:
+        if verbose:
             self.__progress(100, 100, '')
             t1 = time.time()
             total_time = round(t1 - t0, 2)
@@ -698,7 +698,7 @@ class Corpus (object):
         regexp (bool, optional): If True, the search term is treated as a regular expression. Default is False.
         horizon (int, optional): The number of words to include on each side of the search term in the concordance. Default is 10.
         limit (int, optional): The maximum number of concordance lines to return. If None, all matches are returned.
-        show_progress (bool, optional): If True, prints progress messages and timing information during processing. Default is False.
+        verbose (bool, optional): If True, prints progress messages and timing information during processing. Default is False.
 
         Returns:
         Kwic: An object containing a pandas DataFrame with the concordance data. The DataFrame includes the following columns:
@@ -718,10 +718,10 @@ class Corpus (object):
         regexp = kwargs.get('regexp', False)
         horizon = kwargs.get('horizon', 10)
         limit = kwargs.get('limit', None)
-        show_progress = kwargs.get('show_progress', False)
+        verbose = kwargs.get('verbose', False)
         
         # time start
-        if show_progress:
+        if verbose:
             print('Running...')
             t0 = time.time()
         
@@ -740,7 +740,7 @@ class Corpus (object):
         kwic.df.reset_index(drop=True, inplace=True)
         
         # time end and progress update
-        if show_progress:
+        if verbose:
             self.__progress(100, 100, '')
             t1 = time.time()
             total_time = round(t1 - t0, 2)
@@ -767,7 +767,7 @@ class Corpus (object):
         case_sensitive (bool, optional): If True, the search will be case-sensitive. Default is False.
         regexp (bool, optional): If True, the search term is interpreted as a regular expression. Default is False.
         limit (int, optional): The maximum number of concordance lines to return. If None, returns all matching lines.
-        show_progress (bool, optional): If True, prints progress messages and timing information. Default is False.
+        verbose (bool, optional): If True, prints progress messages and timing information. Default is False.
 
         Returns:
         Concordance: An object containing a pandas DataFrame with the following columns:
@@ -784,10 +784,10 @@ class Corpus (object):
         case_sensitive = kwargs.get('case_sensitive', False)
         regexp = kwargs.get('regexp', False)
         limit = kwargs.get('limit', None)
-        show_progress = kwargs.get('show_progress', False)
+        verbose = kwargs.get('verbose', False)
         
         # time start
-        if show_progress:
+        if verbose:
             print('Running...')
             t0 = time.time()
         
@@ -806,7 +806,7 @@ class Corpus (object):
         conc.df.reset_index(drop=True, inplace=True)
         
         # time end and print progress
-        if show_progress:
+        if verbose:
             self.__progress(100, 100, '')
             t1 = time.time()
             total_time = round(t1 - t0, 2)
@@ -840,7 +840,7 @@ class Corpus (object):
         measure (str or int, optional): Statistical measure for association; use 't-score' (default) or 'mutual information'.
                                         If a string is provided, it will be mapped to an internal identifier.
         limit (int, optional): Maximum number of collocate results to return. If None, all results are returned.
-        show_progress (bool, optional): If True, prints progress messages and execution time. Default is False.
+        verbose (bool, optional): If True, prints progress messages and execution time. Default is False.
 
         Returns:
         Collocates: An object containing a pandas DataFrame with the following columns:
@@ -863,10 +863,10 @@ class Corpus (object):
         lowercase = kwargs.get('lowercase', True)
         measure = kwargs.get('measure', 1)
         limit = kwargs.get('limit', None)
-        show_progress = kwargs.get('show_progress', False)
+        verbose = kwargs.get('verbose', False)
         
         # time start
-        if show_progress:
+        if verbose:
             print('Running...')
             t0 = time.time()
         
@@ -896,7 +896,7 @@ class Corpus (object):
         coll.df.reset_index(drop=True, inplace=True)
         
         # time end and display progress if required
-        if show_progress:
+        if verbose:
             self.__progress(100, 100, '')
             t1 = time.time()
             total_time = round(t1 - t0, 2)
@@ -930,16 +930,16 @@ class Corpus (object):
         Keyword Arguments:
         stat_cutoff (int, optional): The minimum association score for a collocate to be included 
                                     in the comparison (default is 0).
-        show_progress (bool, optional): If True, prints progress messages during processing (default is False).
+        verbose (bool, optional): If True, prints progress messages during processing (default is False).
 
         Returns:
         ComparedCollocates: An object containing a pandas DataFrame with the comparison results.
         """
         # kwargs
         stat_cutoff = kwargs.get('stat_cutoff', 0)
-        show_progress = kwargs.get('show_progress', False)
+        verbose = kwargs.get('verbose', False)
         # time start
-        if show_progress == True:
+        if verbose == True:
             print('Running...')
             t0 = time.time()
         # get all data in dictionaries
@@ -997,7 +997,7 @@ class Corpus (object):
             pd = round(((n2 - n1) / float(n2)) * 100, 2)
             # add to table
             s.append('\t'.join([str(i), str(w), str(w1_f), str(w2_f), str(w1_am), str(w2_am), str(pd)]))
-            if show_progress == True:
+            if verbose == True:
                 self.__progress(i, total, '')
         comparison = kit_tools.ComparedCollocates()
         comparison.read_str('\n'.join(s))
@@ -1006,7 +1006,7 @@ class Corpus (object):
         comparison.df['N'] = [i + 1 for i in range(len(comparison.df))]
         comparison.df.reset_index(drop=True, inplace=True)
         # time end
-        if show_progress == True:
+        if verbose == True:
             t1 = time.time()
             total_time = round(t1 - t0, 2)
             print('')
@@ -1031,7 +1031,7 @@ class Corpus (object):
                         word (range from 1 to 5, default is 5).
         measure (str): The statistical measure for association; either 'tscore' (default) or 
                         'mutual information'.
-        show_progress (bool): If True, prints progress messages and execution time. Default is False.
+        verbose (bool): If True, prints progress messages and execution time. Default is False.
 
         Returns:
         Collocations: An object containing a pandas DataFrame with the following columns:
@@ -1052,10 +1052,10 @@ class Corpus (object):
         lowercase = kwargs.get('lowercase', True)
         horizon = kwargs.get('horizon', 5)
         measure = kwargs.get('measure', 'tscore')
-        show_progress = kwargs.get('show_progress', False)
+        verbose = kwargs.get('verbose', False)
         
         # time start
-        if show_progress:
+        if verbose:
             print('Running...')
             t0 = time.time()
         
@@ -1110,7 +1110,7 @@ class Corpus (object):
                     right_counter[(i, word)] += 1
                     if word not in words:
                         words[word] = freqlist[word]
-            if show_progress:
+            if verbose:
                 self.__progress(j, total, '')
         
         # Cleanup temporary variables
@@ -1163,7 +1163,7 @@ class Corpus (object):
         collocations.df.reset_index(drop=True, inplace=True)
         
         # time end and print progress if enabled
-        if show_progress:
+        if verbose:
             t1 = time.time()
             total_time = round(t1 - t0, 2)
             print('')
@@ -1191,7 +1191,7 @@ class Corpus (object):
         lowercase (bool, optional): If True (default), converts text to lowercase before processing.
         minfreq (int, optional): The minimum frequency a cluster must have to be included. Default is 1.
         minrange (int, optional): The minimum range (number of documents or distinct contexts) a cluster must cover. Default is 1.
-        show_progress (bool, optional): If True, prints progress messages and the total execution time. Default is False.
+        verbose (bool, optional): If True, prints progress messages and the total execution time. Default is False.
 
         Returns:
         Clusters: An object containing a pandas DataFrame with the following columns:
@@ -1208,10 +1208,10 @@ class Corpus (object):
         lowercase = kwargs.get('lowercase', True)
         min_freq = kwargs.get('minfreq', 1)
         min_range = kwargs.get('minrange', 1)
-        show_progress = kwargs.get('show_progress', False)
+        verbose = kwargs.get('verbose', False)
         
         # time start
-        if show_progress == True:
+        if verbose == True:
             print('Running...')
             t0 = time.time()
         
@@ -1233,7 +1233,7 @@ class Corpus (object):
         clusters.df.reset_index(drop=True, inplace=True)
         
         # time end and display total time if progress is enabled
-        if show_progress == True:
+        if verbose == True:
             t1 = time.time()
             total_time = round(t1 - t0, 2)
             print('')
@@ -1257,7 +1257,7 @@ class Corpus (object):
         - lowercase (bool, optional): If True (default), converts text to lowercase before processing.
         - minfreq (int, optional): Minimum frequency required for an n-gram to be included. Default is 1.
         - minrange (int, optional): Minimum range (e.g., number of distinct documents or contexts) for an n-gram. Default is 1.
-        - show_progress (bool, optional): If True, prints progress messages and timing information. Default is False.
+        - verbose (bool, optional): If True, prints progress messages and timing information. Default is False.
 
         Returns:
         Ngrams: An object containing a pandas DataFrame with the following columns:
@@ -1273,10 +1273,10 @@ class Corpus (object):
         lowercase = kwargs.get('lowercase', True)
         min_freq = kwargs.get('minfreq', 1)
         min_range = kwargs.get('minrange', 1)
-        show_progress = kwargs.get('show_progress', False)
+        verbose = kwargs.get('verbose', False)
         
         # time start
-        if show_progress:
+        if verbose:
             print('Running...')
             t0 = time.time()
         
@@ -1299,7 +1299,7 @@ class Corpus (object):
         ng.df.reset_index(drop=True, inplace=True)
         
         # time end and display progress if enabled
-        if show_progress:
+        if verbose:
             t1 = time.time()
             total_time = round(t1 - t0, 2)
             print('')
@@ -1323,7 +1323,7 @@ class Corpus (object):
           case_sensitive (bool, optional): If True, the search is case-sensitive. Default is False.
           regexp (bool, optional): If True, the search term is treated as a regular expression. Default is False.
           limit (int, optional): Maximum number of concordance lines to consider. Default is None.
-          show_progress (bool, optional): If True, displays progress messages and timing info. Default is False.
+          verbose (bool, optional): If True, displays progress messages and timing info. Default is False.
         
         Returns:
           Dispersion: An object with attributes:
@@ -1336,9 +1336,9 @@ class Corpus (object):
         case_sensitive = kwargs.get('case_sensitive', False)
         regexp = kwargs.get('regexp', False)
         limit = kwargs.get('limit', None)
-        show_progress = kwargs.get('show_progress', False)
+        verbose = kwargs.get('verbose', False)
         
-        if show_progress:
+        if verbose:
             print('Running...')
             t0 = time.time()
         
@@ -1355,7 +1355,7 @@ class Corpus (object):
         disp.df['N'] = [i + 1 for i in range(len(disp.df))]
         disp.df.reset_index(drop=True, inplace=True)
         
-        if show_progress:
+        if verbose:
             t1 = time.time()
             print('')
             print('Total time: %s seconds' % round(t1 - t0, 2))
@@ -1368,7 +1368,7 @@ class Corpus (object):
         Keyword Arguments:
         limit (int, optional): Maximum number of keywords to use. Default is 25.
         lowercase (bool, optional): If True (default), converts text to lowercase before processing.
-        show_progress (bool, optional): If True, displays progress messages and timing info. Default is False.
+        verbose (bool, optional): If True, displays progress messages and timing info. Default is False.
 
         Returns:
         KeywordsDispersion: An object containing:
@@ -1378,9 +1378,9 @@ class Corpus (object):
         """
         lowercase = kwargs.get('lowercase', True)
         limit = kwargs.get('limit', 25)
-        show_progress = kwargs.get('show_progress', False)
+        verbose = kwargs.get('verbose', False)
 
-        if show_progress:
+        if verbose:
             print('Running...')
             t0 = time.time()
 
@@ -1413,7 +1413,7 @@ class Corpus (object):
         disp.df['N'] = [i + 1 for i in range(len(disp.df))]
         disp.df.reset_index(drop=True, inplace=True)
 
-        if show_progress:
+        if verbose:
             t1 = time.time()
             print('')
             print(f'Total time: {round(t1 - t0, 2)} seconds')
@@ -1436,7 +1436,7 @@ class Corpus (object):
           negative_keyness (bool, optional): If False, excludes words with negative keyness. Default is True.
           limit (int, optional): Maximum number of words in the final list. Default is None.
           cat (function, optional): A custom function applied to each row to generate additional data for the CAT column.
-          show_progress (bool, optional): If True, displays progress messages. Default is False.
+          verbose (bool, optional): If True, displays progress messages. Default is False.
         
         Returns:
           Combolist: An object containing a pandas DataFrame with columns:
@@ -1447,22 +1447,22 @@ class Corpus (object):
         negative_keyness = kwargs.get('negative_keyness', True)
         cat = kwargs.get('cat', None)
         limit = kwargs.get('limit', None)
-        show_progress = kwargs.get('show_progress', False)
+        verbose = kwargs.get('verbose', False)
         max_pos = kwargs.get('max_pos', 1)
         
-        if show_progress:
+        if verbose:
             print('Running...')
             t0 = time.time()
         
         # Retrieve and filter the wordlist
-        if show_progress:
+        if verbose:
             print('Wordlist...')
         df = self.wordlist().df.filter(['WORD', 'FREQUENCY', '%'])
         df.columns = ['WORD', 'FREQUENCY', 'F%']
         df = df[df.FREQUENCY >= min_freq]
         
         # Merge with keywords data
-        if show_progress:
+        if verbose:
             print('Keywords...')
         keywords_df = self.keywords().df.filter(['WORD', 'KEYNESS'])
         df = pd.merge(df, keywords_df, on='WORD')
@@ -1470,7 +1470,7 @@ class Corpus (object):
             df = df[df.KEYNESS >= 0]
         
         # Merge with file frequency data (wfreqinfiles)
-        if show_progress:
+        if verbose:
             print('Freqinfiles...')
         wfreqinfiles = self.wfreqinfiles().df.filter(['WORD', 'RANGE', '%'])
         wfreqinfiles.columns = ['WORD', 'RANGE', 'R%']
@@ -1478,7 +1478,7 @@ class Corpus (object):
         df = df[df['R%'] >= min_range]
         
         # Merge with word-tag frequency data (wtfreq) to get POS information
-        if show_progress:
+        if verbose:
             print('Wtfreq...')
         wtfreq_obj = self.wtfreq()
         d = {}
@@ -1497,7 +1497,7 @@ class Corpus (object):
         df = pd.merge(df, wt, on='WORD')
         
         # Process stoplist data
-        if show_progress:
+        if verbose:
             print('Stoplist...')
         stoplist = {}
         stoplist_path = self.resource_data_path + 'stoplist_' + self.language + '.tab'
@@ -1512,7 +1512,7 @@ class Corpus (object):
         df = pd.merge(df, stop, on='WORD')
         
         # Process lemmas
-        if show_progress:
+        if verbose:
             print('Lemmas...')
         lemmas_path = self.resource_data_path + '/lemmas_' + self.language + '.tab'
         lemma_data = []
@@ -1548,7 +1548,7 @@ class Corpus (object):
             except Exception as e:
                 print(e)
         
-        if show_progress:
+        if verbose:
             t1 = time.time()
             print('')
             print('Total time: %s seconds' % round(t1 - t0, 2))
@@ -1562,26 +1562,26 @@ class Corpus (object):
           target_folder (str): The destination folder where the corpus will be saved.
         
         Keyword Arguments:
-          show_progress (bool, optional): If True, displays progress messages and timing info. Default is True.
+          verbose (bool, optional): If True, displays progress messages and timing info. Default is True.
         """
-        show_progress = kwargs.get('show_progress', True)
-        if show_progress:
+        verbose = kwargs.get('verbose', True)
+        if verbose:
             print('Running...')
             t0 = time.time()
         if os.path.exists(target_folder) and os.path.isdir(target_folder):
             try:
                 subprocess.call(['python', self.__path + '/export_corpus.py', self.workspace, self.corpus_name, target_folder])
             except Exception as e:
-                if show_progress:
+                if verbose:
                     print("Kitconc cannot export the corpus.\n")
                     print(e)
             finally:
-                if show_progress:
+                if verbose:
                     t1 = time.time()
                     print('')
                     print('Total time: %s seconds' % round(t1 - t0, 2))
         else:
-            if show_progress:
+            if verbose:
                 print('The folder path is not valid.')
 
     def add_from_export(self, filename, **kwargs):
@@ -1592,10 +1592,10 @@ class Corpus (object):
           filename (str): The path to the corpus ZIP file.
         
         Keyword Arguments:
-          show_progress (bool, optional): If True, displays progress messages and timing info. Default is False.
+          verbose (bool, optional): If True, displays progress messages and timing info. Default is False.
         """
-        show_progress = kwargs.get('show_progress', False)
-        if show_progress:
+        verbose = kwargs.get('verbose', False)
+        if verbose:
             print('Running...')
             t0 = time.time()
         if os.path.exists(filename) and os.path.isfile(filename):
@@ -1604,16 +1604,16 @@ class Corpus (object):
                 with zipfile.ZipFile(filename, 'r') as zip_ref:
                     zip_ref.extractall(self.workspace)
             except Exception as e:
-                if show_progress:
+                if verbose:
                     print('Kitconc cannot import the corpus.\n')
                     print(e)
             finally:
-                if show_progress:
+                if verbose:
                     t1 = time.time()
                     print('')
                     print('Total time: %s seconds' % round(t1 - t0, 2))
         else:
-            if show_progress:
+            if verbose:
                 print('The file path is not valid.')
 
     # GENERAL FUNCTIONS FOR CORPUS STATISTICS

@@ -44,4 +44,10 @@ setup(
     long_description_content_type='text/x-rst',
     install_requires=install_req,
     extras_require=extras_require,
+    entry_points={
+        "console_scripts": [
+            "kitconc-app=kitconc.cli_app:main",
+            "kitconc-mcp=kitconc.agent.mcp_server:main",
+        ]
+    },
 )

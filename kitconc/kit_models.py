@@ -97,9 +97,9 @@ class Models(object):
         regexp_word = kwargs.get('regexp_word',r'\w+')
         reflist_path =kwargs.get('reflist',None)
         stoplist_path = kwargs.get('stoplist',None)
-        show_progress = kwargs.get('show_progress',False)
+        verbose = kwargs.get('verbose',False)
         nltk_model =  nltkTrainModel(sent_tokenizer=sent_tokenizer,word_tokenizer=word_tokenizer,pos_tagger=pos_tagger,regexp_word=regexp_word,
-                                     reflist=reflist_path,stoplist=stoplist_path, show_progress=show_progress)
+                                     reflist=reflist_path,stoplist=stoplist_path, verbose=verbose)
         nltk_model.train(source)
         nltk_model.save(language)
         
@@ -161,7 +161,7 @@ class nltkTrainModel(object):
         self.reflist = None
         self.stoplist = None
         self.stoplist_path = kwargs.get('stoplist',None)
-        self.show_progress = kwargs.get('show_progress',False)
+        self.verbose = kwargs.get('verbose',False)
     
     def train(self,source_folder):
         # normalize path 
@@ -202,7 +202,7 @@ class nltkTrainModel(object):
             # just use punctuation
             self.stoplist =  [c for c in punctuation]
         # train sent_tokenizer
-        if self.show_progress == True:
+        if self.verbose == True:
             print('Training sentence tokenizer...')
         if self.sent_tokenizer == None:
             trainer = nltk.punkt.PunktTrainer()
@@ -212,12 +212,12 @@ class nltkTrainModel(object):
             self.sent_tokenizer = nltk.punkt.PunktSentenceTokenizer(trainer.get_params())
             trainer = None
         # train word tokenizer
-        if self.show_progress == True:
+        if self.verbose == True:
             print('Training word tokenizer...')
         if self.word_tokenizer == None:
             self.word_tokenizer = nltk.RegexpTokenizer(self.regexp_word)
         # train tagger 
-        if self.show_progress == True:
+        if self.verbose == True:
             print('Training pos tagger...')
         # get the most common tag 
         counter = collections.Counter()
@@ -235,15 +235,15 @@ class nltkTrainModel(object):
         unigram_tagger = nltk.UnigramTagger(training_sents,backoff=default_tagger)
         self.pos_tagger = nltk.BigramTagger(training_sents,backoff=unigram_tagger)
         # print results
-        if self.show_progress == True:
+        if self.verbose == True:
             print('Testing tagger...')
-        if self.show_progress == True:
+        if self.verbose == True:
             print ('POS tagger precision: %s' % self.pos_tagger.evaluate(test_sents))
         
         
     def save(self,language):
         if self.sent_tokenizer != None and self.word_tokenizer != None and self.pos_tagger != None:
-            if self.show_progress == True:
+            if self.verbose == True:
                 print('Saving model...')
             config = Config()
             config.add_sent_tokenizer(self.sent_tokenizer, language)
@@ -255,10 +255,10 @@ class nltkTrainModel(object):
             config.add_reflist('\n'.join(s), language)
             s = None
             config.add_stoplist('\n'.join(self.stoplist), language)    
-            if self.show_progress == True:
+            if self.verbose == True:
                 print('OK.')
         else:
-            if self.show_progress == True:
+            if self.verbose == True:
                 print('Kitconc cannot save the model. Trained components are missing.')
          
     

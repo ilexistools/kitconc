@@ -33,11 +33,57 @@ nltk>=3.9.1,<4.0.0
 chardet>=5.2.0,<6.0.0
 pypdf>=4.0.0,<7.0.0
 cryptography>=3.1,<47.0.0
+mcp>=1.0.0,<2.0.0
 
 Installation
 ============
 
 pip install kitconc
+
+Kitconc App (graphical interface)
+=================================
+
+kitconc-app
+
+Agent Layer (internal actions)
+==============================
+
+Kitconc now includes an internal action layer for agent/tool orchestration:
+
+* kitconc.agent.actions.KitconcActions
+* Full parity with shell commands from kit_cmd.py (do_*)
+* Typed schemas in kitconc.agent.schemas
+* Contract documentation in kitconc/agent/CONTRACT.md
+
+Basic usage:
+
+from kitconc.agent import KitconcActions
+actions = KitconcActions("kitconc_workspace")
+actions.create("ads", "kitconc_corpora/ads", "english")
+actions.use("ads")
+rows = actions.keywords(limit=10)
+
+MCP Server (for agent integrations)
+===================================
+
+kitconc-mcp --transport stdio
+
+or:
+
+kitconc-mcp --transport sse --host 127.0.0.1 --port 8001
+
+If you installed only with pip install kitconc and need MCP runtime:
+
+pip install mcp
+
+What's new in 3.2.0
+====================
+
+* Tkinter launcher command -- start GUI with kitconc-app
+* Agent action layer -- kitconc.agent.actions.KitconcActions with command parity from kit_cmd.py
+* Typed schemas -- available in kitconc.agent.schemas
+* MCP server entrypoint -- run with kitconc-mcp
+* Progress flag rename -- use verbose=True (replacing show_progress=True)
 
 What's new in 3.1.0
 ====================

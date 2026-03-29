@@ -279,9 +279,9 @@ def file2utf8b(source_file,target_file,source_encoding='mbcs'):
                     break
                 fh2.write(contents.decode(source_encoding))
 
-def files2utf8(source_folder,target_folder,source_encoding='mbcs',show_progress=False):
+def files2utf8(source_folder,target_folder,source_encoding='mbcs',verbose=False):
     # time start
-    if show_progress == True:
+    if verbose == True:
         print('Running...')
         t0 = time.time()
     if source_folder.endswith('/')==False:
@@ -304,10 +304,10 @@ def files2utf8(source_folder,target_folder,source_encoding='mbcs',show_progress=
                     content = fh.read()
                 with open(target_folder + filename,'w', encoding='utf-8') as fh:
                     fh.write(content)
-            if show_progress == True:
+            if verbose == True:
                 __progress(i, total, '')
     # time end
-    if show_progress == True:
+    if verbose == True:
         t1 = time.time()
         total_time = round(t1 - t0,2) 
         print('')

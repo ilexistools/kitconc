@@ -15,8 +15,8 @@ class Examples(object):
         https://github.com/ilexistools/kitconc-examples/archive/master.zip
         :param dest_path: Prints a progress message if value is True
         :type dest_path: str
-        :param show_progress: Prints a progress message if value is True
-        :type show_progress: boolean
+        :param verbose: Prints a progress message if value is True
+        :type verbose: boolean
         :return: None
         :rtype: None
         """

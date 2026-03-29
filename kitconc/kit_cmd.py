@@ -552,7 +552,7 @@ class Kit(Cmd):
         if args.tagged == 'True':
             tagged = True
         corpus = Corpus(self.workspace,args.name,args.language)
-        corpus.add_texts(args.source,tagged=tagged, show_progress=True)
+        corpus.add_texts(args.source,tagged=tagged, verbose=True)
     
     def do_use(self,s):
         """\nDescription: Sets the current corpus in use.
@@ -583,7 +583,7 @@ class Kit(Cmd):
                 if args.lowercase is not None:
                     if args.lowercase == 'n':
                         lowercase = False 
-                wordlist = corpus.wordlist(lowercase=lowercase,show_progress=True)
+                wordlist = corpus.wordlist(lowercase=lowercase,verbose=True)
                 wordlist.save_excel(self.workspace + self.corpus_in_use + '/output/wordlist.xlsx')
                 wordlist = None
                 print('')
@@ -613,7 +613,7 @@ class Kit(Cmd):
                 ignore_strange = args.nostrange != 'n' if args.nostrange is not None else True
                 min_chars = args.minchars if args.minchars is not None else 2
                 print('Keywords:')
-                keywords = corpus.keywords(measure=measure, stoplist=stoplist, show_progress=True,
+                keywords = corpus.keywords(measure=measure, stoplist=stoplist, verbose=True,
                                            ref_language=ref_language, ignore_numbers=ignore_numbers,
                                            ignore_strange=ignore_strange, min_chars=min_chars)
                 keywords.save_excel(self.workspace + self.corpus_in_use + '/output/keywords.xlsx')
@@ -666,7 +666,7 @@ class Kit(Cmd):
                     arg_sort3 = args.sort3 
                 if args.highlight != None:
                     arg_highlight = args.highlight
-                kwic = corpus.kwic(args.node,pos=arg_pos,case_sensitive=arg_case_sensitive,regexp=arg_regexp,horizon=arg_horizon,limit=arg_limit,show_progress=True)
+                kwic = corpus.kwic(args.node,pos=arg_pos,case_sensitive=arg_case_sensitive,regexp=arg_regexp,horizon=arg_horizon,limit=arg_limit,verbose=True)
                 if arg_sort1 != None:
                     kwic.sort(arg_sort1, arg_sort2, arg_sort3) 
                 kwic.save_excel(self.workspace + self.corpus_in_use + '/output/kwic.xlsx',width=arg_width,highlight=arg_highlight)
@@ -700,7 +700,7 @@ class Kit(Cmd):
                         arg_regexp = False
                 if args.limit != None:
                     arg_limit = int(args.limit)
-                concordance = corpus.concordance(args.node,pos=arg_pos,case_sensitive=arg_case_sensitive,regexp=arg_regexp,limit=arg_limit,show_progress=True)
+                concordance = corpus.concordance(args.node,pos=arg_pos,case_sensitive=arg_case_sensitive,regexp=arg_regexp,limit=arg_limit,verbose=True)
                 concordance.save_excel(self.workspace + self.corpus_in_use + '/output/concordance.xlsx')
                 print('')
         except Exception as e:
@@ -743,7 +743,7 @@ class Kit(Cmd):
                 if args.measure != None:
                     arg_measure = args.measure
 
-                collocates = corpus.collocates(args.node,pos=arg_pos,coll_pos=arg_coll_pos,left_span=arg_left_span,right_span=arg_right_span,measure=arg_measure,case_sensitive=arg_case_sensitive,regexp=arg_regexp,show_progress=True)
+                collocates = corpus.collocates(args.node,pos=arg_pos,coll_pos=arg_coll_pos,left_span=arg_left_span,right_span=arg_right_span,measure=arg_measure,case_sensitive=arg_case_sensitive,regexp=arg_regexp,verbose=True)
                 collocates.save_excel(self.workspace + self.corpus_in_use + '/output/collocates.xlsx')
                 print('')
         except Exception as e:
@@ -784,7 +784,7 @@ class Kit(Cmd):
                     arg_right_span = args.right_span
                 if args.measure != None:
                     arg_measure = args.measure
-                collocates = corpus.collocates(args.node,pos=arg_pos,coll_pos=arg_coll_pos,left_span=arg_left_span,right_span=arg_right_span,measure=arg_measure,case_sensitive=arg_case_sensitive,regexp=arg_regexp,show_progress=True)
+                collocates = corpus.collocates(args.node,pos=arg_pos,coll_pos=arg_coll_pos,left_span=arg_left_span,right_span=arg_right_span,measure=arg_measure,case_sensitive=arg_case_sensitive,regexp=arg_regexp,verbose=True)
                 collgraph = CollGraph(node=args.node)
                 collgraph.plot_graphcoll(collocates)
                 print('')
@@ -803,7 +803,7 @@ class Kit(Cmd):
                 if args.lowercase != None:
                     if args.lowercase != 'y':
                         arg_lowercase = False
-                wtfreq = corpus.wtfreq(lowercase=arg_lowercase,show_progress=True)
+                wtfreq = corpus.wtfreq(lowercase=arg_lowercase,verbose=True)
                 wtfreq.save_excel(self.workspace + self.corpus_in_use + '/output/wtfreq.xlsx')
                 print('')
         except Exception as e:
@@ -821,7 +821,7 @@ class Kit(Cmd):
                 if args.lowercase != None:
                     if args.lowercase != 'y':
                         arg_lowercase = False
-                wfreqinfiles = corpus.wfreqinfiles(lowercase=arg_lowercase,show_progress=True)
+                wfreqinfiles = corpus.wfreqinfiles(lowercase=arg_lowercase,verbose=True)
                 wfreqinfiles.save_excel(self.workspace + self.corpus_in_use + '/output/wfreqinfiles.xlsx')
                 print('')
         except Exception as e:
@@ -856,7 +856,7 @@ class Kit(Cmd):
                 if args.lowercase != None:
                     if args.lowercase != 'y':
                         arg_lowercase = False
-                clusters = corpus.clusters(args.word,pos=arg_pos,size=arg_size,minfreq=arg_minfreq,minrange=arg_minrange,lowercase=arg_lowercase,show_progress=True)
+                clusters = corpus.clusters(args.word,pos=arg_pos,size=arg_size,minfreq=arg_minfreq,minrange=arg_minrange,lowercase=arg_lowercase,verbose=True)
                 clusters.save_excel(self.workspace + self.corpus_in_use + '/output/clusters.xlsx')
                 print('')
         except Exception as e:
@@ -891,7 +891,7 @@ class Kit(Cmd):
                 if args.lowercase != None:
                     if args.lowercase != 'y':
                         arg_lowercase = False
-                ngrams = corpus.ngrams(pos=arg_pos,size=arg_size,minfreq=arg_minfreq,minrange=arg_minrange,lowercase=arg_lowercase,show_progress=True)
+                ngrams = corpus.ngrams(pos=arg_pos,size=arg_size,minfreq=arg_minfreq,minrange=arg_minrange,lowercase=arg_lowercase,verbose=True)
                 ngrams.save_excel(self.workspace + self.corpus_in_use + '/output/ngrams.xlsx')
                 print('')
         except Exception as e:
@@ -923,7 +923,7 @@ class Kit(Cmd):
                         arg_regexp = False
                 if args.limit != None:
                     arg_limit = int(args.limit)
-                dispersion = corpus.dispersion(args.node,pos=arg_pos,case_sensitive=arg_case_sensitive,regexp=arg_regexp,limit=arg_limit,show_progress=True)
+                dispersion = corpus.dispersion(args.node,pos=arg_pos,case_sensitive=arg_case_sensitive,regexp=arg_regexp,limit=arg_limit,verbose=True)
                 dispersion.save_excel(self.workspace + self.corpus_in_use + '/output/dispersion.xlsx')
                 print('')
         except Exception as e:
@@ -948,7 +948,7 @@ class Kit(Cmd):
                     arg_limit = int(args.limit)
                 keywords = corpus.keywords()
                 try:
-                    keywords_dispersion = corpus.keywords_dispersion(keywords,lowercase=arg_lowercase,limit=arg_limit,show_progress=True)
+                    keywords_dispersion = corpus.keywords_dispersion(keywords,lowercase=arg_lowercase,limit=arg_limit,verbose=True)
                 except Exception as e:
                     print(f"Error on corpus.keywords_dispersion: {e}")
                 keywords_dispersion.save_excel(self.workspace + self.corpus_in_use + '/output/keywords_dispersion.xlsx')
@@ -1023,7 +1023,7 @@ class Kit(Cmd):
                     arg_stoplist=None
                 if os.path.exists(args.source):
                     models = Models()
-                    models.nltk_create_model(args.source, args.language,reflist=arg_reflist,stoplist=arg_stoplist,show_progress=True)
+                    models.nltk_create_model(args.source, args.language,reflist=arg_reflist,stoplist=arg_stoplist,verbose=True)
         except Exception as e:
             print(e)
     

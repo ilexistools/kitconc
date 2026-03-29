@@ -33,6 +33,7 @@ Kitconc requires Python 3.10 or later, along with:
 * chardet>=5.2.0,<6.0.0
 * pypdf>=4.0.0,<7.0.0
 * cryptography>=3.1,<47.0.0
+* mcp>=1.0.0,<2.0.0 *(for MCP server usage)*
 
 
 Installation with pip
@@ -78,7 +79,56 @@ Kitconc App (graphical interface)
 After installation, launch the graphical interface with:
 
 ```bash
-python app.py
+kitconc-app
+```
+
+
+Agent Layer (internal actions)
+=========
+
+Kitconc now includes an internal action layer for agent/tool orchestration:
+
+* `kitconc.agent.actions.KitconcActions`
+* Full parity with shell commands from `kit_cmd.py` (`do_*`)
+* Typed schemas in `kitconc.agent.schemas`
+* Contract documentation in `kitconc/agent/CONTRACT.md`
+
+Basic usage:
+
+```python
+from kitconc.agent import KitconcActions
+
+actions = KitconcActions("kitconc_workspace")
+actions.create("ads", "kitconc_corpora/ads", "english")
+actions.use("ads")
+rows = actions.keywords(limit=10)
+print(rows["rows"][:3])
+```
+
+
+MCP Server (for agent integrations)
+=========
+
+An MCP server entrypoint is available:
+
+```bash
+kitconc-mcp --transport stdio
+```
+
+or (SSE transport):
+
+```bash
+kitconc-mcp --transport sse --host 127.0.0.1 --port 8001
+```
+
+Notes:
+
+* Tools are auto-generated from `KitconcActions.mcp_tool_catalog()`.
+* If installed from source using `requirements.txt`, `mcp` is included.
+* If you only did `pip install kitconc`, install MCP runtime separately if needed:
+
+```bash
+pip install mcp
 ```
 
 
@@ -88,6 +138,15 @@ Language resources
 Kitconc comes with built-in language resources for Portuguese and English corpora.
 It also provides functions for adding your own language resources.
 
+
+What's new in 3.2.0
+=========
+
+* **Tkinter launcher command** — start GUI with `kitconc-app`
+* **Agent action layer** — `kitconc.agent.actions.KitconcActions` with command parity from `kit_cmd.py`
+* **Typed schemas** — available in `kitconc.agent.schemas`
+* **MCP server entrypoint** — run with `kitconc-mcp`
+* **Progress flag rename** — use `verbose=True` (replacing `show_progress=True`)
 
 What's new in 3.1.0
 =========
@@ -107,7 +166,7 @@ Adding a corpus
 ```python
 from kitconc.kit_corpus import Corpus
 corpus = Corpus('kitconc_workspace', 'ads', 'english')
-corpus.add_texts('kitconc_corpora/ads', show_progress=True)
+corpus.add_texts('kitconc_corpora/ads', verbose=True)
 ```
 
 Creating a wordlist
@@ -115,7 +174,7 @@ Creating a wordlist
 ```python
 from kitconc.kit_corpus import Corpus
 corpus = Corpus('kitconc_workspace', 'ads', 'english')
-wordlist = corpus.wordlist(show_progress=True)
+wordlist = corpus.wordlist(verbose=True)
 print(wordlist.df.head(10))
 wordlist.save_excel(corpus.output_path + 'wordlist.xlsx')
 ```
@@ -128,13 +187,13 @@ from kitconc.kit_corpus import Corpus
 corpus = Corpus('kitconc_workspace', 'ads', 'english')
 
 # Log-Likelihood (default)
-keywords = corpus.keywords(show_progress=True)
+keywords = corpus.keywords(verbose=True)
 
 # Chi-Square
-keywords = corpus.keywords(measure='chi-square', show_progress=True)
+keywords = corpus.keywords(measure='chi-square', verbose=True)
 
 # TF-IDF (no reference corpus needed)
-keywords = corpus.keywords(measure='tf-idf', show_progress=True)
+keywords = corpus.keywords(measure='tf-idf', verbose=True)
 
 # With filters
 keywords = corpus.keywords(
@@ -142,7 +201,7 @@ keywords = corpus.keywords(
     ignore_numbers=True,
     ignore_strange=True,
     min_chars=2,
-    show_progress=True,
+    verbose=True,
 )
 
 print(keywords.df.head(10))
@@ -155,7 +214,7 @@ Creating concordance lines - KWIC
 ```python
 from kitconc.kit_corpus import Corpus
 corpus = Corpus('kitconc_workspace', 'ads', 'english')
-kwic = corpus.kwic('experience', show_progress=True)
+kwic = corpus.kwic('experience', verbose=True)
 kwic.sort('R1', 'R2', 'R3')
 print(kwic.df.head(10))
 kwic.save_excel(corpus.output_path + 'kwic.xlsx', highlight='R1 R2 R3')
@@ -167,7 +226,7 @@ Creating concordance lines - sentences
 ```python
 from kitconc.kit_corpus import Corpus
 corpus = Corpus('kitconc_workspace', 'ads', 'english')
-concordances = corpus.concordance('experience', show_progress=True)
+concordances = corpus.concordance('experience', verbose=True)
 print(concordances.df.head(10))
 concordances.save_excel(corpus.output_path + 'concordances.xlsx')
 ```
@@ -179,7 +238,7 @@ Finding collocates
 from kitconc.kit_corpus import Corpus
 corpus = Corpus('kitconc_workspace', 'ads', 'english')
 collocates = corpus.collocates('experience', left_span=2, right_span=2,
-                               coll_pos='IN NN JJ VBN VBD', show_progress=True)
+                               coll_pos='IN NN JJ VBN VBD', verbose=True)
 print(collocates.df.head(10))
 collocates.save_excel(corpus.output_path + 'collocates.xlsx')
 ```
@@ -190,7 +249,7 @@ Making clusters
 ```python
 from kitconc.kit_corpus import Corpus
 corpus = Corpus('kitconc_workspace', 'ads', 'english')
-clusters = corpus.clusters('experience', size=3, show_progress=True)
+clusters = corpus.clusters('experience', size=3, verbose=True)
 print(clusters.df.head(10))
 clusters.save_excel(corpus.output_path + 'clusters.xlsx')
 ```
@@ -201,7 +260,7 @@ Making ngrams
 ```python
 from kitconc.kit_corpus import Corpus
 corpus = Corpus('kitconc_workspace', 'ads', 'english')
-ngrams = corpus.ngrams(size=3, pos='NN IN NN', show_progress=True)
+ngrams = corpus.ngrams(size=3, pos='NN IN NN', verbose=True)
 print(ngrams.df.head(10))
 ngrams.save_excel(corpus.output_path + 'ngrams.xlsx')
 ```
@@ -223,8 +282,8 @@ Finding collocations
 ```python
 from kitconc.kit_corpus import Corpus
 corpus = Corpus('kitconc_workspace', 'ads', 'english')
-kwic = corpus.kwic('skills', show_progress=True)
-collocations = corpus.collocations(kwic, show_progress=True)
+kwic = corpus.kwic('skills', verbose=True)
+collocations = corpus.collocations(kwic, verbose=True)
 print(collocations.df.head(10))
 collocations.save_excel(corpus.output_path + 'collocations.xlsx')
 collocations.plot_colldist('strong')
@@ -238,7 +297,7 @@ Plotting collocates
 from kitconc.kit_corpus import Corpus
 corpus = Corpus('kitconc_workspace', 'ads', 'english')
 collocates = corpus.collocates('skills', left_span=3, right_span=3,
-                               coll_pos='NN JJ', show_progress=True)
+                               coll_pos='NN JJ', verbose=True)
 print(collocates.df.head(10))
 collocates.save_excel(corpus.output_path + 'collocates.xlsx')
 collocates.plot_collgraph(node='skills')

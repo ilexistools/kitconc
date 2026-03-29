@@ -694,7 +694,7 @@ class KitApp(Window):
         self.top.destroy()
         if os.path.exists(source_folder):
             models = kitconc.kit_models.Models()
-            models.nltk_create_model(source_folder,language,show_progress=True)
+            models.nltk_create_model(source_folder,language,verbose=True)
             messagebox.showinfo(self.__gui_lang[87], self.__gui_lang[88])
         else:
             messagebox.showwarning(self.__gui_lang[89], self.__gui_lang[90])

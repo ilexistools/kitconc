@@ -7,5 +7,5 @@ create_corpus('kitconc_workspace',      # workspade
               'kitconc_corpora/ads',    # texts folder
               'english',                # language
               'en_core_web_trf',        # spaCy model
-              show_progress=True)
+              verbose=True)
 
