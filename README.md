@@ -126,12 +126,7 @@ Notes:
 
 * Tools are auto-generated from `KitconcActions.mcp_tool_catalog()`.
 * Includes semantic retrieval tool: `semantic_search` (`query`, `top_k`, `db_path`, `model_name`).
-* If installed from source using `requirements.txt`, `mcp` is included.
-* If you only did `pip install kitconc`, install MCP runtime separately if needed:
-
-```bash
-pip install mcp
-```
+* `mcp` runtime is included in package dependencies (`pip install kitconc` is enough).
 
 
 Language resources

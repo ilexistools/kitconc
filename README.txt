@@ -76,9 +76,8 @@ kitconc-mcp --transport sse --host 127.0.0.1 --port 8001
 Includes semantic retrieval tool:
 semantic_search (query, top_k, db_path, model_name)
 
-If you installed only with pip install kitconc and need MCP runtime:
-
-pip install mcp
+MCP runtime is included in package dependencies
+(pip install kitconc is enough).
 
 What's new in 3.2.0
 ====================

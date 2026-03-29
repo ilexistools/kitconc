@@ -15,6 +15,7 @@ install_req = [
     "chardet>=5.2.0,<6.0.0",
     "pypdf>=4.0.0,<7.0.0",
     "cryptography>=3.1,<47.0.0",
+    "mcp>=1.0.0,<2.0.0",
     "setuptools>=70.0.0",
 ]
 
@@ -29,7 +30,7 @@ extras_require = {
 
 setup(
     name='kitconc',
-    version='3.1.0',
+    version='3.2.0',
     author='José Lopes Moreira Filho',
     author_email='jlopes@alumni.usp.br',
     packages=find_packages(),
