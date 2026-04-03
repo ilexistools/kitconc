@@ -69,7 +69,11 @@ MCP Server (for agent integrations)
 
 kitconc-mcp --transport stdio
 
-or:
+For HTTP clients (recommended):
+
+kitconc-mcp --transport streamable-http --host 127.0.0.1 --port 8001
+
+or (legacy SSE):
 
 kitconc-mcp --transport sse --host 127.0.0.1 --port 8001
 

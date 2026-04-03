@@ -116,7 +116,13 @@ An MCP server entrypoint is available:
 kitconc-mcp --transport stdio
 ```
 
-or (SSE transport):
+For HTTP clients (recommended, simpler setup):
+
+```bash
+kitconc-mcp --transport streamable-http --host 127.0.0.1 --port 8001
+```
+
+or (legacy SSE transport):
 
 ```bash
 kitconc-mcp --transport sse --host 127.0.0.1 --port 8001
