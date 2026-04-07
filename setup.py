@@ -30,7 +30,7 @@ extras_require = {
 
 setup(
     name='kitconc',
-    version='3.2.0',
+    version='3.4.2',
     author='José Lopes Moreira Filho',
     author_email='jlopes@alumni.usp.br',
     packages=find_packages(),

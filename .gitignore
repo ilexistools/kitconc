@@ -92,3 +92,4 @@ Desktop.ini
 kitconc.tmp
 kitconc.egg-info
 kitconc_workspace/**/*
+embeddings/models/**/*
