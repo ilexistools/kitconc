@@ -1,5 +1,8 @@
+Unreleased
+2026-04-06
+- Updated README requirements to match setup.py package dependencies.
+- Documented additional full-environment dependencies from requirements.txt.
+
 Version 3.0.3
 2025-04-21
 - Added examples.
-
-

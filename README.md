@@ -20,7 +20,9 @@ The package is built on top of platforms and packages for scientific research: n
 Requirements
 =========
 
-Kitconc requires Python 3.10 or later, along with:
+Kitconc requires Python 3.10 or later.
+
+Package dependencies (`pip install kitconc`):
 
 * numpy>=1.26.4,<2.0.0
 * pandas>=2.2.0,<3.0.0
@@ -34,6 +36,17 @@ Kitconc requires Python 3.10 or later, along with:
 * pypdf>=4.0.0,<7.0.0
 * cryptography>=3.1,<47.0.0
 * mcp>=1.0.0,<2.0.0 *(for MCP server usage)*
+* setuptools>=70.0.0
+
+Additional dependencies listed in `requirements.txt` (full local environment):
+
+* torch>=2.6,<2.10 *(CPU wheels via `--extra-index-url https://download.pytorch.org/whl/cpu`)*
+* transformers>=4.45,<6.0.0
+* sentence-transformers>=3.0,<6.0.0
+* sqlite-vec>=0.1.7,<1.0.0
+* fastapi>=0.110,<1.0.0
+* uvicorn[standard]>=0.27,<1.0.0
+* python-dotenv>=1.0.0,<2.0.0
 
 
 Installation with pip
