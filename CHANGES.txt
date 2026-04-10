@@ -1,3 +1,8 @@
+Version 3.4.4
+2026-04-10
+- Added Docker installation/runtime option (`Dockerfile` and `.dockerignore`).
+- Expanded README with complete MCP tools reference, prompt suggestions, and usage flows.
+
 Version 3.4.3
 2026-04-06
 - Updated README requirements to match setup.py package dependencies.

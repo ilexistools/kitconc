@@ -1,4 +1,4 @@
-Kitconc 3.4.3
+Kitconc 
 =========
 
 Kitconc is a package for Corpus Linguistics and text analysis with Python.
@@ -86,6 +86,25 @@ pip install -r requirements.txt
 ```
 
 
+Installation and usage with Docker
+=========
+
+Build the image:
+
+```bash
+docker build -t kitconc .
+```
+
+Run Kitconc MCP server over HTTP (`http://localhost:8001/mcp`) with a persisted workspace:
+
+```bash
+docker run --rm -it \
+  -p 8001:8001 \
+  -v "$(pwd)/kitconc_workspace:/app/kitconc_workspace" \
+  kitconc
+```
+
+
 Kitconc App (graphical interface)
 =========
 
@@ -146,6 +165,141 @@ Notes:
 * Tools are auto-generated from `KitconcActions.mcp_tool_catalog()`.
 * Includes semantic retrieval tool: `semantic_search` (`query`, `top_k`, `db_path`, `model_name`).
 * `mcp` runtime is included in package dependencies (`pip install kitconc` is enough).
+
+
+MCP Tool Reference (complete)
+=========
+
+Kitconc MCP tools are auto-exposed from public methods in `kitconc.agent.actions.KitconcActions`.
+The current catalog includes operational tools, utility helpers, and typed wrappers.
+
+Recommended operational tools
+-------------
+
+These are the tools most clients should use in normal workflows:
+
+* `workspace(path=None)` - get/set current workspace
+* `workspace_status()` - inspect current workspace and selected corpus
+* `ls(corpus_name=None)` - list corpora or output files
+* `list_corpora()` - list corpus metadata in workspace
+* `use(corpus_name)` - select corpus for subsequent commands
+* `home()` - clear selected corpus
+* `create(name, source, language, tagged=False, verbose=False)` - create corpus from folder
+* `delete(corpus_name)` - remove corpus
+* `cleanse(corpus_name=None)` - delete output files from a corpus
+* `open(filename, corpus_name=None, launch=False)` - resolve generated output file path
+* `wordlist(corpus_name=None, lowercase=True, limit=None)` - compute word frequency list
+* `keywords(...)` - compute keywords (`log-likelihood`, `chi-square`, `tf-idf`)
+* `kwic(node, ...)` - keyword in context
+* `concordance(node, ...)` - sentence-style concordance
+* `collocates(node, ...)` - collocate statistics
+* `collgraph(node, ..., plot=False)` - collocates formatted for graph workflows
+* `wtfreq(corpus_name=None, lowercase=True, limit=None)` - word-tag frequency
+* `wfreqinfiles(corpus_name=None, lowercase=True, limit=None)` - per-file frequencies
+* `clusters(word, ...)` - lexical clusters around a node
+* `ngrams(corpus_name=None, ...)` - n-gram extraction
+* `dispersion(node, ...)` - dispersion by corpus sections
+* `keywords_dispersion(corpus_name=None, ...)` - dispersion for top keywords
+* `semantic_search(query, top_k=5, db_path=None, model_name=None)` - vector semantic retrieval
+* `text2utf8(source, target=None, source_encoding='mbcs', verbose=False)` - normalize corpus text encoding
+* `train_model(source, language=None, reflist=None, stoplist=None, verbose=False)` - train language model resources
+* `export_corpus(dest_path, corpus_name=None)` - export corpus as zip
+* `import_corpus(filename)` - import exported corpus zip
+* `examples(dest_path=None)` - download example corpora
+* `version()` / `app_version()` - package version
+* `help(command=None)` / `command_help(command=None)` - command help text
+
+Utility methods also exposed by MCP
+-------------
+
+These are usually for orchestration and diagnostics:
+
+* `set_workspace(workspace)`
+* `save_workspace_file(filename='kitconc.tmp')`
+* `from_workspace_file(filename='kitconc.tmp')`
+* `list_commands()`
+* `list_output_files(corpus_name=None)`
+* `list_ref_languages()`
+* `corpus_exists(corpus_name)`
+* `get_corpus_info(corpus_name)`
+* `create_corpus(corpus_name, language, source_folder, tagged=False, verbose=False)`
+* `delete_corpus(corpus_name)`
+
+Typed wrappers (migration layer)
+-------------
+
+These wrappers accept schema objects and return typed payloads:
+
+* `workspace_typed(request)`
+* `create_typed(request)`
+* `keywords_typed(request)`
+* `kwic_typed(request)`
+* `collgraph_typed(request)`
+* `dispersion_typed(request)`
+* `keywords_dispersion_typed(request)`
+* `text2utf8_typed(request)`
+* `train_model_typed(request)`
+* `semantic_search_typed(request)`
+
+Quick prompt suggestions
+-------------
+
+Use prompts like these with your MCP client/agent:
+
+* "Set workspace to `/data/kitconc_workspace`, list corpora, and summarize what is available."
+* "Create corpus `ads_en` from `/data/corpora/ads` in English, then select it."
+* "Run `wordlist` and `keywords` (log-likelihood, limit 30), then compare top terms."
+* "Generate KWIC for `experience` with horizon 7 and show 20 rows."
+* "Find collocates for `experience` with `left_span=3`, `right_span=3`, and rank by MI."
+* "Run `ngrams` with `size=3` and `minfreq=3`; return top 50."
+* "Run `dispersion` for `experience` and explain section totals."
+* "Export current corpus to `/data/exports` and return the zip path."
+* "Import corpus from `/data/exports/ads_en.zip`, select it, and verify metadata."
+* "Run semantic search for `customer loyalty` with top_k 10 using default DB path."
+
+Suggested MCP usage flows
+-------------
+
+Flow 1: New corpus to first insights
+1. `workspace(path)`
+2. `create(name, source, language)`
+3. `use(corpus_name)`
+4. `wordlist(...)`
+5. `keywords(...)`
+6. `kwic(node, ...)`
+
+Flow 2: Comparative lexical exploration
+1. `use(corpus_name)`
+2. `keywords(...)`
+3. `collocates(node, ...)`
+4. `clusters(word, ...)`
+5. `ngrams(...)`
+6. `export_corpus(dest_path)`
+
+Flow 3: File hygiene and publishing outputs
+1. `ls()`
+2. `list_output_files(corpus_name)`
+3. `open(filename, launch=False)`
+4. `cleanse(corpus_name)` (only when safe to remove files)
+
+Flow 4: Semantic retrieval workflow
+1. `use(corpus_name)`
+2. (Build or provide embedding DB externally)
+3. `semantic_search(query, top_k, db_path)`
+4. Combine semantic hits with `kwic`/`concordance` for qualitative inspection
+
+Flow 5: Portability and replication
+1. `export_corpus(dest_path, corpus_name)`
+2. transfer zip file
+3. `import_corpus(filename)`
+4. `get_corpus_info(corpus_name)`
+
+Safety notes
+-------------
+
+* `delete`, `delete_corpus`, and `cleanse` are destructive and execute immediately.
+* `open(..., launch=False)` is safer for server-side environments.
+* `collgraph(..., plot=True)` may require a GUI-capable environment; use `plot=False` on headless servers.
 
 
 Language resources
