@@ -937,7 +937,7 @@ class KitconcActions:
         reflist_path = _normalize_path(reflist) if reflist is not None else None
         stoplist_path = _normalize_path(stoplist) if stoplist is not None else None
         model = Models()
-        model.nltk_create_model(
+        model.create_model(
             source_path,
             language,
             reflist=reflist_path,

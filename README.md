@@ -14,7 +14,7 @@ It contains, among other things, tools for creating:
 * Excel data files
 * Semantic search with sentence embeddings
 
-The package is built on top of platforms and packages for scientific research: numpy, pandas, NLTK, XlsxWriter and matplotlib.
+The package is built on top of platforms and packages for scientific research: numpy, pandas, XlsxWriter and matplotlib. Its corpus tokenization and tagging pipeline uses built-in dependency-free components.
 
 
 Requirements
@@ -31,7 +31,6 @@ Package dependencies (`pip install kitconc`):
 * ttkbootstrap>=1.12.0,<2.0.0
 * pillow>=12.3.0,<13.0.0
 * requests>=2.31.0,<3.0.0
-* nltk>=3.10.3,<4.0.0
 * chardet>=5.2.0,<6.0.0
 * pypdf>=4.0.0,<7.0.0
 * cryptography>=50.0.0,<51.0.0

@@ -5,10 +5,11 @@ import pickle
 from string import punctuation
 from kitconc.core import Config
 import collections 
+from kitconc.nlp import BigramTagger, SentenceTokenizer, WordTokenizer
 try:
-    import nltk
+    import spacy
 except ImportError:
-    nltk = None
+    spacy = None
 
 
 class Models(object):
@@ -90,7 +91,8 @@ class Models(object):
     def spacy_model(self,model_name,disable=[]):
         return spacyModels().load(model_name,disable=disable)
     
-    def nltk_create_model(self,source,language,**kwargs):
+    def create_model(self,source,language,**kwargs):
+        """Train the built-in dependency-free tokenizer and tagger."""
         sent_tokenizer = kwargs.get('sent_tokenizer',None)
         word_tokenizer = kwargs.get('word_tokenizer',None)
         pos_tagger = kwargs.get('pos_tagger',None) 
@@ -98,10 +100,14 @@ class Models(object):
         reflist_path =kwargs.get('reflist',None)
         stoplist_path = kwargs.get('stoplist',None)
         verbose = kwargs.get('verbose',False)
-        nltk_model =  nltkTrainModel(sent_tokenizer=sent_tokenizer,word_tokenizer=word_tokenizer,pos_tagger=pos_tagger,regexp_word=regexp_word,
+        model = TrainModel(sent_tokenizer=sent_tokenizer,word_tokenizer=word_tokenizer,pos_tagger=pos_tagger,regexp_word=regexp_word,
                                      reflist=reflist_path,stoplist=stoplist_path, verbose=verbose)
-        nltk_model.train(source)
-        nltk_model.save(language)
+        model.train(source)
+        model.save(language)
+
+    def nltk_create_model(self, source, language, **kwargs):
+        """Backward-compatible alias for :meth:`create_model`."""
+        return self.create_model(source, language, **kwargs)
         
         
 
@@ -150,7 +156,7 @@ class spacyModels(object):
             print(f"Error on loading spaCy: {e}")
             return None 
 
-class nltkTrainModel(object):
+class TrainModel(object):
     
     def __init__(self,**kwargs):
         self.sent_tokenizer = kwargs.get('sent_tokenizer',None)
@@ -205,17 +211,12 @@ class nltkTrainModel(object):
         if self.verbose == True:
             print('Training sentence tokenizer...')
         if self.sent_tokenizer == None:
-            trainer = nltk.punkt.PunktTrainer()
-            trainer.INCLUDE_ALL_COLLOCS = True
-            for text in self.__read_texts():
-                trainer.train(text,finalize=False)
-            self.sent_tokenizer = nltk.punkt.PunktSentenceTokenizer(trainer.get_params())
-            trainer = None
+            self.sent_tokenizer = SentenceTokenizer()
         # train word tokenizer
         if self.verbose == True:
             print('Training word tokenizer...')
         if self.word_tokenizer == None:
-            self.word_tokenizer = nltk.RegexpTokenizer(self.regexp_word)
+            self.word_tokenizer = WordTokenizer(self.regexp_word if self.regexp_word != r'\w+' else None)
         # train tagger 
         if self.verbose == True:
             print('Training pos tagger...')
@@ -231,9 +232,7 @@ class nltkTrainModel(object):
         test_sents = tagged_sents[cutoff:] 
         tagged_sents = None
         # train sequential taggers   
-        default_tagger = nltk.DefaultTagger(default_tag)
-        unigram_tagger = nltk.UnigramTagger(training_sents,backoff=default_tagger)
-        self.pos_tagger = nltk.BigramTagger(training_sents,backoff=unigram_tagger)
+        self.pos_tagger = BigramTagger.train(training_sents)
         # print results
         if self.verbose == True:
             print('Testing tagger...')

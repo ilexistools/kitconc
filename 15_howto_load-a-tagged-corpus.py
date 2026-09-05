@@ -1,7 +1,6 @@
 import os 
 from kitconc.kit_corpus import Corpus
 import kitconc.kit_util
-import nltk 
 
 # 1:
 # First let's create a tagged corpus for demo
@@ -14,7 +13,7 @@ ids = list(corpus.fileids())
 for file_id in ids:
     s = []
     for tagged_sent in corpus.tagged_sents():
-        str_sent = ' '.join([nltk.tuple2str(token) for token in tagged_sent])
+        str_sent = ' '.join([f'{token[0]}/{token[1]}' for token in tagged_sent])
         s.append(str_sent)
     with open('kitconc_corpora/tagged_sents/file_' + str(file_id) + '.txt', 'w', encoding='utf-8') as fh:
         fh.write('\n'.join(s))

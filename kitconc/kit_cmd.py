@@ -1023,7 +1023,7 @@ class Kit(Cmd):
                     arg_stoplist=None
                 if os.path.exists(args.source):
                     models = Models()
-                    models.nltk_create_model(args.source, args.language,reflist=arg_reflist,stoplist=arg_stoplist,verbose=True)
+                    models.create_model(args.source, args.language,reflist=arg_reflist,stoplist=arg_stoplist,verbose=True)
         except Exception as e:
             print(e)
     
