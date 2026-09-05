@@ -1,3 +1,8 @@
+Version 3.4.6
+2026-09-05
+- Updated Pillow, cryptography and NLTK dependency floors to security-fixed releases.
+- The remaining NLTK advisory is tracked upstream because no newer PyPI release is available.
+
 Version 3.4.5
 2026-09-05
 - Fixed MCP stdio regression coverage for Windows and other platforms.

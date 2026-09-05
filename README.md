@@ -29,12 +29,12 @@ Package dependencies (`pip install kitconc`):
 * matplotlib>=3.7.0,<4.0.0
 * xlsxwriter>=3.2.3,<4.0.0
 * ttkbootstrap>=1.12.0,<2.0.0
-* pillow>=11.2.0,<12.0.0
+* pillow>=12.3.0,<13.0.0
 * requests>=2.31.0,<3.0.0
-* nltk>=3.9.1,<4.0.0
+* nltk>=3.10.3,<4.0.0
 * chardet>=5.2.0,<6.0.0
 * pypdf>=4.0.0,<7.0.0
-* cryptography>=3.1,<47.0.0
+* cryptography>=50.0.0,<51.0.0
 * mcp>=1.0.0,<2.0.0 *(for MCP server usage)*
 * setuptools>=70.0.0
 
