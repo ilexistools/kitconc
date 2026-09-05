@@ -1,3 +1,10 @@
+Version 3.4.5
+2026-09-05
+- Fixed MCP stdio regression coverage for Windows and other platforms.
+- Declared the supported Python version in package metadata.
+- Removed NumPy scalar-conversion deprecation warnings from n-gram processing.
+- Added automated test execution to the release workflow.
+
 Version 3.4.4
 2026-04-10
 - Added Docker installation/runtime option (`Dockerfile` and `.dockerignore`).

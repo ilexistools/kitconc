@@ -30,10 +30,11 @@ extras_require = {
 
 setup(
     name='kitconc',
-    version='3.4.4',
+    version='3.4.5',
     author='José Lopes Moreira Filho',
     author_email='jlopes@alumni.usp.br',
-    packages=find_packages(),
+    packages=find_packages(exclude=["tests", "tests.*"]),
+    python_requires=">=3.10",
     package_data={
         'kitconc': ['data/*.*', 'data/images/*.*', 'data/scripts/*.*']
     },

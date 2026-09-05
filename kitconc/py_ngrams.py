@@ -11,6 +11,11 @@ from typing import Any, List, Optional
 import numpy as np
 
 
+def _as_int(value: Any) -> int:
+    """Convert a NumPy scalar or one-element array without deprecation warnings."""
+    return int(np.asarray(value).item())
+
+
 def load_dict(dict_path: str) -> Any:
     """Loads a dictionary in pickle format."""
     with open(dict_path, 'rb') as fh:
@@ -62,7 +67,7 @@ def unigrams(arr: np.ndarray, encoded_pos: Optional[List[np.ndarray]]) -> collec
         dq = collections.deque(maxlen=1)
         counter = collections.Counter()
         for i in range(0,arr.shape[0]):
-            dq.append(int(arr[i]))
+            dq.append(_as_int(arr[i]))
             counter[dq[0]]+=1
     return counter
     
@@ -80,10 +85,10 @@ def bigrams(arr: np.ndarray, encoded_pos: Optional[List[np.ndarray]]) -> collect
                 counter[(dq[0],dq[1])]+=1
     else:
         dq = collections.deque(maxlen=2)
-        dq.append(int(arr[0]))
+        dq.append(_as_int(arr[0]))
         counter = collections.Counter()
         for i in range(1,arr.shape[0]):
-            dq.append(int(arr[i]))
+            dq.append(_as_int(arr[i]))
             counter[(dq[0],dq[1])]+=1
     return counter 
 
@@ -103,11 +108,11 @@ def trigrams(arr: np.ndarray, encoded_pos: Optional[List[np.ndarray]]) -> collec
                 counter[(dq[0],dq[1],dq[2])]+=1
     else:
         dq = collections.deque(maxlen=3)
-        dq.append(int(arr[0]))
-        dq.append(int(arr[1]))
+        dq.append(_as_int(arr[0]))
+        dq.append(_as_int(arr[1]))
         counter = collections.Counter()
         for i in range(2,arr.shape[0]):
-            dq.append(int(arr[i]))
+            dq.append(_as_int(arr[i]))
             counter[(dq[0],dq[1],dq[2])]+=1
         
     return counter
@@ -130,12 +135,12 @@ def quadrigrams(arr: np.ndarray, encoded_pos: Optional[List[np.ndarray]]) -> col
                 counter[(dq[0],dq[1],dq[2],dq[3])]+=1
     else:
         dq = collections.deque(maxlen=4)
-        dq.append(int(arr[0]))
-        dq.append(int(arr[1]))
-        dq.append(int(arr[2]))
+        dq.append(_as_int(arr[0]))
+        dq.append(_as_int(arr[1]))
+        dq.append(_as_int(arr[2]))
         counter = collections.Counter()
         for i in range(3,arr.shape[0]):
-            dq.append(int(arr[i]))
+            dq.append(_as_int(arr[i]))
             counter[(dq[0],dq[1],dq[2],dq[3])]+=1
         
     return counter 
@@ -160,13 +165,13 @@ def quinquegrams(arr: np.ndarray, encoded_pos: Optional[List[np.ndarray]]) -> co
                 counter[(dq[0],dq[1],dq[2],dq[3],dq[4])]+=1
     else:
         dq = collections.deque(maxlen=5)
-        dq.append(int(arr[0]))
-        dq.append(int(arr[1]))
-        dq.append(int(arr[2]))
-        dq.append(int(arr[3]))
+        dq.append(_as_int(arr[0]))
+        dq.append(_as_int(arr[1]))
+        dq.append(_as_int(arr[2]))
+        dq.append(_as_int(arr[3]))
         counter = collections.Counter()
         for i in range(4,arr.shape[0]):
-            dq.append(int(arr[i]))
+            dq.append(_as_int(arr[i]))
             counter[(dq[0],dq[1],dq[2],dq[3],dq[4])]+=1
     return counter        
 

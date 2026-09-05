@@ -3,6 +3,7 @@
 
 import asyncio
 import re
+import sys
 from pathlib import Path
 
 from mcp import ClientSession, StdioServerParameters
@@ -36,8 +37,8 @@ def test_call_tool_app_version_via_fastmcp_server():
 def test_call_tool_via_stdio_transport():
     async def _run():
         params = StdioServerParameters(
-            command="./venv/bin/kitconc-mcp",
-            args=["--transport", "stdio"],
+            command=sys.executable,
+            args=["-m", "kitconc.agent.mcp_server", "--transport", "stdio"],
         )
         async with stdio_client(params) as (read, write):
             async with ClientSession(read, write) as session:
