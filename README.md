@@ -22,7 +22,7 @@ Requirements
 
 Kitconc requires Python 3.10 or later.
 
-Package dependencies (`pip install kitconc`):
+Core dependencies (managed by `uv`):
 
 * numpy>=1.26.4,<2.0.0
 * pandas>=2.2.0,<3.0.0
@@ -37,9 +37,9 @@ Package dependencies (`pip install kitconc`):
 * mcp>=1.0.0,<2.0.0 *(for MCP server usage)*
 * setuptools>=70.0.0
 
-Additional dependencies listed in `requirements.txt` (full local environment):
+Optional `full` dependencies (embeddings, API and local environment):
 
-* torch>=2.6,<2.10 *(CPU wheels via `--extra-index-url https://download.pytorch.org/whl/cpu`)*
+* torch>=2.6,<2.10 *(CPU wheels from the configured `pytorch-cpu` uv index)*
 * transformers>=4.45,<6.0.0
 * sentence-transformers>=3.0,<6.0.0
 * sqlite-vec>=0.1.7,<1.0.0
@@ -48,11 +48,24 @@ Additional dependencies listed in `requirements.txt` (full local environment):
 * python-dotenv>=1.0.0,<2.0.0
 
 
-Installation with pip
+Installation with uv
 =========
 
 ```bash
-pip install kitconc
+uv sync
+```
+
+To install the complete local environment, including embeddings and the HTTP API:
+
+```bash
+uv sync --all-extras
+```
+
+Run commands inside the locked environment with `uv run`, for example:
+
+```bash
+uv run kitconc-mcp --transport stdio
+uv run pytest
 ```
 
 
@@ -62,26 +75,10 @@ Installation from GitHub
 1. Download Kitconc from GitHub;
 2. Extract its contents;
 3. Open a terminal and navigate to the extracted folder;
-4. Install with pip:
+4. Install the locked environment with uv:
 
 ```bash
-pip install .
-```
-
-Or using a virtual environment (recommended):
-
-**macOS / Linux**
-```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-**Windows**
-```bash
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
+uv sync
 ```
 
 
@@ -163,7 +160,7 @@ Notes:
 
 * Tools are auto-generated from `KitconcActions.mcp_tool_catalog()`.
 * Includes semantic retrieval tool: `semantic_search` (`query`, `top_k`, `db_path`, `model_name`).
-* `mcp` runtime is included in package dependencies (`pip install kitconc` is enough).
+* `mcp` runtime is included in the core uv dependencies (`uv sync` is enough).
 
 
 MCP Tool Reference (complete)

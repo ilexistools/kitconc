@@ -11,6 +11,7 @@ dist/
 build/
 venv/
 .venv/
+.uv-cache/
 .DS_Store
 *.tmp
 kitconc_workspace/

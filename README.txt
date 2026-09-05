@@ -22,7 +22,7 @@ Requirements
 
 Kitconc requires Python 3.10 or later.
 
-Package dependencies (pip install kitconc):
+Core dependencies (managed by uv):
 
 numpy>=1.26.4,<2.0.0
 pandas>=2.2.0,<3.0.0
@@ -37,9 +37,9 @@ cryptography>=50.0.0,<51.0.0
 mcp>=1.0.0,<2.0.0
 setuptools>=70.0.0
 
-Additional dependencies listed in requirements.txt (full local environment):
+Optional full dependencies (embeddings, API and local environment):
 
-torch>=2.6,<2.10 (CPU wheels via --extra-index-url https://download.pytorch.org/whl/cpu)
+torch>=2.6,<2.10 (CPU wheels from the configured pytorch-cpu uv index)
 transformers>=4.45,<6.0.0
 sentence-transformers>=3.0,<6.0.0
 sqlite-vec>=0.1.7,<1.0.0
@@ -47,10 +47,19 @@ fastapi>=0.110,<1.0.0
 uvicorn[standard]>=0.27,<1.0.0
 python-dotenv>=1.0.0,<2.0.0
 
-Installation
-============
+Installation with uv
+====================
 
-pip install kitconc
+uv sync
+
+For the complete local environment:
+
+uv sync --all-extras
+
+Run commands with uv run, for example:
+
+uv run kitconc-mcp --transport stdio
+uv run pytest
 
 Kitconc App (graphical interface)
 =================================
@@ -93,7 +102,7 @@ Includes semantic retrieval tool:
 semantic_search (query, top_k, db_path, model_name)
 
 MCP runtime is included in package dependencies
-(pip install kitconc is enough).
+(uv sync is enough).
 
 What's new in 3.2.0
 ====================

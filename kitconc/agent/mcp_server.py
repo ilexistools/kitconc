@@ -88,7 +88,7 @@ def build_server(
 ):
     if FastMCP is None:
         raise RuntimeError(
-            "MCP runtime not installed. Install with: pip install mcp"
+            "MCP runtime not installed. Run: uv sync"
         )
     resolved_workspace = _default_workspace(workspace, workspace_file)
     actions = KitconcActions(resolved_workspace)

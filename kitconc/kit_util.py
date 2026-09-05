@@ -183,7 +183,7 @@ def _pdf_to_text(pdf_path: str) -> str:
         import pypdf
     except ImportError:
         raise ImportError(
-            "pypdf is required to read PDF files. Install it with: pip install pypdf"
+            "pypdf is required to read PDF files. Run: uv sync"
         )
 
     # --- Step 1: direct text extraction ---
@@ -204,7 +204,7 @@ def _pdf_to_text(pdf_path: str) -> str:
     except ImportError:
         raise ImportError(
             "This PDF appears to be a scanned image. OCR support requires:\n"
-            "  pip install pdf2image pytesseract\n"
+            "  uv add pdf2image pytesseract\n"
             "and Tesseract installed on the system (brew install tesseract)."
         )
 

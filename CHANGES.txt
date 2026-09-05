@@ -1,3 +1,8 @@
+Version 3.5.1
+-------------
+- 2026-09-05
+- Migrated dependency management, development setup, CI, and Docker workflows to uv with a committed uv.lock file.
+
 Version 3.5.0
 2026-09-05
 - Replaced the NLTK-based tokenization and POS-tagging runtime with built-in components and converted bundled models.

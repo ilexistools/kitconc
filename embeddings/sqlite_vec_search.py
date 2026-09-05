@@ -32,7 +32,7 @@ import sqlite3
 import threading
 import numpy as np
 
-import sqlite_vec  # pip install sqlite-vec
+import sqlite_vec  # provided by the optional full uv extra
 from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv, find_dotenv
 

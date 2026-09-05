@@ -1,19 +1,21 @@
 FROM python:3.11-slim
 
+# Use uv for locked, reproducible dependency installation.
+COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /uvx /bin/
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Keep image smaller and deterministic by using pinned runtime dependencies.
-COPY requirements.txt ./
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+# Keep image deterministic using the committed uv.lock file.
+COPY pyproject.toml uv.lock README.txt LICENSE.txt ./
+RUN uv sync --locked --all-extras --no-dev --no-install-project
 
 COPY . .
-RUN pip install --no-cache-dir .
+RUN uv sync --locked --all-extras --no-dev --no-editable
 
 EXPOSE 8001
 
 # Default to a network-accessible MCP server transport for container usage.
-CMD ["kitconc-mcp", "--transport", "streamable-http", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["/app/.venv/bin/kitconc-mcp", "--transport", "streamable-http", "--host", "0.0.0.0", "--port", "8001"]
