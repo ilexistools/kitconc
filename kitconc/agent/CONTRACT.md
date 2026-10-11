@@ -82,7 +82,9 @@ Selection behavior:
 - `delete_corpus(corpus_name) -> None`
 - `list_output_files(corpus_name=None) -> list[str]`
 - `list_ref_languages() -> list[str]`
-- `semantic_search(query, top_k=5, db_path=None, model_name=None) -> dict`
+- `semantic_search(query, top_k=5, db_path=None, model_name=None, corpus_name=None) -> dict`
+- `index_corpus(corpus_name, source_folder=None, db_path=None, model_name=None, chunk_size=500, chunk_overlap=50, batch_size=64, rebuild=False) -> dict`
+- `semantic_index_status(corpus_name=None, db_path=None) -> dict`
 - Typed wrappers (migration started):
 - `workspace_typed(request: WorkspaceRequest) -> WorkspaceResult`
 - `create_typed(request: CreateCorpusRequest) -> CorpusInfo`
@@ -117,6 +119,15 @@ Defined in `kitconc/agent/schemas.py`:
 - `TrainModelResult`
 - `SemanticSearchRequest`
 - `SemanticSearchResult`
+
+## Semantic Index Workflow
+
+- `index_corpus` reads TXT, Markdown, RST, and PDF files recursively from `source_folder`, or from the `Source` entry in the corpus `info.tab`.
+- Its default index path is `<workspace>/.semantic_indexes/<corpus_name>.sqlite3`. Use `db_path` to choose another location.
+- Existing indexes are not replaced unless `rebuild=True`. Rebuilds are written to a temporary database and installed only after successful indexing.
+- `semantic_index_status` returns the database path, existence flag, and indexed chunk count.
+- `semantic_search` uses the selected or explicit `corpus_name` index by default. An explicit `db_path` takes precedence. With no selected corpus it retains the workspace-level `semantic_index.sqlite3` fallback.
+- The model and `sqlite-vec` dependencies are optional; install them with `uv sync --extra full`.
 
 ## Output Conventions
 

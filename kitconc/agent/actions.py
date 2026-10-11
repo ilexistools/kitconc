@@ -9,9 +9,11 @@ import shutil
 import subprocess
 import sys
 import inspect
+import sqlite3
+import tempfile
 from dataclasses import is_dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, get_type_hints
 
 from kitconc import kit_util, version
 from kitconc.agent.schemas import (
@@ -211,11 +213,23 @@ class KitconcActions:
         """Return MCP-style tool descriptors derived from action signatures."""
         tools: list[dict[str, Any]] = []
         for item in self.tool_catalog():
+            action_method = getattr(self, item["name"])
+            try:
+                type_hints = get_type_hints(action_method)
+            except (NameError, TypeError):
+                type_hints = {}
             properties: dict[str, Any] = {}
             required: list[str] = []
             for p in item["params"]:
+                annotation = type_hints.get(p["name"])
+                json_type = (
+                    "boolean" if annotation is bool else
+                    "integer" if annotation is int else
+                    "number" if annotation is float else
+                    "string"
+                )
                 properties[p["name"]] = {
-                    "type": "string",
+                    "type": json_type,
                     "description": p["annotation"],
                 }
                 if p["default"] is not None:
@@ -839,14 +853,16 @@ class KitconcActions:
         top_k: int | str = 5,
         db_path: str | None = None,
         model_name: str | None = None,
+        corpus_name: str | None = None,
     ) -> dict[str, Any]:
         """
         Semantic search over a sqlite-vec index.
 
         Notes
         -----
-        - Expects an existing index file.
-        - Default DB path: <workspace>/semantic_index.sqlite3
+        - Expects an existing index file, created by index_corpus or supplied with db_path.
+        - With a selected corpus, uses <workspace>/.semantic_indexes/<corpus>.sqlite3.
+        - Without a selected corpus, uses <workspace>/semantic_index.sqlite3.
         """
         if isinstance(query, SemanticSearchRequest):
             req = query
@@ -855,6 +871,7 @@ class KitconcActions:
                 top_k=req.top_k,
                 db_path=req.db_path,
                 model_name=req.model_name,
+                corpus_name=req.corpus_name,
             )
         if not isinstance(query, str) or not query.strip():
             raise ValidationError("`query` must be a non-empty string.")
@@ -865,11 +882,16 @@ class KitconcActions:
         if k < 1:
             raise ValidationError("`top_k` must be >= 1.")
 
-        index_path = (
-            _normalize_path(db_path)
-            if db_path is not None
-            else str(Path(self._workspace) / "semantic_index.sqlite3")
-        )
+        selected_corpus = corpus_name or self.corpus_in_use
+        if db_path is not None:
+            index_path = _normalize_path(db_path)
+        elif selected_corpus:
+            self._validate_corpus_name(selected_corpus)
+            if not self.corpus_exists(selected_corpus):
+                raise NotFoundError(f"Corpus not found: {selected_corpus}")
+            index_path = str(self._semantic_index_path(selected_corpus))
+        else:
+            index_path = str(Path(self._workspace) / "semantic_index.sqlite3")
         if not Path(index_path).exists():
             raise NotFoundError(f"Semantic index not found: {index_path}")
 
@@ -887,6 +909,212 @@ class KitconcActions:
         with SQLiteVecSearch(index_path, **kwargs) as index:
             rows = index.search(query.strip(), top_k=k)
         return {"db_path": index_path, "rows": rows, "total": len(rows)}
+
+    def index_corpus(
+        self,
+        corpus_name: str,
+        source_folder: str | None = None,
+        db_path: str | None = None,
+        model_name: str | None = None,
+        chunk_size: int = 500,
+        chunk_overlap: int = 50,
+        batch_size: int = 64,
+        rebuild: bool = False,
+    ) -> dict[str, Any]:
+        """Create a semantic index from TXT, Markdown, RST, or PDF corpus source files.
+
+        Uses the source directory recorded in info.tab unless source_folder is
+        supplied, walks it recursively, and stores chunk source metadata. The
+        index is kept under .semantic_indexes in the workspace unless db_path
+        is supplied. Builds into a temporary database and only replaces an
+        existing index when rebuild=True and the complete operation succeeds.
+        """
+        corpus_name = corpus_name.strip()
+        self._validate_corpus_name(corpus_name)
+        if not self.corpus_exists(corpus_name):
+            raise NotFoundError(f"Corpus not found: {corpus_name}")
+        if chunk_size < 1 or chunk_overlap < 0 or chunk_overlap >= chunk_size:
+            raise ValidationError("Require chunk_size > chunk_overlap >= 0.")
+        if batch_size < 1:
+            raise ValidationError("batch_size must be >= 1.")
+
+        corpus_info = _read_info_tab(Path(self._workspace) / corpus_name / "info.tab")
+        source_value = source_folder or corpus_info.get("source")
+        if not source_value:
+            raise ValidationError(
+                "No source folder is recorded for this corpus; provide source_folder."
+            )
+        source = Path(source_value).expanduser().resolve()
+        if not source.is_dir():
+            raise ValidationError(
+                f"Source folder is unavailable: {source}; provide source_folder explicitly."
+            )
+
+        target = (
+            Path(_normalize_path(db_path))
+            if db_path is not None
+            else self._semantic_index_path(corpus_name)
+        )
+        if target.exists() and not rebuild:
+            raise ValidationError(
+                f"Semantic index already exists: {target}. Set rebuild=true to replace it."
+            )
+        target.parent.mkdir(parents=True, exist_ok=True)
+
+        try:
+            from embeddings.chunker import chunk_text
+            from embeddings.sqlite_vec_search import SQLiteVecSearch
+            from pypdf import PdfReader
+        except Exception as exc:
+            raise ActionLayerError(
+                "Embeddings runtime unavailable. Install the optional full dependencies."
+            ) from exc
+
+        fd, temp_name = tempfile.mkstemp(
+            prefix=f".{target.stem}-", suffix=".sqlite3", dir=target.parent
+        )
+        os.close(fd)
+        os.unlink(temp_name)
+
+        files_indexed = 0
+        chunks_indexed = 0
+        pending: list[dict[str, Any]] = []
+        suffixes = {".txt", ".text", ".md", ".rst", ".pdf"}
+        skipped_names = {".DS_Store", "desktop.ini", "Thumbs.db"}
+        encoding = corpus_info.get("encoding") or "utf-8"
+        kwargs = {"model_name": model_name.strip()} if model_name and model_name.strip() else {}
+        index = None
+        try:
+            index = SQLiteVecSearch(temp_name, **kwargs)
+            for path in sorted(source.rglob("*"), key=lambda item: str(item).casefold()):
+                if (
+                    path.is_symlink()
+                    or not path.is_file()
+                    or path.name in skipped_names
+                    or path.suffix.lower() not in suffixes
+                ):
+                    continue
+                try:
+                    if path.suffix.lower() == ".pdf":
+                        with path.open("rb") as handle:
+                            reader = PdfReader(handle)
+                            text = "\n".join(page.extract_text() or "" for page in reader.pages)
+                    else:
+                        text = path.read_text(encoding=encoding, errors="replace")
+                except Exception as exc:
+                    raise ActionLayerError(f"Could not read source file {path}: {exc}") from exc
+                pieces = chunk_text(
+                    text,
+                    chunk_size=chunk_size,
+                    chunk_overlap=chunk_overlap,
+                )
+                if not pieces:
+                    continue
+                files_indexed += 1
+                relative_path = path.relative_to(source).as_posix()
+                for chunk_number, piece in enumerate(pieces):
+                    pending.append(
+                        {
+                            "text": piece,
+                            "metadata": {
+                                "corpus": corpus_name,
+                                "source_file": relative_path,
+                                "chunk": chunk_number,
+                            },
+                        }
+                    )
+                    if len(pending) >= batch_size:
+                        index.add(pending)
+                        chunks_indexed += len(pending)
+                        pending.clear()
+            if pending:
+                index.add(pending)
+                chunks_indexed += len(pending)
+            if not chunks_indexed:
+                raise ValidationError(
+                    f"No readable text was found in supported files under {source}."
+                )
+        except Exception:
+            if index is not None:
+                index.close()
+            self._remove_sqlite_files(Path(temp_name))
+            raise
+        else:
+            index.close()
+            try:
+                os.replace(temp_name, target)
+            except OSError as exc:
+                self._remove_sqlite_files(Path(temp_name))
+                raise ActionLayerError(
+                    f"Could not install semantic index at {target}: {exc}"
+                ) from exc
+
+        return {
+            "corpus_name": corpus_name,
+            "db_path": str(target),
+            "model_name": kwargs.get(
+                "model_name",
+                os.getenv("EMBEDDINGS_MODEL", "sentence-transformers/all-mpnet-base-v2"),
+            ),
+            "files_indexed": files_indexed,
+            "chunks_indexed": chunks_indexed,
+            "rebuilt": bool(rebuild),
+        }
+
+    def semantic_index_status(
+        self,
+        corpus_name: str | None = None,
+        db_path: str | None = None,
+    ) -> dict[str, Any]:
+        """Report whether a semantic index exists and how many chunks it contains."""
+        selected_corpus = corpus_name or self.corpus_in_use
+        if db_path is not None:
+            index_path = Path(_normalize_path(db_path))
+        elif selected_corpus:
+            self._validate_corpus_name(selected_corpus)
+            if not self.corpus_exists(selected_corpus):
+                raise NotFoundError(f"Corpus not found: {selected_corpus}")
+            index_path = self._semantic_index_path(selected_corpus)
+        else:
+            index_path = Path(self._workspace) / "semantic_index.sqlite3"
+        if not index_path.is_file():
+            return {
+                "exists": False,
+                "db_path": str(index_path),
+                "corpus_name": selected_corpus,
+                "chunks_indexed": 0,
+            }
+        try:
+            with sqlite3.connect(index_path) as connection:
+                count = connection.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
+        except sqlite3.Error as exc:
+            raise ValidationError(f"Invalid semantic index at {index_path}: {exc}") from exc
+        return {
+            "exists": True,
+            "db_path": str(index_path),
+            "corpus_name": selected_corpus,
+            "chunks_indexed": int(count),
+        }
+
+    def _semantic_index_path(self, corpus_name: str) -> Path:
+        return Path(self._workspace) / ".semantic_indexes" / f"{corpus_name}.sqlite3"
+
+    @staticmethod
+    def _validate_corpus_name(corpus_name: str) -> None:
+        if (
+            not corpus_name
+            or corpus_name in {".", ".."}
+            or _CORPUS_NAME_RE.fullmatch(corpus_name) is None
+        ):
+            raise ValidationError("Invalid corpus name.")
+
+    @staticmethod
+    def _remove_sqlite_files(path: Path) -> None:
+        for candidate in (path, Path(f"{path}-wal"), Path(f"{path}-shm")):
+            try:
+                candidate.unlink(missing_ok=True)
+            except OSError:
+                pass
 
     def semantic_search_typed(self, request: SemanticSearchRequest) -> SemanticSearchResult:
         data = self.semantic_search(request)

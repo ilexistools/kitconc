@@ -102,8 +102,21 @@ or (legacy SSE):
 
 kitconc-mcp --transport sse --host 127.0.0.1 --port 8001
 
-Includes semantic retrieval tool:
-semantic_search (query, top_k, db_path, model_name)
+Semantic MCP tools:
+semantic_index_status (corpus_name, db_path)
+index_corpus (corpus_name, source_folder, db_path, model_name, chunk_size,
+              chunk_overlap, batch_size, rebuild)
+semantic_search (query, top_k, db_path, model_name, corpus_name)
+
+Use index_corpus to create a per-corpus semantic index from TXT, Markdown,
+RST, and PDF files in the source folder recorded in info.tab. Set source_folder
+when that original path is unavailable. The index is stored under
+<workspace>/.semantic_indexes/<corpus>.sqlite3. Existing indexes are retained
+unless rebuild=True is requested. Then call semantic_search, optionally after
+selecting the corpus with actions.use("name").
+
+Install optional embedding dependencies with:
+uv sync --extra full
 
 MCP runtime is included in package dependencies
 (uv sync is enough).
@@ -116,6 +129,7 @@ What's new in 3.2.0
 * Typed schemas -- available in kitconc.agent.schemas
 * MCP server entrypoint -- run with kitconc-mcp
 * Semantic search MCP tool -- semantic_search for sqlite-vec indexes
+* MCP tools to build per-corpus embedding indexes and inspect index status
 * Embedding index hardening -- transactional writes and thread-safe SQLite access
 * Progress flag rename -- use verbose=True (replacing show_progress=True)
 

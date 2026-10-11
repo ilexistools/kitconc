@@ -200,7 +200,9 @@ These are the tools most clients should use in normal workflows:
 * `ngrams(corpus_name=None, ...)` - n-gram extraction
 * `dispersion(node, ...)` - dispersion by corpus sections
 * `keywords_dispersion(corpus_name=None, ...)` - dispersion for top keywords
-* `semantic_search(query, top_k=5, db_path=None, model_name=None)` - vector semantic retrieval
+* `semantic_search(query, top_k=5, db_path=None, model_name=None, corpus_name=None)` - vector semantic retrieval
+* `index_corpus(corpus_name, source_folder=None, db_path=None, model_name=None, chunk_size=500, chunk_overlap=50, batch_size=64, rebuild=False)` - build a semantic index from corpus source files
+* `semantic_index_status(corpus_name=None, db_path=None)` - inspect an index and its indexed chunk count
 * `text2utf8(source, target=None, source_encoding='mbcs', verbose=False)` - normalize corpus text encoding
 * `train_model(source, language=None, reflist=None, stoplist=None, verbose=False)` - train language model resources
 * `export_corpus(dest_path, corpus_name=None)` - export corpus as zip
@@ -284,9 +286,12 @@ Flow 3: File hygiene and publishing outputs
 
 Flow 4: Semantic retrieval workflow
 1. `use(corpus_name)`
-2. (Build or provide embedding DB externally)
-3. `semantic_search(query, top_k, db_path)`
-4. Combine semantic hits with `kwic`/`concordance` for qualitative inspection
+2. `semantic_index_status(corpus_name)`
+3. If no index exists, call `index_corpus(corpus_name)`; pass `source_folder` when the source path in `info.tab` is no longer available.
+4. `semantic_search(query, top_k)`
+5. Combine semantic hits with `kwic`/`concordance` for qualitative inspection
+
+`index_corpus` reads TXT, Markdown, RST, and PDF files recursively. Its per-corpus index is stored under `<workspace>/.semantic_indexes/`; an existing index is preserved unless `rebuild=true` is explicitly requested. Install the optional embedding dependencies with `uv sync --extra full`.
 
 Flow 5: Portability and replication
 1. `export_corpus(dest_path, corpus_name)`

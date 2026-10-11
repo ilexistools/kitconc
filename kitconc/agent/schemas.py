@@ -157,6 +157,7 @@ class SemanticSearchRequest(SchemaBase):
     top_k: int = 5
     db_path: str | None = None
     model_name: str | None = None
+    corpus_name: str | None = None
 
 
 @dataclass
