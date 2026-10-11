@@ -236,7 +236,10 @@ def prepare_source_folder(source_folder: str) -> tuple:
     if not source_folder.endswith('/'):
         source_folder = source_folder + '/'
 
-    all_files = [f for f in os.listdir(source_folder) if f not in _SKIP_FILES]
+    all_files = [
+        f for f in os.listdir(source_folder)
+        if f not in _SKIP_FILES and os.path.isfile(os.path.join(source_folder, f))
+    ]
     pdf_files = [f for f in all_files if f.lower().endswith('.pdf')]
 
     if not pdf_files:
@@ -244,15 +247,19 @@ def prepare_source_folder(source_folder: str) -> tuple:
 
     # At least one PDF — build a temp copy of the folder
     temp_dir = tempfile.mkdtemp()
-    for filename in all_files:
-        src = source_folder + filename
-        if filename.lower().endswith('.pdf'):
-            text = _pdf_to_text(src)
-            txt_name = filename[:-4] + '.txt'  # replace .pdf → .txt
-            with open(os.path.join(temp_dir, txt_name), 'w', encoding='utf-8') as fh:
-                fh.write(text)
-        else:
-            shutil.copy2(src, os.path.join(temp_dir, filename))
+    try:
+        for filename in all_files:
+            src = os.path.join(source_folder, filename)
+            if filename.lower().endswith('.pdf'):
+                text = _pdf_to_text(src)
+                txt_name = filename[:-4] + '.txt'  # replace .pdf → .txt
+                with open(os.path.join(temp_dir, txt_name), 'w', encoding='utf-8') as fh:
+                    fh.write(text)
+            else:
+                shutil.copy2(src, os.path.join(temp_dir, filename))
+    except Exception:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        raise
 
     return temp_dir + '/', temp_dir
 

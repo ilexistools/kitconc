@@ -33,7 +33,9 @@ class Tagging(object):
         
     def get_files(self):
         i = 0
-        for filename in os.listdir(self.source_folder):
+        for filename in sorted(os.listdir(self.source_folder), key=str.lower):
+            if filename in {'.DS_Store', 'desktop.ini', 'Thumbs.db'} or not os.path.isfile(os.path.join(self.source_folder, filename)):
+                continue
             i+=1
             yield (filename,i)
     

@@ -14,9 +14,13 @@ from kitconc import version
 from kitconc.kit_cmd import Kit 
 from kitconc.core import Config
 import threading
+from queue import Queue, Empty
 import subprocess
 import pickle
 import platform
+import io
+from pathlib import Path
+from contextlib import redirect_stderr, redirect_stdout
 from kitconc import kit_app_language
 from ttkbootstrap import Window
 import ttkbootstrap as tkb
@@ -114,6 +118,7 @@ class KitApp(Window):
 
         # create kit object and set workspace
         self.kit = Kit()
+        self._background_active = False
         self.kit.load_workspace()
         self.kit.corpus_in_use = None
 
@@ -364,43 +369,48 @@ class KitApp(Window):
 
     # export corpus
     def __export_corpus(self):
-        if self.implementation == 'CPython':
-            def callback():
-                self.__show_progress(self.__gui_lang[58])
-                t = threading.Thread (target=self.__exec_export_corpus)
-                t.start()
-            self.after_idle(callback)
-        else:
-            self.__exec_export_corpus()
+        corpus_name = self.kit.corpus_in_use
+        workspace = self.kit.workspace
+        if corpus_name is None:
+            messagebox.showwarning(self.__gui_lang[61], self.__gui_lang[62])
+            return
+        destination = filedialog.askdirectory()
+        if not destination:
+            return
+        self._start_background_task(
+            self.__gui_lang[58],
+            lambda: self._worker_kit(workspace, corpus_name).export_current_corpus(destination),
+            on_success=lambda path: messagebox.showinfo(self.__gui_lang[59], f"{self.__gui_lang[60]}\n{path}"),
+        )
     
     def __exec_export_corpus(self):
-        if self.kit.corpus_in_use != None:
-            source_folder = filedialog.askdirectory()
-            if len(source_folder)!= 0:
-                self.kit.do_export_corpus(source_folder)
-                messagebox.showinfo(self.__gui_lang[59], self.__gui_lang[60])
-        else:
-            messagebox.showwarning(self.__gui_lang[61], self.__gui_lang[62])
-        self.__hide_progress()
+        # Retained as a compatibility shim; dialog and worker dispatch live in __export_corpus.
+        self.__export_corpus()
     
     
     # import corpus
     def __import_corpus(self):
-        if self.implementation == 'CPython':
-            def callback():
-                self.__show_progress(self.__gui_lang[63])
-                t = threading.Thread (target=self.__exec_import_corpus)
-                t.start()
-            self.after_idle(callback)
-        else:
-            target=self.__exec_import_corpus()
+        filename = filedialog.askopenfilename(filetypes=[("Kitconc corpus", "*.zip"), ("All files", "*.*")])
+        if not filename:
+            return
+        workspace = self.kit.workspace
+        self._start_background_task(
+            self.__gui_lang[63],
+            lambda: self._worker_kit(workspace).import_corpus(filename),
+            on_success=lambda corpus_path: self.__finish_import(corpus_path, workspace),
+        )
 
     def __exec_import_corpus(self):
-        filename = filedialog.askopenfilename()
-        if len(filename)!= 0:
-            self.kit.do_import_corpus(filename)
-            self.__load_corpora()
-        self.__hide_progress()
+        # Retained as a compatibility shim; the file dialog is only opened on the UI thread.
+        self.__import_corpus()
+
+    def __finish_import(self, corpus_path, workspace):
+        if self.kit.workspace != workspace:
+            return
+        self.__load_corpora()
+        name = os.path.basename(os.fspath(corpus_path))
+        self.frm_cmb_corpora.set(name)
+        self.__oncorpusselected()
     
     # rename dialog
     def __renamedialog(self):
@@ -810,7 +820,7 @@ class KitApp(Window):
                     self.config(cursor='wait')
                 except Exception as e:
                     print(e)
-            self.update()
+            self.update_idletasks()
         else:
             self.frm_lbl_status['text'] = 'Status: ' + s
             self.frm_pgb['mode'] = 'indeterminate'
@@ -824,11 +834,59 @@ class KitApp(Window):
             self.frm_pgb['mode'] = 'determinate'
             self.frm_pgb.stop()
             self.config(cursor='')
-            self.update()
+            self.update_idletasks()
         else:
             self.frm_lbl_status['text'] = 'Status:'
             self.frm_pgb['mode'] = 'determinate'
             self.frm_pgb.stop()
+
+    def _start_background_task(self, status, task, on_success=None):
+        """Run non-UI work on a worker and deliver completion on Tk's main thread."""
+        if self._background_active:
+            return False
+        self._background_active = True
+        self.__show_progress(status)
+        try:
+            self.frm_cmb_corpora.configure(state='disabled')
+        except Exception:
+            pass
+        result_queue = Queue(maxsize=1)
+
+        def worker():
+            try:
+                result_queue.put((True, task()))
+            except BaseException as exc:
+                result_queue.put((False, exc))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+        def deliver_result():
+            try:
+                succeeded, result = result_queue.get_nowait()
+            except Empty:
+                self.after(50, deliver_result)
+                return
+            self._background_active = False
+            try:
+                self.frm_cmb_corpora.configure(state='readonly')
+            except Exception:
+                pass
+            self.__hide_progress()
+            if succeeded:
+                if on_success is not None:
+                    on_success(result)
+            else:
+                messagebox.showerror("Kitconc", str(result))
+
+        self.after(50, deliver_result)
+        return True
+
+    @staticmethod
+    def _worker_kit(workspace, corpus_name=None):
+        worker = Kit()
+        worker.workspace = workspace
+        worker.corpus_in_use = corpus_name
+        return worker
 
 
 
@@ -1213,36 +1271,41 @@ class KitApp(Window):
         self.top.after_idle(callback)
         
     def __newcorpus_create(self):
-        if self.implementation == 'CPython':
-            def callback():
-                self.__show_progress(self.__gui_lang[127])
-                t = threading.Thread(target=self.__create_corpus)
-                t.start()
-            self.top.after_idle(callback)
-        else:
-            def callback():
-                self.__show_progress(self.__gui_lang[127])
-                t = threading.Thread(target=self.__create_corpus)
-                t.start()
-                self.top.destroy()
-                self.focus()
-            self.top.after_idle(callback)
-    
-    def __create_corpus(self):
-        if len(self.corpusname.get().strip()) != 0 and len(self.source.get().strip()) != 0:
-            # capturando do atributo, não mais de self.top.children
-            language = self.cmb_newcorpus_language.get()
-            tagged = 'True' if self.chk_tagged.instate(['selected']) else 'False'
-            self.top.destroy()
-            self.kit.do_create(
-                f"{self.corpusname.get()} {self.source.get()} {language} --tagged {tagged}"
-            )
-            self.__load_corpora()
-            self.focus()
-            self.__hide_progress()
-        else:
+        name = self.corpusname.get().strip()
+        source = self.source.get().strip()
+        language = self.cmb_newcorpus_language.get().strip()
+        tagged = self.chk_tagged.instate(['selected'])
+        workspace = self.kit.workspace
+        if not name or not source or not language:
             messagebox.showwarning(self.__gui_lang[128], self.__gui_lang[129])
             self.top.focus()
+            return
+        if not os.path.isdir(source):
+            messagebox.showerror("Kitconc", f"Source folder does not exist: {source}")
+            return
+
+        def completed(_corpus):
+            try:
+                if self.top.winfo_exists():
+                    self.top.destroy()
+            except Exception:
+                pass
+            self.focus()
+            if self.kit.workspace != workspace:
+                return
+            self.__load_corpora()
+            self.frm_cmb_corpora.set(name)
+            self.__oncorpusselected()
+
+        self._start_background_task(
+            self.__gui_lang[127],
+            lambda: self._worker_kit(workspace).create_corpus(name, source, language, tagged=tagged, verbose=True),
+            on_success=completed,
+        )
+
+    def __create_corpus(self):
+        # Kept for compatibility with older callbacks; dispatch through the structured flow.
+        self.__newcorpus_create()
 
         
     def __newcorpus_cancel(self):
@@ -1318,8 +1381,9 @@ class KitApp(Window):
             print(e) 
         self.__hide_progress()
     
-    def __rename_file(self,default_name):
-        output_path = self.kit.workspace +  self.kit.corpus_in_use + '/output/'
+    def __rename_file(self,default_name, corpus_name=None):
+        selected_corpus = corpus_name or self.kit.corpus_in_use
+        output_path = self.kit.workspace + selected_corpus + '/output/'
         filename = self.filename.get()
         if len(filename.strip()) == 0:
             filename = default_name
@@ -3024,516 +3088,244 @@ class KitApp(Window):
 
 
     
-    # wordlist
+    def _quoted_cli_value(self, value):
+        value = str(value).replace('\\', '\\\\').replace('"', '\\"')
+        return f'"{value}"'
+
+    def _flag(self, name, value):
+        return f' --{name} {value}'
+
+    def _launch_analysis(self, status, action, arguments='', output_name=None, refresh_info=False):
+        corpus_name = self.kit.corpus_in_use
+        workspace = self.kit.workspace
+        if not corpus_name:
+            messagebox.showwarning("Kitconc", "Select a corpus before running an analysis.")
+            return
+
+        def completed(_result):
+            if output_name:
+                self.__rename_file(output_name, corpus_name=corpus_name)
+            self.__load_datafiles()
+            if refresh_info:
+                self.frm_lbl_info['text'] = self.__corpus_info()
+
+        def run_analysis():
+            worker_kit = Kit()
+            worker_kit.workspace = workspace
+            worker_kit.corpus_in_use = corpus_name
+            output_path = Path(workspace) / corpus_name / 'output' / f'{output_name}.xlsx' if output_name else None
+            before = None
+            if output_path is not None and output_path.is_file():
+                stat = output_path.stat()
+                before = (stat.st_mtime_ns, stat.st_size)
+            log = io.StringIO()
+            with redirect_stdout(log), redirect_stderr(log):
+                getattr(worker_kit, f'do_{action}')(arguments)
+            if output_path is not None:
+                if not output_path.is_file():
+                    raise RuntimeError(log.getvalue().strip() or f"{action} did not create {output_path.name}.")
+                stat = output_path.stat()
+                if before == (stat.st_mtime_ns, stat.st_size):
+                    raise RuntimeError(log.getvalue().strip() or f"{action} did not update {output_path.name}.")
+            return log.getvalue()
+
+        return self._start_background_task(
+            status,
+            run_analysis,
+            on_success=completed,
+        )
+
+    def _query_options(self, *, with_limit=False):
+        node = self.searchnode.get().strip()
+        if not node:
+            return None
+        args = self._quoted_cli_value(node)
+        args += self._flag('case', 'y' if self.chk_case.instate(['selected']) else 'n')
+        args += self._flag('regexp', 'y' if self.chk_regexp.instate(['selected']) else 'n')
+        pos = self.nodepos.get().strip()
+        if pos:
+            args += self._flag('pos', self._quoted_cli_value(pos))
+        if with_limit:
+            limit = self.txt_limit.get().strip()
+            if limit and limit != '0':
+                args += self._flag('limit', limit)
+        return args
+
+    # Corpus analyses. All widget values are read on the Tk thread; workers only run Kit actions.
     def __on_wordlist(self):
-        def callback():
-            self.__show_progress(self.__gui_lang[225])
-            t = threading.Thread (target=self.__exec_wordlist)
-            t.start()
-        self.after_idle(callback) 
-    
+        lowercase = 'y' if self.chk_lowercase.instate(['selected']) else 'n'
+        self._launch_analysis(self.__gui_lang[225], 'wordlist', self._flag('lowercase', lowercase), 'wordlist', True)
+
     def __exec_wordlist(self):
-        lowercase = 'n'
-        if self.chk_lowercase.instate(['selected']):
-            lowercase='y'
-        self.kit.do_wordlist('--lowercase ' + lowercase)
-        # rename 
-        #self.__rename_file(self.__gui_lang[135])
-        self.__rename_file('wordlist')
-        self.__load_datafiles()
-        self.__hide_progress()
-        self.frm_lbl_info['text'] = self.__corpus_info() # update corpus info on screen
-    
-    # wtfreq
+        self.__on_wordlist()
+
     def __on_wtfreq(self):
-        def callback():
-            self.__show_progress(self.__gui_lang[226])
-            t = threading.Thread (target=self.__exec_wtfreq)
-            t.start()
-        self.after_idle(callback) 
-    
+        lowercase = 'y' if self.chk_lowercase.instate(['selected']) else 'n'
+        self._launch_analysis(self.__gui_lang[226], 'wtfreq', self._flag('lowercase', lowercase), 'wtfreq')
+
     def __exec_wtfreq(self):
-        lowercase = 'n'
-        if self.chk_lowercase.instate(['selected']):
-            lowercase='y'
-        self.kit.do_wtfreq('--lowercase ' + lowercase)
-        # rename 
-        self.__rename_file('wtfreq')
-        self.__load_datafiles()
-        self.__hide_progress()
-    
-    # wfreqinfiles
+        self.__on_wtfreq()
+
     def __on_wfreqinfiles(self):
-        def callback():
-            self.__show_progress(self.__gui_lang[227])
-            t = threading.Thread (target=self.__exec_wfreqinfiles)
-            t.start()
-        self.after_idle(callback) 
-    
+        lowercase = 'y' if self.chk_lowercase.instate(['selected']) else 'n'
+        self._launch_analysis(self.__gui_lang[227], 'wfreqinfiles', self._flag('lowercase', lowercase), 'wfreqinfiles')
+
     def __exec_wfreqinfiles(self):
-        lowercase = 'n'
-        if self.chk_lowercase.instate(['selected']):
-            lowercase='y'
-        self.kit.do_wfreqinfiles('--lowercase ' + lowercase)
-        # rename 
-        self.__rename_file('wfreqinfiles')
-        self.__load_datafiles()
-        self.__hide_progress()
-        
-        
-    # keywords
+        self.__on_wfreqinfiles()
+
     def __on_keywords(self):
-        def callback():
-            self.__show_progress(self.__gui_lang[228])
-            t = threading.Thread (target=self.__exec_keywords)
-            t.start()
-        self.after_idle(callback) 
-    
-    def __exec_keywords(self):
-        stoplist = 'n'
-        if self.chk_stoplist.instate(['selected']):
-            stoplist = 'y'
-        measure = 'log-likelihood'
-        if self.rdo_stat1.instate(['selected']):
-            measure = 'chi-square'
-        elif self.rdo_stat3.instate(['selected']):
+        stoplist = 'y' if self.chk_stoplist.instate(['selected']) else 'n'
+        measure = 'chi-square' if self.rdo_stat1.instate(['selected']) else 'log-likelihood'
+        if self.rdo_stat3.instate(['selected']):
             measure = 'tf-idf'
-        reflang = self.cmb_reflang.get()
-        reflang_arg = ' --reflang ' + reflang if (reflang and measure != 'tf-idf') else ''
-        nonumbers = 'y' if self.chk_nonumbers.instate(['selected']) else 'n'
-        nostrange = 'y' if self.chk_nostrange.instate(['selected']) else 'n'
-        minchars = self.spn_minchars.get()
-        self.kit.do_keywords('--stoplist ' + stoplist + ' --measure ' + measure + reflang_arg
-                             + ' --nonumbers ' + nonumbers
-                             + ' --nostrange ' + nostrange
-                             + ' --minchars ' + str(minchars))
-        # rename 
-        self.__rename_file('keywords')
-        self.__load_datafiles()
-        self.__hide_progress()
-    
-    # kwic
+        args = self._flag('stoplist', stoplist) + self._flag('measure', self._quoted_cli_value(measure))
+        reflang = self.cmb_reflang.get().strip()
+        if reflang and measure != 'tf-idf':
+            args += self._flag('reflang', self._quoted_cli_value(reflang))
+        args += self._flag('nonumbers', 'y' if self.chk_nonumbers.instate(['selected']) else 'n')
+        args += self._flag('nostrange', 'y' if self.chk_nostrange.instate(['selected']) else 'n')
+        args += self._flag('minchars', self.spn_minchars.get())
+        self._launch_analysis(self.__gui_lang[228], 'keywords', args, 'keywords')
+
+    def __exec_keywords(self):
+        self.__on_keywords()
+
     def __on_kwic(self):
-        def callback():
-            self.__show_progress(self.__gui_lang[229])
-            t = threading.Thread (target=self.__exec_kwic)
-            t.start()
-        self.after_idle(callback) 
-    
-    def __exec_kwic(self):
-        # node
-        node = '"' +  self.searchnode.get() + '"'
-        # case
-        case = ' --case n '
-        if self.chk_case.instate(['selected']):
-            case=' --case y '
-        # regex
-        regexp = ' --regexp n '
-        if self.chk_regexp.instate(['selected']):
-            regexp=' --regexp y '
-        # pos
-        if len(self.nodepos.get())!=0:
-            pos = ' --pos "' + self.nodepos.get() + '"'
-        else:
-            pos = ''
-        # horizon
-        horizon = self.cmb_horizon.get()
-        if len(horizon)!= 0:
-            horizon = ' --horizon ' + horizon 
-        else:
-            horizon = ''
-        width = self.cmb_width.get()
-        if len(width)!=0:
-            width = ' --width ' + width
-        else:
-            width = ''
-        # sort
-        cs = []
-        sort1 = self.cmb_sort1.get()
-        if sort1 != '-':
-            cs.append(sort1) 
-            sort1 = ' --sort1 ' + sort1 
-        else:
-            sort1 = ''
-        sort2 = self.cmb_sort2.get()
-        if sort2 != '-':
-            cs.append(sort2)
-            sort2 = ' --sort2 ' + sort2 
-        else:
-            sort2 = ''
-        sort3 = self.cmb_sort3.get()
-        if sort3 != '-':
-            cs.append(sort3)
-            sort3 = ' --sort3 ' + sort3 
-        else:
-            sort3 = ''
-        # highlight
-        can_highlight = False
-        if self.chk_highlight.instate(['selected']):
-            can_highlight=True
-        highlight=''
-        if len(cs)!=0 and can_highlight == True:
-            highlight = ' --highlight "' + ' '.join(cs) + '"'
-        # limit
-        limit = self.txt_limit.get()
-        if len(limit) != 0  and limit != '0':
-            limit = ' --limit ' + limit
-        else:
-            limit = ''
-        
-        # exec
-        if len(self.searchnode.get().strip()) !=0:
-            if len(node)!=0:
-                self.kit.do_kwic(node  +  case + regexp + pos + horizon + width + sort1 + sort2 + sort3 + highlight + limit)
-                # rename 
-                self.__rename_file('kwic')
-        else:
+        args = self._query_options(with_limit=True)
+        if args is None:
             messagebox.showwarning(self.__gui_lang[245], self.__gui_lang[246])
-            self.txt_searchnode.focus()            
-        # update window
-        self.__load_datafiles()
-        self.__hide_progress()
-    
-    # concordance
+            self.txt_searchnode.focus()
+            return
+        for field, widget in (('horizon', self.cmb_horizon), ('width', self.cmb_width)):
+            value = widget.get().strip()
+            if value:
+                args += self._flag(field, value)
+        sort_fields = [self.cmb_sort1.get(), self.cmb_sort2.get(), self.cmb_sort3.get()]
+        for number, value in enumerate(sort_fields, 1):
+            if value != '-':
+                args += self._flag(f'sort{number}', value)
+        if self.chk_highlight.instate(['selected']) and any(value != '-' for value in sort_fields):
+            args += self._flag('highlight', self._quoted_cli_value(' '.join(value for value in sort_fields if value != '-')))
+        self._launch_analysis(self.__gui_lang[229], 'kwic', args, 'kwic')
+
+    def __exec_kwic(self):
+        self.__on_kwic()
+
     def __on_concordance(self):
-        def callback():
-            self.__show_progress(self.__gui_lang[230])
-            t = threading.Thread (target=self.__exec_concordance)
-            t.start()
-        self.after_idle(callback) 
-    
-    def __exec_concordance(self):
-        # node
-        node = '"' +  self.searchnode.get() + '"'
-        # case
-        case = ' --case n '
-        if self.chk_case.instate(['selected']):
-            case=' --case y '
-        # regex
-        regexp = ' --regexp n '
-        if self.chk_regexp.instate(['selected']):
-            regexp=' --regexp y '
-        # pos
-        if len(self.nodepos.get())!=0:
-            pos = ' --pos "' + self.nodepos.get() + '"'
-        else:
-            pos = ''
-        
-        # limit
-        limit = self.txt_limit.get()
-        if len(limit) != 0  and limit != '0':
-            limit = ' --limit ' + limit
-        else:
-            limit = ''
-        
-        # exec
-        if len(self.searchnode.get().strip()) != 0:
-            if len(node)!=0:
-                self.kit.do_concordance(node  +  case + regexp + pos + limit)
-                # rename 
-                self.__rename_file('concordance')
-        else:
+        args = self._query_options(with_limit=True)
+        if args is None:
             messagebox.showwarning(self.__gui_lang[247], self.__gui_lang[248])
             self.txt_searchnode.focus()
-        # update window
-        self.__load_datafiles()
-        self.__hide_progress()
-    
-    # collocates
+            return
+        self._launch_analysis(self.__gui_lang[230], 'concordance', args, 'concordance')
+
+    def __exec_concordance(self):
+        self.__on_concordance()
+
+    def _collocation_args(self):
+        args = self._query_options()
+        if args is None:
+            return None
+        collpos = self.collpos.get().strip()
+        if collpos:
+            args += self._flag('coll_pos', self._quoted_cli_value(collpos))
+        args += self._flag('left_span', self.cmb_leftspan.get())
+        args += self._flag('right_span', self.cmb_rightspan.get())
+        measure = 'mutual information' if self.cmb_measure.get() == 'MI' else 't-score'
+        args += self._flag('measure', self._quoted_cli_value(measure))
+        return args
+
     def __on_collocates(self):
-        def callback():
-            self.__show_progress(self.__gui_lang[231])
-            t = threading.Thread (target=self.__exec_collocates)
-            t.start()
-        self.after_idle(callback) 
-    
-    def __exec_collocates(self):
-        # node
-        node = '"' +  self.searchnode.get() + '"'
-        # case
-        case = ' --case n '
-        if self.chk_case.instate(['selected']):
-            case=' --case y '
-        # regex
-        regexp = ' --regexp n '
-        if self.chk_regexp.instate(['selected']):
-            regexp=' --regexp y '
-        # pos
-        if len(self.nodepos.get())!=0:
-            pos = ' --pos "' + self.nodepos.get() + '"'
-        else:
-            pos = ''
-        
-        # coll pos
-        if len(self.collpos.get())!=0:
-            collpos = ' --coll_pos "' + self.collpos.get() + '"'
-        else:
-            collpos = ''
-        
-        left_span = ' --left_span ' +  self.cmb_leftspan.get()
-        right_span = ' --right_span ' +  self.cmb_rightspan.get()
-
-        # measure
-        if self.cmb_measure.get() == 'MI':
-            measure = ' --measure "mutual information"'
-        else:
-            measure = ' --measure t-score'
-
-
-        # exec
-        if len(self.searchnode.get().strip())!=0:
-            if len(node)!=0:
-                self.kit.do_collocates (node  +  case + regexp + pos + collpos + left_span + right_span + measure )
-                # rename 
-                self.__rename_file('collocates')
-        else:
+        args = self._collocation_args()
+        if args is None:
             messagebox.showwarning(self.__gui_lang[249], self.__gui_lang[250])
             self.txt_searchnode.focus()
-            
-        # update window
-        self.__load_datafiles()
-        self.__hide_progress()
-    
-    # collgraph
-    def __on_collgraph(self):
-        def callback():
-            self.__show_progress(self.__gui_lang[232])
-            self.__exec_collgraph()
-            #t = threading.Thread (target=self.__exec_collgraph)
-            #t.start()
-        self.after_idle(callback) 
-    
-    def __exec_collgraph(self):
-        # node
-        node = '"' +  self.searchnode.get() + '"'
-        # case
-        case = ' --case n '
-        if self.chk_case.instate(['selected']):
-            case=' --case y '
-        # regex
-        regexp = ' --regexp n '
-        if self.chk_regexp.instate(['selected']):
-            regexp=' --regexp y '
-        # pos
-        if len(self.nodepos.get())!=0:
-            pos = ' --pos "' + self.nodepos.get() + '"'
-        else:
-            pos = ''
-        
-        # coll pos
-        if len(self.collpos.get())!=0:
-            collpos = ' --coll_pos "' + self.collpos.get() + '"'
-        else:
-            collpos = ''
-        
-        left_span = ' --left_span ' +  self.cmb_leftspan.get()
-        right_span = ' --right_span ' +  self.cmb_rightspan.get()
+            return
+        self._launch_analysis(self.__gui_lang[231], 'collocates', args, 'collocates')
 
-        # measure
-        if self.cmb_measure.get() == 'MI':
-            measure = ' --measure "mutual information"'
-        else:
-            measure = ' --measure t-score'
-        
-        # exec
-        if len(self.searchnode.get())!=0:
-            if len(node)!=0:
-                self.kit.do_collgraph(node  +  case + regexp + pos + collpos + left_span + right_span + measure )
-        else:
+    def __exec_collocates(self):
+        self.__on_collocates()
+
+    def __on_collgraph(self):
+        args = self._collocation_args()
+        if args is None:
             messagebox.showwarning(self.__gui_lang[251], self.__gui_lang[252])
             self.txt_searchnode.focus()
-           
-        # update window
-        self.__load_datafiles()
-        self.__hide_progress()
-    
-    # clusters
+            return
+        self._launch_analysis(self.__gui_lang[232], 'collgraph', args)
+
+    def __exec_collgraph(self):
+        self.__on_collgraph()
+
     def __on_clusters(self):
-        def callback():
-            self.__show_progress(self.__gui_lang[233])
-            t = threading.Thread (target=self.__exec_clusters)
-            t.start()
-        self.after_idle(callback) 
-    
-    def __exec_clusters(self):
-        # node
-        node = '"' +  self.searchnode.get() + '"'
-        # case
-        case = ' --lowercase n '
-        if self.chk_case.instate(['selected']):
-            case=' --lowercase y '
-        # pos
-        if len(self.nodepos.get())!=0:
-            pos = ' --pos "' + self.nodepos.get() + '"'
-        else:
-            pos = ''
-        # size
-        size = ' --size ' +  self.cmb_size.get()
-        # minfreq
-        minfreq = ' --minfreq ' + self.minfreq.get()
-        # minrange 
-        minrange = ' --minrange ' + self.minrange.get()
-        # exec
-        if len(self.searchnode.get().strip())!=0:
-            if len(node)!=0:
-                self.kit.do_clusters (node + case + pos + size + minfreq + minrange)
-                # rename 
-                self.__rename_file('clusters')
-        else:
+        node = self.searchnode.get().strip()
+        if not node:
             messagebox.showwarning(self.__gui_lang[253], self.__gui_lang[254])
             self.txt_searchnode.focus()
-        # update window
-        self.__load_datafiles()
-        self.__hide_progress()
-    
-    # ngrams
+            return
+        args = self._quoted_cli_value(node)
+        args += self._flag('lowercase', 'y' if self.chk_case.instate(['selected']) else 'n')
+        pos = self.nodepos.get().strip()
+        if pos:
+            args += self._flag('pos', self._quoted_cli_value(pos))
+        args += self._flag('size', self.cmb_size.get())
+        args += self._flag('minfreq', self.minfreq.get())
+        args += self._flag('minrange', self.minrange.get())
+        self._launch_analysis(self.__gui_lang[233], 'clusters', args, 'clusters')
+
+    def __exec_clusters(self):
+        self.__on_clusters()
+
     def __on_ngrams(self):
-        def callback():
-            self.__show_progress(self.__gui_lang[234])
-            t = threading.Thread (target=self.__exec_ngrams)
-            t.start()
-        self.after_idle(callback) 
-    
+        args = self._flag('size', self.cmb_size.get())
+        args += self._flag('lowercase', 'y' if self.chk_case.instate(['selected']) else 'n')
+        pos = self.nodepos.get().strip()
+        if pos:
+            args += self._flag('pos', self._quoted_cli_value(pos))
+        args += self._flag('minfreq', self.minfreq.get())
+        args += self._flag('minrange', self.minrange.get())
+        self._launch_analysis(self.__gui_lang[234], 'ngrams', args, 'ngrams')
+
     def __exec_ngrams(self):
-        # size
-        size = self.cmb_size.get()
-        # case
-        case = ' --lowercase n '
-        if self.chk_case.instate(['selected']):
-            case=' --lowercase y '
-        # pos
-        if len(self.nodepos.get())!=0:
-            pos = ' --pos "' + self.nodepos.get() + '"'
-        else:
-            pos = ''
-        # minfreq
-        minfreq = ' --minfreq ' + self.minfreq.get()
-        # minrange 
-        minrange = ' --minrange ' + self.minrange.get()
-        # exec
-        self.kit.do_ngrams (size + case + pos +  minfreq + minrange)
-        # rename 
-        self.__rename_file('ngrams')
-        # update window
-        self.__load_datafiles()
-        self.__hide_progress()
-    
-    # dispersion
+        self.__on_ngrams()
+
     def __on_dispersion(self):
-        def callback():
-            self.__show_progress(self.__gui_lang[235])
-            t = threading.Thread (target=self.__exec_dispersion)
-            t.start()
-        self.after_idle(callback) 
-    
-    def __exec_dispersion(self):
-        # node
-        node = '"' +  self.searchnode.get() + '"'
-        # case
-        case = ' --case n '
-        if self.chk_case.instate(['selected']):
-            case=' --case y '
-        # regex
-        regexp = ' --regexp n '
-        if self.chk_regexp.instate(['selected']):
-            regexp=' --regexp y '
-        # pos
-        if len(self.nodepos.get())!=0:
-            pos = ' --pos "' + self.nodepos.get() + '"'
-        else:
-            pos = ''
-        
-        # limit
-        limit = self.txt_limit.get()
-        if len(limit) != 0  and limit != '0':
-            limit = ' --limit ' + limit
-        else:
-            limit = ''
-        # exec
-        if len(self.searchnode.get())!=0:
-            if len(node)!=0:
-                self.kit.do_dispersion(node  +  case + regexp + pos + limit)
-                # rename 
-                self.__rename_file('dispersion')
-        else:
+        args = self._query_options(with_limit=True)
+        if args is None:
             messagebox.showwarning(self.__gui_lang[255], self.__gui_lang[256])
             self.txt_searchnode.focus()
-            
-        # update window
-        self.__load_datafiles()
-        self.__hide_progress()
-    
-    # keywords dispersion
+            return
+        self._launch_analysis(self.__gui_lang[235], 'dispersion', args, 'dispersion')
+
+    def __exec_dispersion(self):
+        self.__on_dispersion()
+
     def __on_keywordsdispersion(self):
-        def callback():
-            self.__show_progress(self.__gui_lang[236])
-            t = threading.Thread (target=self.__exec_keywordsdispersion)
-            t.start()
-        self.after_idle(callback) 
-    
+        args = self._flag('lowercase', 'y' if self.chk_lowercase.instate(['selected']) else 'n')
+        limit = self.txt_limit.get().strip()
+        if limit and limit != '0':
+            args += self._flag('limit', limit)
+        self._launch_analysis(self.__gui_lang[236], 'keywords_dispersion', args, 'keywords_dispersion')
+
     def __exec_keywordsdispersion(self):
-        lowercase = 'n'
-        if self.chk_lowercase.instate(['selected']):
-            lowercase='y'
-        # limit
-        limit = self.txt_limit.get()
-        if len(limit) != 0  and limit != '0':
-            limit = ' --limit ' + limit
-        else:
-            limit = ''
-        self.kit.do_keywords_dispersion(' --lowercase ' + lowercase + limit)
-        
-        # rename 
-        self.__rename_file('keywords_dispersion')
-        # update window
-        self.__load_datafiles()
-        self.__hide_progress()
-    
-    # word clouds
+        self.__on_keywordsdispersion()
+
     def __on_wordclouds(self):
-        def callback():
-            self.__show_progress(self.__gui_lang[237])
-            #t = threading.Thread (target=self.__exec_wordclouds)
-            #t.start()
-            self.__exec_wordclouds()
-        self.after_idle(callback) 
-    
-    def __exec_wordclouds(self):
-        # stoplist
-        stoplist = 'n'
-        if self.chk_stoplist.instate(['selected']):
-            stoplist = 'y'
-        # vertical
-        vertical = 'n'
-        if self.chk_vertical.instate(['selected']):
-            vertical = 'y'
-        # theme 
-        theme_name  = self.cmb_theme.get()
-        if theme_name == 'grayish':
-            theme = 2
-        elif theme_name == 'jet':
-            theme = 1
-        elif theme_name == 'random':
-            theme= 0
-        elif theme_name == 'fixed':
-            theme = 3
-        else:
-            theme = 2
-        # limit
+        stoplist = 'y' if self.chk_stoplist.instate(['selected']) else 'n'
+        vertical = 'y' if self.chk_vertical.instate(['selected']) else 'n'
+        theme = {'grayish': 2, 'jet': 1, 'random': 0, 'fixed': 3}.get(self.cmb_theme.get(), 2)
         try:
             limit = int(self.cmb_limit.get())
         except (ValueError, TypeError):
             limit = 200
-        # format 
-        rformat = self.cmb_format.get()
-        # wordlist 
-        wordlist_type = self.cmb_wordlist.get()
-        # do it 
-        args = '--wordlist %s --theme %s --vertical %s --stoplist %s --limit %s --format %s' % (wordlist_type,theme,vertical,stoplist,limit,rformat)
-        self.kit.do_wordcloud(args)
-        # update window
-        self.__load_datafiles()
-        self.__hide_progress()
+        args = (
+            f'--wordlist {self.cmb_wordlist.get()} --theme {theme} --vertical {vertical}'
+            f' --stoplist {stoplist} --limit {limit} --format {self.cmb_format.get()}'
+        )
+        self._launch_analysis(self.__gui_lang[237], 'wordcloud', args)
+
+    def __exec_wordclouds(self):
+        self.__on_wordclouds()
             
      
     

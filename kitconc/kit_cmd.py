@@ -4,7 +4,7 @@ import os, sys,subprocess
 from cmd import Cmd
 import argparse
 from kitconc import version 
-from kitconc.kit_corpus import Corpus
+from kitconc.kit_corpus import Corpus, Corpora
 from kitconc.kit_plots import CollGraph
 from kitconc import kit_util  
 from kitconc.core import Examples 
@@ -19,42 +19,34 @@ class Kit(Cmd):
     def parse_arg(self,arg):
         # script path
         self.__path = os.path.dirname(os.path.abspath(__file__))
-        if len(arg.strip()) != 0:
-            arg = arg.replace('\t','')
-            multi_spaces = re.compile(' +')
-            multi_tabs = re.compile('\t+')
-            arg = multi_spaces.sub(' ',arg)
-            arg = arg.strip()
-            args = []
-            if arg.find('"') != -1 or arg.find("'") != -1:
-                arg = arg.replace("'",'"')
-                s = []
-                status = 0
-                for c in arg:
-                    if status == 0 and c == '"':
-                        status = 1
-                    elif status == 0 and c == ' ':
-                        s.append('\t')
-                    elif status == 1 and c == '"':
-                        s.append('\t')
-                        status = 0
-                    else:
-                        s.append(c)
-                args = ''.join(s)
-                args = multi_tabs.sub('\t',args)
-                args = args.split('\t')
+        args = []
+        token = []
+        quote = None
+        index = 0
+        while index < len(arg):
+            char = arg[index]
+            if char == "\\" and quote and index + 1 < len(arg) and arg[index + 1] in {quote, "\\"}:
+                token.append(arg[index + 1])
+                index += 2
+                continue
+            if quote:
+                if char == quote:
+                    quote = None
+                else:
+                    token.append(char)
+            elif char in {'"', "'"}:
+                quote = char
+            elif char.isspace():
+                if token:
+                    args.append(''.join(token))
+                    token = []
             else:
-                args = arg.split(' ')
-        else:
-            args = [] 
-        
-        if type(args) == list:
-            arr = []
-            if len(args) > 1:
-                for a in args:
-                    if len(a)!=0:
-                        arr.append(a)
-                args = arr 
+                token.append(char)
+            index += 1
+        if quote:
+            raise ValueError('Unclosed quote in command arguments.')
+        if token:
+            args.append(''.join(token))
         return args
     
     def get_parser(self,function_name):
@@ -548,11 +540,31 @@ class Kit(Cmd):
     def do_create(self,arg):
         parser = self.get_parser('create')
         args = parser.parse_args(self.parse_arg(arg))
-        tagged = False
-        if args.tagged == 'True':
-            tagged = True
-        corpus = Corpus(self.workspace,args.name,args.language)
-        corpus.add_texts(args.source,tagged=tagged, verbose=True)
+        tagged = str(args.tagged).lower() in {'true', 'yes', 'y', '1'}
+        return self.create_corpus(args.name, args.source, args.language, tagged=tagged, verbose=True)
+
+    def create_corpus(self, name, source, language, *, tagged=False, verbose=False):
+        """Structured corpus creation entry point shared by the GUI and CLI."""
+        if self.workspace is None:
+            raise ValueError('Choose a workspace before creating a corpus.')
+        corpora = Corpora(self.workspace)
+        corpus = corpora.create(name, language, source, tagged=tagged, verbose=verbose)
+        if verbose:
+            print(f"Corpus {name!r} created successfully.")
+        return corpus
+
+    def import_corpus(self, filename):
+        """Import a validated corpus archive into the active workspace."""
+        if self.workspace is None:
+            raise ValueError('Choose a workspace before importing a corpus.')
+        return Corpora(self.workspace).import_corpus(filename)
+
+    def export_current_corpus(self, destination):
+        """Export the selected corpus and return the resulting archive path."""
+        if not self.workspace or not self.corpus_in_use:
+            raise ValueError('Select a corpus before exporting it.')
+        corpus = Corpus(self.workspace, self.corpus_in_use)
+        return corpus.export(destination, verbose=False)
     
     def do_use(self,s):
         """\nDescription: Sets the current corpus in use.
@@ -990,23 +1002,14 @@ class Kit(Cmd):
     def do_export_corpus(self,arg):
         parser = self.get_parser('export_corpus')
         args = parser.parse_args(self.parse_arg(arg))
-        try:
-            if args.dest_path !=None:
-                subprocess.call(['python',self.__path +'/export_corpus.py', self.workspace,self.corpus_in_use, args.dest_path])
-        except Exception as e:
-            print(e)
+        if args.dest_path is not None:
+            return self.export_current_corpus(args.dest_path)
     
     def do_import_corpus(self,arg):
         parser = self.get_parser('import_corpus')
         args = parser.parse_args(self.parse_arg(arg))
-        try:
-            if args.filename!=None:
-                if os.path.exists(args.filename):
-                    import zipfile
-                    with zipfile.ZipFile(args.filename, 'r') as zip_ref:
-                        zip_ref.extractall(self.workspace)
-        except Exception as e:
-            print(e)
+        if args.filename is not None:
+            return self.import_corpus(args.filename)
     
     def do_train_model(self,arg):
         parser = self.get_parser('train_model')

@@ -30,6 +30,10 @@ import collections
 import platform
 import shutil
 import pickle
+import tempfile
+import re
+from pathlib import Path
+from kitconc.archive import download_and_import_corpus, import_corpus_zip
 from kitconc import kit_tools
 from kitconc import kit_util
 from kitconc import kit_data
@@ -45,6 +49,18 @@ from kitconc.py_clusters import make_clusters
 from kitconc.py_ngrams import make_ngrams
 from kitconc.py_dispersion import make_dispersion
 from kitconc.py_keywords_dispersion import make_keywords_dispersion
+
+
+def _run_pipeline(command, stage):
+    """Run one indexing stage and surface failures with the stage name."""
+    result = subprocess.run(command, capture_output=True, text=True, encoding='utf-8', errors='replace')
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or '').strip()
+        raise RuntimeError(
+            f"Corpus {stage} failed with exit code {result.returncode}"
+            + (f": {detail[-4000:]}" if detail else ".")
+        )
+    return result
     
 
 class Corpus (object):
@@ -99,7 +115,8 @@ class Corpus (object):
         self.MEASURE_LOGLIKELIHOOD = 'log-likelihood'
         self.MEASURE_TSCORE = 't-score'
         # normalize workspace path 
-        if str(workspace).endswith('/'):
+        workspace = str(workspace)
+        if workspace.endswith('/'):
             self.workspace = workspace
         else:
             self.workspace = workspace + '/'
@@ -118,6 +135,8 @@ class Corpus (object):
             self.data_path = self.workspace + self.corpus_name + '/data/'
             self.tagged_path = self.workspace + self.corpus_name + '/data/tagged/'
         else:
+            if corpus_name in {'.', '..'} or not re.fullmatch(r'[A-Za-z0-9_.-]+', str(corpus_name)):
+                raise ValueError('Corpus name may contain only letters, numbers, _, ., and -; it cannot be . or ..')
             # get kwargs
             encoding = 'utf-8' # default
             # set variables 
@@ -267,6 +286,57 @@ class Corpus (object):
         return False
 
     def add_texts(self, source_folder, **kwargs):
+        """Add texts without leaving a partially updated corpus after failure."""
+        source_path = Path(source_folder).expanduser().resolve()
+        if not source_path.is_dir():
+            raise ValueError(f"Source folder does not exist: {source_path}")
+        skipped_names = {'.DS_Store', 'desktop.ini', 'Thumbs.db'}
+        source_files = [path for path in source_path.iterdir() if path.is_file() and path.name not in skipped_names]
+        if not source_files:
+            raise ValueError(f"Source folder contains no files: {source_path}")
+        if any(path.stat().st_size == 0 for path in source_files):
+            raise ValueError(f"Empty file found in {source_path}; remove it before proceeding.")
+
+        prepared_source, pdf_tmp = kit_util.prepare_source_folder(str(source_path))
+        corpus_dir = Path(self.workspace) / self.corpus_name
+        data_dir = corpus_dir / "data"
+        info_path = corpus_dir / "info.tab"
+        had_data = data_dir.is_dir()
+        backup_complete = False
+        backup_root = None
+        info_backup = None
+        try:
+            backup_root = Path(tempfile.mkdtemp(prefix=".kitconc-data-backup-", dir=corpus_dir.parent))
+            backup_data = backup_root / "data"
+            info_backup = info_path.read_bytes() if info_path.is_file() else None
+            if had_data:
+                shutil.copytree(data_dir, backup_data)
+                backup_complete = True
+            return self._add_texts_prepared(
+                prepared_source,
+                _source_path=str(source_path),
+                _processed_file_count=sum(
+                    1 for path in Path(prepared_source).iterdir()
+                    if path.is_file() and path.name not in skipped_names
+                ),
+                **kwargs,
+            )
+        except Exception:
+            if had_data and backup_complete:
+                shutil.rmtree(data_dir, ignore_errors=True)
+                shutil.copytree(backup_data, data_dir)
+            if info_backup is not None:
+                info_path.write_bytes(info_backup)
+            raise
+        finally:
+            for name in ("tmp0", "tmp1", "tmp2", "tmp3"):
+                shutil.rmtree(data_dir / name, ignore_errors=True)
+            if pdf_tmp is not None:
+                shutil.rmtree(pdf_tmp, ignore_errors=True)
+            if backup_root is not None:
+                shutil.rmtree(backup_root, ignore_errors=True)
+
+    def _add_texts_prepared(self, source_folder, **kwargs):
         """
         Adds texts from a source folder to the corpus.
 
@@ -310,12 +380,6 @@ class Corpus (object):
         Raises:
         ValueError: If an empty file is found in the source folder.
         """
-        if self.has_empty_files(source_folder):
-            raise ValueError(f"Empty file found. Identify and remove empty files in {source_folder} before proceeding.")
-
-        # Convert any PDF files in source_folder to plain text transparently
-        source_folder, _pdf_tmp = kit_util.prepare_source_folder(source_folder)
-
         # args
         tagged = kwargs.get('tagged', False)
         language_model = kwargs.get('language_model', None)
@@ -345,10 +409,10 @@ class Corpus (object):
                     if verbose:
                         print('Tagging...')
                     resources_path = self.__path + '/data/'
-                    subprocess.call([self.interpreter_name, self.__path + '/tagging.py', resources_path, self.workspace, self.corpus_name, self.language, source_folder])
+                    _run_pipeline([sys.executable, self.__path + '/tagging.py', resources_path, self.workspace, self.corpus_name, self.language, source_folder], 'tagging')
                     if verbose:
                         print('Making indexes...')
-                    subprocess.call([self.interpreter_name, self.__path + '/indexing.py', self.workspace, self.corpus_name, self.language])
+                    _run_pipeline([sys.executable, self.__path + '/indexing.py', self.workspace, self.corpus_name, self.language], 'indexing')
                 else:
                     if verbose:
                         print('Tagging...')
@@ -360,7 +424,7 @@ class Corpus (object):
                     with open(self.__path + '/data/' + self.language + '_model.pickle', 'rb') as fh:
                         language_model = pickle.load(fh)
                     # Tag texts manually
-                    files = os.listdir(source_folder)
+                    files = [name for name in os.listdir(source_folder) if os.path.isfile(os.path.join(source_folder, name))]
                     for filename in files:
                         with open(source_folder + filename, 'r', encoding='utf-8') as fh:
                             text = fh.read()
@@ -373,20 +437,20 @@ class Corpus (object):
                     if verbose:
                         print('Loading tagged corpus...')
                     resources_path = self.__path + '/data/'
-                    subprocess.call([self.interpreter_name, self.__path + '/tagged.py', resources_path, self.workspace, self.corpus_name, self.language, self.workspace + self.corpus_name + '/data/tmp0/'])
+                    _run_pipeline([sys.executable, self.__path + '/tagged.py', resources_path, self.workspace, self.corpus_name, self.language, self.workspace + self.corpus_name + '/data/tmp0/'], 'tagged-text import')
                     if verbose:
                         print('Making indexes...')
-                    subprocess.call([self.interpreter_name, self.__path + '/indexing.py', self.workspace, self.corpus_name, self.language])
+                    _run_pipeline([sys.executable, self.__path + '/indexing.py', self.workspace, self.corpus_name, self.language], 'indexing')
                     # Remove temporary folder
                     shutil.rmtree(self.workspace + self.corpus_name + '/data/tmp0/')
             else:
                 if verbose:
                     print('Loading tagged corpus...')
                 resources_path = self.__path + '/data/'
-                subprocess.call([self.interpreter_name, self.__path + '/tagged.py', resources_path, self.workspace, self.corpus_name, self.language, source_folder])
+                _run_pipeline([sys.executable, self.__path + '/tagged.py', resources_path, self.workspace, self.corpus_name, self.language, source_folder], 'tagged-text import')
                 if verbose:
                     print('Making indexes...')
-                subprocess.call([self.interpreter_name, self.__path + '/indexing.py', self.workspace, self.corpus_name, self.language])
+                _run_pipeline([sys.executable, self.__path + '/indexing.py', self.workspace, self.corpus_name, self.language], 'indexing')
         else:
             # Use language model on the fly to tag texts (e.g., using spaCy)
             if verbose:
@@ -396,7 +460,7 @@ class Corpus (object):
                 shutil.rmtree(self.workspace + self.corpus_name + '/data/tmp0/')
             os.mkdir(self.workspace + self.corpus_name + '/data/tmp0/')
             # Tag texts
-            files = [file for file in os.listdir(source_folder) if file not in ['.DS_Store', 'desktop.ini']]
+            files = [file for file in os.listdir(source_folder) if os.path.isfile(os.path.join(source_folder, file)) and file not in ['.DS_Store', 'desktop.ini', 'Thumbs.db']]
             for filename in files:
                 print(filename)
                 with open(source_folder + filename, 'r', encoding='utf-8', errors='replace') as fh:
@@ -411,17 +475,48 @@ class Corpus (object):
             if verbose:
                 print('Loading tagged corpus...')
             resources_path = self.__path + '/data/'
-            subprocess.call([self.interpreter_name, self.__path + '/tagged.py', resources_path, self.workspace, self.corpus_name, self.language, self.workspace + self.corpus_name + '/data/tmp0/'])
+            _run_pipeline([sys.executable, self.__path + '/tagged.py', resources_path, self.workspace, self.corpus_name, self.language, self.workspace + self.corpus_name + '/data/tmp0/'], 'tagged-text import')
             if verbose:
                 print('Making indexes...')
-            subprocess.call([self.interpreter_name, self.__path + '/indexing.py', self.workspace, self.corpus_name, self.language])
+            _run_pipeline([sys.executable, self.__path + '/indexing.py', self.workspace, self.corpus_name, self.language], 'indexing')
             # Remove temporary folder
             shutil.rmtree(self.workspace + self.corpus_name + '/data/tmp0/')
         
         # Append source information to corpus info file
-        ntexts = len(os.listdir(source_folder))
-        with open(self.workspace + self.corpus_name + '/info.tab', 'a', encoding='utf-8') as fh:
-            fh.write('\nTextfiles:\t%s\nSource:\t%s' % (ntexts, source_folder))
+        ntexts = int(kwargs.get('_processed_file_count', 0))
+        original_source = kwargs.get('_source_path', source_folder)
+        info_path = Path(self.workspace) / self.corpus_name / 'info.tab'
+        existing_info = {}
+        if info_path.is_file():
+            with info_path.open('r', encoding='utf-8') as fh:
+                for line in fh:
+                    if '\t' in line:
+                        key, value = line.rstrip('\r\n').split('\t', 1)
+                        existing_info[key.rstrip(':').strip().lower()] = value.strip()
+        try:
+            total_texts = int(existing_info.get('textfiles', '0')) + ntexts
+        except ValueError:
+            total_texts = ntexts
+        lines = []
+        wrote_texts = wrote_source = False
+        with info_path.open('r', encoding='utf-8') as fh:
+            for line in fh:
+                key = line.split('\t', 1)[0].rstrip(':').strip().lower()
+                if key == 'textfiles':
+                    if not wrote_texts:
+                        lines.append(f'Textfiles:\t{total_texts}\n')
+                        wrote_texts = True
+                elif key == 'source':
+                    if not wrote_source:
+                        lines.append(f'Source:\t{original_source}\n')
+                        wrote_source = True
+                else:
+                    lines.append(line)
+        if not wrote_texts:
+            lines.append(f'Textfiles:\t{total_texts}\n')
+        if not wrote_source:
+            lines.append(f'Source:\t{original_source}\n')
+        info_path.write_text(''.join(lines).rstrip('\n') + '\n', encoding='utf-8')
         
         # Time end and print total time if progress display is enabled
         if verbose:
@@ -429,18 +524,7 @@ class Corpus (object):
             total_time = round(t1 - t0, 2)
             print('Total time: %s seconds' % total_time)
         
-        # Delete temporary folders
-        try:
-            shutil.rmtree(self.workspace + self.corpus_name + '/data/tmp1/')
-            shutil.rmtree(self.workspace + self.corpus_name + '/data/tmp2/')
-            shutil.rmtree(self.workspace + self.corpus_name + '/data/tmp3/')
-        except Exception as e:
-            print('Error deleting temp folders')
-            print(e)
-
-        # Clean up the PDF conversion temp folder (if any PDFs were converted)
-        if _pdf_tmp is not None:
-            shutil.rmtree(_pdf_tmp, ignore_errors=True)
+        # Temporary folders and PDF conversion output are cleaned by add_texts().
 
     
 
@@ -1568,21 +1652,15 @@ class Corpus (object):
         if verbose:
             print('Running...')
             t0 = time.time()
-        if os.path.exists(target_folder) and os.path.isdir(target_folder):
-            try:
-                subprocess.call(['python', self.__path + '/export_corpus.py', self.workspace, self.corpus_name, target_folder])
-            except Exception as e:
-                if verbose:
-                    print("Kitconc cannot export the corpus.\n")
-                    print(e)
-            finally:
-                if verbose:
-                    t1 = time.time()
-                    print('')
-                    print('Total time: %s seconds' % round(t1 - t0, 2))
-        else:
-            if verbose:
-                print('The folder path is not valid.')
+        if not os.path.isdir(target_folder):
+            raise ValueError(f'The export destination is not a folder: {target_folder}')
+        from kitconc.export_corpus import export as export_zip
+        result = export_zip(self.workspace, self.corpus_name, target_folder)
+        if verbose:
+            t1 = time.time()
+            print('')
+            print('Total time: %s seconds' % round(t1 - t0, 2))
+        return result
 
     def add_from_export(self, filename, **kwargs):
         """
@@ -1598,23 +1676,12 @@ class Corpus (object):
         if verbose:
             print('Running...')
             t0 = time.time()
-        if os.path.exists(filename) and os.path.isfile(filename):
-            try:
-                import zipfile
-                with zipfile.ZipFile(filename, 'r') as zip_ref:
-                    zip_ref.extractall(self.workspace)
-            except Exception as e:
-                if verbose:
-                    print('Kitconc cannot import the corpus.\n')
-                    print(e)
-            finally:
-                if verbose:
-                    t1 = time.time()
-                    print('')
-                    print('Total time: %s seconds' % round(t1 - t0, 2))
-        else:
-            if verbose:
-                print('The file path is not valid.')
+        result = import_corpus_zip(filename, self.workspace)
+        if verbose:
+            t1 = time.time()
+            print('')
+            print('Total time: %s seconds' % round(t1 - t0, 2))
+        return result
 
     # GENERAL FUNCTIONS FOR CORPUS STATISTICS
 
@@ -1814,6 +1881,7 @@ class Corpora(object):
         """
         self.__path = os.path.dirname(os.path.abspath(__file__))
         # Normalize workspace path to ensure it ends with a '/'
+        workspace = str(workspace)
         if str(workspace).endswith('/'):
             self.workspace = workspace
         else:
@@ -1881,7 +1949,7 @@ class Corpora(object):
         """
         return Corpus(self.workspace, corpus_name)
 
-    def create(self, corpus_name, language, source_texts):
+    def create(self, corpus_name, language, source_texts, *, tagged=False, verbose=False):
         """
         Creates a new corpus from source texts.
         
@@ -1893,9 +1961,25 @@ class Corpora(object):
         Returns:
           Corpus: A new Corpus object.
         """
-        corpus = Corpus(self.workspace, corpus_name, language)
-        corpus.add_texts(source_texts)
-        return corpus
+        name = str(corpus_name).strip()
+        if name in {'.', '..'} or not re.fullmatch(r'[A-Za-z0-9_.-]+', name):
+            raise ValueError('Corpus name may contain only letters, numbers, _, ., and -; it cannot be . or ..')
+        source = Path(source_texts).expanduser().resolve()
+        if not source.is_dir():
+            raise ValueError(f'Source folder does not exist: {source}')
+        workspace = Path(self.workspace).expanduser().resolve()
+        workspace.mkdir(parents=True, exist_ok=True)
+        corpus_path = (workspace / name).resolve()
+        if corpus_path.parent != workspace:
+            raise ValueError('Corpus path must be inside the workspace.')
+        corpus_path.mkdir(exist_ok=False)
+        try:
+            corpus = Corpus(str(workspace), name, language)
+            corpus.add_texts(str(source), tagged=tagged, verbose=verbose)
+            return corpus
+        except Exception:
+            shutil.rmtree(corpus_path, ignore_errors=True)
+            raise
 
     def import_corpus(self, filename):
         """
@@ -1904,16 +1988,7 @@ class Corpora(object):
         Parameters:
           filename (str): The path to the corpus ZIP file.
         """
-        if os.path.exists(filename) and os.path.isfile(filename):
-            try:
-                import zipfile
-                with zipfile.ZipFile(filename, 'r') as zip_ref:
-                    zip_ref.extractall(self.workspace)
-            except Exception as e:
-                print('Kitconc cannot import the corpus.\n')
-                print(e)
-        else:
-            print('The file path is not valid.')
+        return import_corpus_zip(filename, self.workspace)
 
     def import_corpus_from_url(self, url):
         """
@@ -1922,14 +1997,7 @@ class Corpora(object):
         Parameters:
           url (str): The URL of the corpus ZIP file.
         """
-        import requests, zipfile, io
-        try:
-            r = requests.get(url)
-            z = zipfile.ZipFile(io.BytesIO(r.content))
-            z.extractall(self.workspace)
-        except Exception as e:
-            print('Download was not possible.')
-            print(e)
+        return download_and_import_corpus(url, self.workspace)
 
     def download_raw_texts(self, url, dest=None):
         """

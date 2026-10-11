@@ -68,6 +68,10 @@ uv run kitconc-mcp --transport stdio
 uv run pytest
 ```
 
+The desktop app continues to use the filesystem workspace format (`info.tab`, corpus indexes, and output files). Corpus creation accepts source folders whose paths contain spaces. Corpus names may contain letters, numbers, underscores, dots, and hyphens, except `.` and `..`.
+
+ZIP imports are validated and will not replace a corpus already present in the workspace. The default maximum expanded archive size is 2 GiB (`KITCONC_MAX_IMPORT_BYTES`); URL imports are limited to 512 MiB by default (`KITCONC_MAX_DOWNLOAD_BYTES`). Export creates or atomically replaces `<corpus>.zip` in the selected destination and continues to exclude Excel result files.
+
 
 Installation from GitHub
 =========

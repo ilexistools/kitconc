@@ -1,3 +1,10 @@
+Unreleased
+----------
+- Improved filesystem-based corpus creation for source paths containing spaces and rejected unsafe or colliding corpus names.
+- Corpus processing now checks tagging and indexing process results, restores existing indexes after failure, cleans temporary files, and records text counts without duplicate metadata rows.
+- Corpus imports now validate ZIP contents and extract through a temporary directory; remote imports enforce timeouts and download limits.
+- Corpus exports are written atomically, and Tkinter corpus and analysis tasks now deliver results to the main UI thread.
+
 Version 3.5.1
 -------------
 - 2026-09-05
