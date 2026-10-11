@@ -426,8 +426,7 @@ class Corpus (object):
                     # Tag texts manually
                     files = [name for name in os.listdir(source_folder) if os.path.isfile(os.path.join(source_folder, name))]
                     for filename in files:
-                        with open(source_folder + filename, 'r', encoding='utf-8') as fh:
-                            text = fh.read()
+                        text = kit_util.read_text_detected(source_folder + filename)
                         doc = language_model(text)
                         tagged_sents = []
                         for sent in doc.sents:
@@ -463,8 +462,7 @@ class Corpus (object):
             files = [file for file in os.listdir(source_folder) if os.path.isfile(os.path.join(source_folder, file)) and file not in ['.DS_Store', 'desktop.ini', 'Thumbs.db']]
             for filename in files:
                 print(filename)
-                with open(source_folder + filename, 'r', encoding='utf-8', errors='replace') as fh:
-                    text = fh.read()
+                text = kit_util.read_text_detected(source_folder + filename)
                 doc = language_model(text)
                 tagged_sents = []
                 for sent in doc.sents:

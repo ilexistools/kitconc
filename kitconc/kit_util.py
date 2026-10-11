@@ -9,6 +9,30 @@ import pickle
 from pathlib import Path
 from typing import Any, Optional
 
+
+def read_text_detected(file_path):
+    """Read UTF-8 text when possible and detect common legacy encodings."""
+    raw = Path(file_path).read_bytes()
+    if not raw:
+        return ""
+    try:
+        return raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        pass
+
+    try:
+        import chardet
+
+        encoding = chardet.detect(raw).get("encoding")
+    except Exception:
+        encoding = None
+    if encoding:
+        try:
+            return raw.decode(encoding)
+        except (LookupError, UnicodeDecodeError):
+            pass
+    return raw.decode("cp1252", errors="replace")
+
 def __progress(count, total, suffix=''):
         bar_len = 30
         filled_len = int(round(bar_len * count / float(total)))

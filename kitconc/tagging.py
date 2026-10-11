@@ -4,6 +4,11 @@ import os, sys
 import pickle 
 import multiprocessing as mp 
 import collections
+
+try:
+    from .kit_util import read_text_detected
+except ImportError:  # Script is also launched directly by kit_corpus.py.
+    from kit_util import read_text_detected
   
 
 class Tagging(object):
@@ -75,13 +80,13 @@ class Tagging(object):
         self.unique_t = collections.defaultdict()
         sent_id = 0
         tagged_sents = []
-        with open(self.source_folder + filename[0], 'r', encoding='utf-8') as fh:
-            for line in fh:
-                if len(line.strip()) != 0:
-                    sents = self.sent_tokenizer.tokenize(line.strip())
-                    for sent in sents:
-                        sent_id += 1
-                        tagged_sents.append(self.sent2str(self.tagger.tag(self.word_tokenizer.tokenize(sent)), sent_id, filename[1]))
+        text = read_text_detected(self.source_folder + filename[0])
+        for line in text.splitlines():
+            if len(line.strip()) != 0:
+                sents = self.sent_tokenizer.tokenize(line.strip())
+                for sent in sents:
+                    sent_id += 1
+                    tagged_sents.append(self.sent2str(self.tagger.tag(self.word_tokenizer.tokenize(sent)), sent_id, filename[1]))
         
         # Write to tmp1 directory
         with open(os.path.join(tmp1_dir, filename[0]), 'w', encoding='utf-8') as fh2:

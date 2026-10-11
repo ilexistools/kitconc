@@ -1,5 +1,6 @@
 Unreleased
 ----------
+- Added an MCP export tool for analysis results in `.tab`, `.tsv`, and `.xlsx` formats.
 - Added MCP tools to build per-corpus semantic embedding indexes and inspect their status; semantic search now selects the active corpus index by default.
 - Improved filesystem-based corpus creation for source paths containing spaces and rejected unsafe or colliding corpus names.
 - Corpus processing now checks tagging and indexing process results, restores existing indexes after failure, cleans temporary files, and records text counts without duplicate metadata rows.

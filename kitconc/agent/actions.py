@@ -11,9 +11,11 @@ import sys
 import inspect
 import sqlite3
 import tempfile
-from dataclasses import is_dataclass
+from dataclasses import MISSING, fields as dataclass_fields, is_dataclass
 from pathlib import Path
-from typing import Any, get_type_hints
+from typing import Any, get_args, get_origin, get_type_hints
+
+import pandas as pd
 
 from kitconc import kit_util, version
 from kitconc.agent.schemas import (
@@ -61,6 +63,48 @@ class NotFoundError(ActionLayerError):
 
 class StateError(ActionLayerError):
     """Action requires a state that is not currently set."""
+
+
+def _mcp_json_schema(annotation: Any) -> dict[str, Any]:
+    """Map common Python action parameter types to JSON Schema types."""
+    if annotation is type(None):
+        return {"type": "null"}
+    if annotation is Any:
+        return {}
+    if annotation is str:
+        return {"type": "string"}
+    if annotation is int:
+        return {"type": "integer"}
+    if annotation is float:
+        return {"type": "number"}
+    if annotation is bool:
+        return {"type": "boolean"}
+
+    origin = get_origin(annotation)
+    args = get_args(annotation)
+    if origin is list:
+        item_schema = _mcp_json_schema(args[0]) if args else {}
+        return {"type": "array", "items": item_schema}
+    if origin is dict:
+        value_schema = _mcp_json_schema(args[1]) if len(args) > 1 else {}
+        return {"type": "object", "additionalProperties": value_schema}
+    if isinstance(annotation, type) and is_dataclass(annotation):
+        hints = get_type_hints(annotation)
+        properties = {
+            item.name: _mcp_json_schema(hints.get(item.name, Any))
+            for item in dataclass_fields(annotation)
+        }
+        required = [
+            item.name for item in dataclass_fields(annotation)
+            if item.default is MISSING and item.default_factory is MISSING
+        ]
+        schema = {"type": "object", "properties": properties}
+        if required:
+            schema["required"] = required
+        return schema
+    if args:
+        return {"anyOf": [_mcp_json_schema(arg) for arg in args]}
+    return {"type": "string"}
 
 
 def _normalize_workspace(path: str) -> str:
@@ -222,14 +266,8 @@ class KitconcActions:
             required: list[str] = []
             for p in item["params"]:
                 annotation = type_hints.get(p["name"])
-                json_type = (
-                    "boolean" if annotation is bool else
-                    "integer" if annotation is int else
-                    "number" if annotation is float else
-                    "string"
-                )
                 properties[p["name"]] = {
-                    "type": json_type,
+                    **_mcp_json_schema(annotation),
                     "description": p["annotation"],
                 }
                 if p["default"] is not None:
@@ -846,6 +884,61 @@ class KitconcActions:
         target = _normalize_path(dest_path)
         ex.download(dest_path=target)
         return target
+
+    def export_analysis_result(
+        self,
+        analysis_result: dict[str, Any],
+        output_path: str,
+        sheet_name: str = "Results",
+    ) -> dict[str, Any]:
+        """Export an analysis response's rows to TSV, TAB, or XLSX atomically.
+
+        Pass the complete response from a tabular action such as wordlist,
+        keywords, kwic, concordance, or collocates. The output suffix selects
+        the format. Existing destination files are replaced after a successful
+        write.
+        """
+        if not isinstance(analysis_result, dict):
+            raise ValidationError("analysis_result must be an object containing rows.")
+        rows = analysis_result.get("rows")
+        if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+            raise ValidationError("analysis_result.rows must be a list of row objects.")
+
+        target = Path(_normalize_path(output_path))
+        suffix = target.suffix.lower()
+        if suffix not in {".tab", ".tsv", ".xlsx"}:
+            raise ValidationError("output_path must end in .tab, .tsv, or .xlsx.")
+        if suffix == ".xlsx":
+            if not sheet_name or len(sheet_name) > 31 or any(ch in sheet_name for ch in "[]:*?/\\"):
+                raise ValidationError("Excel sheet_name must be 1-31 characters and exclude []:*?/\\.")
+            if len(rows) > 1_048_575 or any(len(row) > 16_384 for row in rows):
+                raise ValidationError("The result exceeds Excel worksheet limits.")
+
+        target.parent.mkdir(parents=True, exist_ok=True)
+        fd, temporary_path = tempfile.mkstemp(
+            prefix=f".{target.stem}-", suffix=target.suffix, dir=target.parent
+        )
+        os.close(fd)
+        try:
+            frame = pd.DataFrame.from_records(rows)
+            if suffix == ".xlsx":
+                frame.to_excel(temporary_path, index=False, sheet_name=sheet_name, engine="xlsxwriter")
+            else:
+                frame.to_csv(temporary_path, sep="\t", index=False, encoding="utf-8")
+            os.replace(temporary_path, target)
+        except Exception as exc:
+            try:
+                Path(temporary_path).unlink(missing_ok=True)
+            except OSError:
+                pass
+            raise ActionLayerError(f"Could not export analysis results to {target}: {exc}") from exc
+
+        return {
+            "output_path": str(target),
+            "format": suffix[1:],
+            "rows_written": len(rows),
+            "columns_written": len(frame.columns),
+        }
 
     def semantic_search(
         self,

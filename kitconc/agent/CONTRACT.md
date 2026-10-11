@@ -85,6 +85,7 @@ Selection behavior:
 - `semantic_search(query, top_k=5, db_path=None, model_name=None, corpus_name=None) -> dict`
 - `index_corpus(corpus_name, source_folder=None, db_path=None, model_name=None, chunk_size=500, chunk_overlap=50, batch_size=64, rebuild=False) -> dict`
 - `semantic_index_status(corpus_name=None, db_path=None) -> dict`
+- `export_analysis_result(analysis_result, output_path, sheet_name="Results") -> dict`
 - Typed wrappers (migration started):
 - `workspace_typed(request: WorkspaceRequest) -> WorkspaceResult`
 - `create_typed(request: CreateCorpusRequest) -> CorpusInfo`
@@ -128,6 +129,25 @@ Defined in `kitconc/agent/schemas.py`:
 - `semantic_index_status` returns the database path, existence flag, and indexed chunk count.
 - `semantic_search` uses the selected or explicit `corpus_name` index by default. An explicit `db_path` takes precedence. With no selected corpus it retains the workspace-level `semantic_index.sqlite3` fallback.
 - The model and `sqlite-vec` dependencies are optional; install them with `uv sync --extra full`.
+
+## Analysis Result Export
+
+- Pass the complete `{ "rows": [...], "total": n }` response from an analysis action as `analysis_result`.
+- Only `rows` are written to the file. Metadata such as `total` or `totals` is not exported.
+- Set `output_path` to a filename ending in `.tab`, `.tsv`, or `.xlsx`; the suffix selects the format.
+- TAB and TSV files are UTF-8 with tab delimiters. XLSX accepts an optional worksheet `sheet_name` (1–31 characters; `[]:*?/\\` are not allowed).
+- Parent directories are created as needed. The destination is replaced only after a successful temporary-file write.
+- The response includes `output_path`, `format`, `rows_written`, and `columns_written`.
+
+Example call after `wordlist(corpus_name="ads")`:
+
+```json
+{
+  "analysis_result": {"rows": [{"word": "example", "freq": 12}], "total": 1},
+  "output_path": "C:/exports/wordlist.xlsx",
+  "sheet_name": "Wordlist"
+}
+```
 
 ## Output Conventions
 

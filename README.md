@@ -203,6 +203,7 @@ These are the tools most clients should use in normal workflows:
 * `semantic_search(query, top_k=5, db_path=None, model_name=None, corpus_name=None)` - vector semantic retrieval
 * `index_corpus(corpus_name, source_folder=None, db_path=None, model_name=None, chunk_size=500, chunk_overlap=50, batch_size=64, rebuild=False)` - build a semantic index from corpus source files
 * `semantic_index_status(corpus_name=None, db_path=None)` - inspect an index and its indexed chunk count
+* `export_analysis_result(analysis_result, output_path, sheet_name='Results')` - export analysis rows to `.tab`, `.tsv`, or `.xlsx`
 * `text2utf8(source, target=None, source_encoding='mbcs', verbose=False)` - normalize corpus text encoding
 * `train_model(source, language=None, reflist=None, stoplist=None, verbose=False)` - train language model resources
 * `export_corpus(dest_path, corpus_name=None)` - export corpus as zip
@@ -221,6 +222,7 @@ These are usually for orchestration and diagnostics:
 * `from_workspace_file(filename='kitconc.tmp')`
 * `list_commands()`
 * `list_output_files(corpus_name=None)`
+* `export_analysis_result(analysis_result, output_path, sheet_name='Results')`
 * `list_ref_languages()`
 * `corpus_exists(corpus_name)`
 * `get_corpus_info(corpus_name)`
@@ -292,6 +294,20 @@ Flow 4: Semantic retrieval workflow
 5. Combine semantic hits with `kwic`/`concordance` for qualitative inspection
 
 `index_corpus` reads TXT, Markdown, RST, and PDF files recursively. Its per-corpus index is stored under `<workspace>/.semantic_indexes/`; an existing index is preserved unless `rebuild=true` is explicitly requested. Install the optional embedding dependencies with `uv sync --extra full`.
+
+For file exports, pass the complete response object from an analysis action to `export_analysis_result`, then set `output_path` to a filename ending in `.tab`, `.tsv`, or `.xlsx`. Only the response's `rows` are written as a table; metadata such as `total` is not added as a row. The tool returns the resolved output path, selected format, and number of rows and columns written. The file is written atomically; TSV and TAB are UTF-8 tab-delimited files. XLSX exports use the optional `sheet_name` argument.
+
+Example: after calling `wordlist(corpus_name="ads")`, pass its entire result to the export tool:
+
+```json
+{
+  "analysis_result": {"rows": [{"word": "example", "freq": 12}], "total": 1},
+  "output_path": "C:/exports/wordlist.xlsx",
+  "sheet_name": "Wordlist"
+}
+```
+
+The export response has this shape: `{"output_path": "...", "format": "xlsx", "rows_written": 1, "columns_written": 2}`. Parent directories are created when needed. Use an absolute `output_path` to make the destination unambiguous. For XLSX, the worksheet name must be 1–31 characters and cannot contain `[]:*?/\\`.
 
 Flow 5: Portability and replication
 1. `export_corpus(dest_path, corpus_name)`

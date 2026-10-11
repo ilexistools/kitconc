@@ -221,6 +221,14 @@ class KitApp(Window):
         self.__load_corpora()
         self.frm_cmb_corpora.bind("<<ComboboxSelected>>", lambda e: self.__oncorpusselected())
 
+        self.frm_btn_newcorpus = ttk.Button(
+            frm_top,
+            text="New corpus...",
+            command=self.__newcorpusdialog,
+            bootstyle="primary",
+        )
+        self.frm_btn_newcorpus.pack(side="left", padx=(4, 5))
+
         self.frm_lbl_info = ttk.Label(frm_top, text='')
         self.frm_lbl_info.pack(side="left", padx=10)
 

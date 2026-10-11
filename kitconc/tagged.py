@@ -4,6 +4,11 @@ import os, sys
 import pickle 
 import multiprocessing as mp 
 import collections
+
+try:
+    from .kit_util import read_text_detected
+except ImportError:  # Script is also launched directly by kit_corpus.py.
+    from kit_util import read_text_detected
   
 
 class Tagging(object):
@@ -75,12 +80,12 @@ class Tagging(object):
         self.unique_t = collections.defaultdict()
         sent_id = 0
         tagged_sents = []
-        with open(self.source_folder + filename[0],'r',encoding='utf-8') as fh:
-            for line in fh:
-                if len(line.strip()) != 0:
-                    sent_id+=1
-                    tagged_sent = self.get_tagged_sent(line.strip())
-                    tagged_sents.append(self.sent2str(tagged_sent,sent_id,filename[1]))
+        text = read_text_detected(self.source_folder + filename[0])
+        for line in text.splitlines():
+            if len(line.strip()) != 0:
+                sent_id+=1
+                tagged_sent = self.get_tagged_sent(line.strip())
+                tagged_sents.append(self.sent2str(tagged_sent,sent_id,filename[1]))
         
         with open(self.workspace + self.corpus_name + '/data/tmp1/' + filename[0],'w',encoding='utf-8') as fh2:
             fh2.write('\n'.join(tagged_sents))
@@ -143,4 +148,3 @@ if __name__ == '__main__':
     t.execute()
     
     
-
