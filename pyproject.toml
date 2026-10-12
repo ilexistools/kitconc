@@ -31,7 +31,7 @@ dependencies = [
 
 [project.optional-dependencies]
 full = [
-    "torch>=2.6,<2.10",
+    "torch>=2.6,<2.14",
     "transformers>=4.45,<6.0.0",
     "sentence-transformers>=3.0,<6.0.0",
     "sqlite-vec>=0.1.7,<1.0.0",
