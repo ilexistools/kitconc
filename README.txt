@@ -1,4 +1,4 @@
-Kitconc 3.5.0
+Kitconc 4.0.1
 =============
 
 Kitconc is a package for Corpus Linguistics and text analysis with Python.
@@ -135,6 +135,18 @@ sheet_name="Wordlist".
 
 MCP runtime is included in package dependencies
 (uv sync is enough).
+
+Agent skills for Claude and Codex
+=================================
+
+Install the bundled Kitconc skills without a global pip installation (requires uv):
+
+    uvx --from kitconc kitconc-skill install
+
+This installs the general corpus-analysis skill and the kitconc-recipe-author skill. The latter
+guides an assistant to design a reusable recipe from a user's goal, validate the pipeline, run it
+when useful, and save it to the active Kitconc workspace. To update an existing installation, add
+--force. See the GitHub README for examples and the complete recipe-authoring guide.
 
 What's new in 3.2.0
 ====================

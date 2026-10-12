@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kitconc"
-version = "4.0.0"
+version = "4.0.1"
 description = "A toolkit for Corpus Linguistics Analysis"
 readme = {file = "README.txt", content-type = "text/x-rst"}
 requires-python = ">=3.10"
@@ -56,7 +56,7 @@ kitconc-skill = "kitconc.agent.skill_installer:main"
 exclude = ["tests", "tests.*"]
 
 [tool.setuptools.package-data]
-kitconc = ["data/*.*", "data/images/*.*", "data/scripts/*.*", "agent/guides/*.md", "agent/recipes/*.json", "agent/skill/kitconc/*.md", "agent/skill/kitconc/references/*.md"]
+kitconc = ["data/*.*", "data/images/*.*", "data/scripts/*.*", "agent/guides/*.md", "agent/recipes/*.json", "agent/skill/*/*.md", "agent/skill/*/references/*.md"]
 
 [[tool.uv.index]]
 name = "pytorch-cpu"

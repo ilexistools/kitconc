@@ -177,9 +177,10 @@ list every recipe as a prompt (slash command), plus `plan-analysis` for open que
 
 ### Install the agent skill
 
-The Kitconc skill teaches Claude and Codex how to work with corpora: when to use which recipe,
-which measures to trust, how to compose results and how to report evidence. It follows the open
-Agent Skills format and also explains how to use Kitconc without MCP.
+The Kitconc skills teach Claude and Codex how to work with corpora and how to author reusable
+recipes. The general `kitconc` skill explains analysis and evidence; `kitconc-recipe-author` guides
+the user from an analysis goal through recipe design, validation, optional execution and saving.
+Both follow the open Agent Skills format and support MCP or the CLI.
 
 ```bash
 uvx --from kitconc kitconc-skill install                   # no pip install required
@@ -188,7 +189,8 @@ uvx --from kitconc kitconc-skill install --target codex    # install for Codex o
 uvx --from kitconc kitconc-skill install --scope project   # install into this repository
 ```
 
-Source: [`kitconc/agent/skill/kitconc`](kitconc/agent/skill/kitconc/SKILL.md) — copy the folder
+The installer installs both skills. Sources: [`kitconc`](kitconc/agent/skill/kitconc/SKILL.md) and
+[`kitconc-recipe-author`](kitconc/agent/skill/kitconc-recipe-author/SKILL.md). Copy either folder
 manually into any skills directory if you prefer.
 
 ### No MCP? Use the CLI
@@ -207,6 +209,20 @@ kitconc-tool --list
 
 Ready-made, editable pipelines. Agents run them with `recipe_run`, adapt them with
 `recipe_show` + `pipeline_run`, and save new ones with `recipe_save`.
+
+To have an assistant guide recipe creation, ask for the outcome in everyday terms, for example:
+
+- “Create a reusable recipe that finds frequent adjective–noun terms and adds corpus examples.”
+- “Adapt `glossary-candidates` to compare the results with my reference corpus, validate it, and
+  save it as `my-domain-glossary`.”
+- “Draft a recipe for comparing two corpora by keyword and log ratio; show me the plan before
+  saving.”
+
+The `kitconc-recipe-author` skill checks available corpora and existing recipes, explains the
+workflow and its assumptions, validates the pipeline, and can run and save it when requested. A
+saved user recipe is stored in `<workspace>/recipes/` and is available through `recipe_list`.
+See the [recipe authoring guide](kitconc/agent/guides/recipes.md#creating-a-recipe-with-an-assistant)
+for the detailed workflow.
 
 | Recipe | Answers |
 |---|---|

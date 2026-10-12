@@ -50,3 +50,25 @@ not fixed reports: show one, change what the question needs, run the variant or 
 ```
 
 Names use lowercase letters, digits, `-` and `_`. `recipe_save` validates the pipeline before saving.
+
+## Creating a recipe with an assistant
+
+The `kitconc-recipe-author` Agent Skill guides recipe creation in Claude and Codex. Describe the
+outcome you want in ordinary language; the assistant can check available corpora and existing
+recipes, draft the pipeline, validate it, optionally run it, and save it in the active workspace.
+The skill is installed alongside the general Kitconc skill by `kitconc-skill install`.
+
+Example requests:
+
+- “Create a reusable recipe that finds adjective–noun terms occurring at least three times and
+  adds example contexts.”
+- “Adapt `glossary-candidates` to compare terms with corpus `general-en`, validate the result, and
+  save it as `legal-glossary-contrast`.”
+- “Draft a recipe to compare `period-a` and `period-b` using normalized frequencies and log ratio;
+  show me the steps before saving.”
+
+The assistant should confirm corpus ids and available tools, explain the parameters and analysis
+choices, and call `pipeline_validate` before execution or persistence. Validation checks pipeline
+structure and references; it does not establish that an interpretation is statistically or
+linguistically sound. `recipe_save` writes the JSON recipe to `<workspace>/recipes/`. Ask for a
+draft if you want the JSON without saving it.

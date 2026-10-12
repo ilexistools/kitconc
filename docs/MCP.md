@@ -110,10 +110,10 @@ run tools, pipelines and recipes directly.
 
 ### Agent skill for Claude and Codex
 
-`kitconc/agent/skill/kitconc/` is an [Agent Skills](https://agentskills.io) folder (`SKILL.md` plus
-references on pipelines, expressions and the Python API). It tells the assistant how to reach
-Kitconc (MCP, `kitconc-tool` or Python), which recipe answers which question, how to choose
-measures and how to report evidence.
+`kitconc/agent/skill/` contains two [Agent Skills](https://agentskills.io): `kitconc` (corpus
+analysis, tool access, measures and evidence) and `kitconc-recipe-author` (designing, validating,
+optionally running and saving custom recipes). The installer puts both in Claude's and Codex's
+skills folders.
 
 ```bash
 kitconc-skill install                   # ~/.claude/skills/kitconc and ~/.agents/skills/kitconc
@@ -286,8 +286,9 @@ Recipes are documented pipelines. Built-ins live in `kitconc/agent/recipes/`, us
 | `glossary-candidates` | Which terms belong in a glossary? |
 | `glossary-contrastive` | Which terms are specific to this domain? |
 
-Agents can adapt any recipe: `recipe_show` → edit → `pipeline_run`, or `recipe_save` to keep it.
-See [`guides/recipes.md`](../kitconc/agent/guides/recipes.md).
+Agents can adapt any recipe: `recipe_show` → edit → `pipeline_validate` → `pipeline_run`, then
+`recipe_save` to keep it. The `kitconc-recipe-author` skill guides users through this workflow;
+example requests and the validation limits are in [`guides/recipes.md`](../kitconc/agent/guides/recipes.md).
 
 ## Jobs and progress
 
