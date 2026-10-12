@@ -1,0 +1,29 @@
+{
+  "name": "compare-corpora",
+  "title": "Compare two corpora",
+  "description": "What distinguishes corpus A from corpus B: keywords in both directions (log-likelihood + log-ratio), vocabulary exclusive to each side and a joined frequency table with normalized frequencies and effect sizes for every word.",
+  "tags": ["comparison", "lexis"],
+  "params": {
+    "corpus_a": {"type": "string", "required": true, "description": "Study corpus id."},
+    "corpus_b": {"type": "string", "required": true, "description": "Comparison corpus id."},
+    "p_value": {"type": "string", "default": "p<0.01", "description": "Significance cut-off for keywords."},
+    "min_range": {"type": "integer", "default": 2, "description": "Minimum texts for keywords and exclusive words."},
+    "min_freq": {"type": "integer", "default": 3, "description": "Minimum frequency for exclusive words."},
+    "top": {"type": "integer", "default": 30, "description": "Rows returned per list."}
+  },
+  "steps": [
+    {"id": "keywords_a", "tool": "analyze_keywords", "args": {"corpus": "$params.corpus_a", "ref_corpus": "$params.corpus_b", "effect": ["log-ratio"], "polarity": "positive", "p_value": "$params.p_value", "min_range": "$params.min_range", "limit": "$params.top"}},
+    {"id": "keywords_b", "tool": "analyze_keywords", "args": {"corpus": "$params.corpus_b", "ref_corpus": "$params.corpus_a", "effect": ["log-ratio"], "polarity": "positive", "p_value": "$params.p_value", "min_range": "$params.min_range", "limit": "$params.top"}},
+    {"id": "words_a", "tool": "analyze_wordlist", "args": {"corpus": "$params.corpus_a", "limit": 0}},
+    {"id": "words_b", "tool": "analyze_wordlist", "args": {"corpus": "$params.corpus_b", "limit": 0}},
+    {"id": "only_a_all", "tool": "result_combine", "args": {"result_ids": ["$words_a.result_id", "$words_b.result_id"], "operation": "difference", "key": "WORD", "limit": 0}},
+    {"id": "only_a", "tool": "result_filter", "args": {"result_id": "$only_a_all.result_id", "where": "FREQUENCY >= ${params.min_freq} and not is_stopword(WORD)", "sort_by": "FREQUENCY", "limit": "$params.top"}},
+    {"id": "only_b_all", "tool": "result_combine", "args": {"result_ids": ["$words_b.result_id", "$words_a.result_id"], "operation": "difference", "key": "WORD", "limit": 0}},
+    {"id": "only_b", "tool": "result_filter", "args": {"result_id": "$only_b_all.result_id", "where": "FREQUENCY >= ${params.min_freq} and not is_stopword(WORD)", "sort_by": "FREQUENCY", "limit": "$params.top"}},
+    {"id": "joined", "tool": "result_join", "args": {"left_id": "$words_a.result_id", "right_id": "$words_b.result_id", "on": "WORD", "how": "outer", "right_fields": ["FREQUENCY"], "suffix": "_B", "limit": 0}},
+    {"id": "table", "tool": "result_derive", "args": {"result_id": "$joined.result_id", "columns": {"PM_A": "round(per_million(FREQUENCY, corpus_tokens('${params.corpus_a}')), 2)", "PM_B": "round(per_million(FREQUENCY_B, corpus_tokens('${params.corpus_b}')), 2)", "LL": "round(log_likelihood(FREQUENCY, corpus_tokens('${params.corpus_a}'), FREQUENCY_B, corpus_tokens('${params.corpus_b}')), 2)", "LOG_RATIO": "round(log_ratio(FREQUENCY, corpus_tokens('${params.corpus_a}'), FREQUENCY_B, corpus_tokens('${params.corpus_b}')), 3)"}, "limit": 0}},
+    {"id": "differences", "tool": "result_filter", "args": {"result_id": "$table.result_id", "where": "LL >= 6.63", "sort_by": "LL", "fields": ["WORD", "FREQUENCY", "FREQUENCY_B", "PM_A", "PM_B", "LL", "LOG_RATIO"], "rename": {"FREQUENCY": "FREQ_A", "FREQUENCY_B": "FREQ_B"}, "limit": "$params.top"}}
+  ],
+  "output": "differences",
+  "interpretation": "keywords_a are words typical of A relative to B, keywords_b the reverse (KEYNESS = log-likelihood; 3.84 = p<0.05, 6.63 = p<0.01, 10.83 = p<0.001; LOG-RATIO = effect size, 1 = twice as frequent). only_a/only_b list words absent from the other corpus (watch for small corpora: absence may be chance). 'differences' lists every word with LL >= 6.63 (p<0.01) in either direction, sorted by LL (positive LOG_RATIO = more frequent in A, negative = in B); 'table' has per-million frequencies, LL and LOG_RATIO for every word - filter it with result_filter (e.g. 'LL > 10.83 and abs(LOG_RATIO) > 1') or look up specific words. Group keywords into themes and give examples with analyze_kwic."
+}

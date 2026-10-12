@@ -2,6 +2,39 @@
 
 This document defines the current internal action-layer contract exposed by `KitconcActions` in `kitconc/agent/actions.py`.
 
+## MCP Tool Surface
+
+`kitconc-mcp` exposes a curated, agent-oriented tool set by default (`kitconc/agent/tools.py` and the
+modules it composes). The previous behaviour (one tool per public `KitconcActions` method) remains
+available with `--tool-set legacy` / `build_server(tool_set="legacy")`.
+
+The full reference is [docs/MCP.md](../../docs/MCP.md); the guides served to agents are in
+`kitconc/agent/guides/`. Summary:
+
+| Group | Tools |
+|---|---|
+| Workspace | `workspace_info`, `workspace_set`, `guide_read` |
+| Corpora | `corpus_list`, `corpus_info`, `corpus_files`, `corpus_read_file`, `corpus_tagset`, `corpus_qa`, `corpus_create`, `subcorpus_create`, `corpus_delete`, `corpus_import`, `corpus_export` |
+| Analyses | `analyze_wordlist`, `analyze_keywords`, `analyze_kwic`, `analyze_concordance`, `analyze_collocates`, `analyze_clusters`, `analyze_ngrams`, `analyze_pframes`, `analyze_lemmas`, `analyze_dispersion`, `analyze_dispersion_measures`, `analyze_keywords_dispersion`, `analyze_word_tag_freq`, `analyze_word_freq_by_file`, `term_candidates`, `context_mine`, `text_stats`, `plot_wordcloud` |
+| Semantic | `semantic_index_status`, `semantic_index_build`, `semantic_search` |
+| Results | `result_list`, `result_page`, `result_create`, `result_filter`, `result_derive`, `result_join`, `result_combine`, `result_aggregate`, `result_enrich`, `result_export`, `result_delete` |
+| Composition | `pipeline_validate`, `pipeline_run`, `recipe_list`, `recipe_show`, `recipe_run`, `recipe_save` |
+| Jobs | `job_start`, `job_status`, `job_cancel` |
+
+Conventions:
+
+- Stateless: every corpus-scoped tool takes an explicit `corpus` id; `corpus_in_use` is not used.
+- Tabular tools store the full result (memory + `<workspace>/.kitconc_results/`) and return one
+  page: `{result_id, analysis, corpus, total, offset, returned, next_offset, columns, rows}` plus
+  extras. `limit` defaults to 50 (max 1000); `format="records"` returns objects.
+- Tabular `KitconcActions` methods also return `columns`, so empty results keep their schema.
+- Errors return `isError=true` with `{"error": {"code", "message", "hint"?, "candidates"?}}`.
+- `corpus_delete` requires `confirm=true`; pipelines, recipes and jobs cannot call destructive
+  tools, `workspace_set` or other composition/job tools.
+- Handlers run in worker threads and forward MCP progress notifications.
+- The server also registers resources (`kitconc://...`), one prompt per recipe plus
+  `plan-analysis`, and argument completion.
+
 ## Scope
 
 - Target class: `KitconcActions`
@@ -157,9 +190,9 @@ Example call after `wordlist(corpus_name="ads")`:
 ## Output Conventions
 
 - Tabular results are returned as JSON-serializable dictionaries:
-- `{ "rows": [ ... ], "total": <int> }`
+- `{ "rows": [ ... ], "total": <int>, "columns": [ ... ] }`
 - Some analyses add totals metadata:
-- `{ "rows": [ ... ], "total": <int>, "totals": { ... } }`
+- `{ "rows": [ ... ], "total": <int>, "columns": [ ... ], "totals": { ... } }`
 
 Dataframe values are normalized to Python primitive types where possible.
 
@@ -169,4 +202,5 @@ Dataframe values are normalized to Python primitive types where possible.
 - Destructive actions (`delete`, `cleanse`) execute immediately.
 - `open(..., launch=False)` resolves and validates output paths without launching external apps by default.
 - `collgraph(..., plot=False)` returns collocate data without plotting by default.
-- MCP server auto-registers tools from `KitconcActions.mcp_tool_catalog()`.
+- With `--tool-set legacy`, the MCP server auto-registers tools from `KitconcActions.mcp_tool_catalog()`.
+- Tabular methods return `columns` alongside `rows` and `total`.

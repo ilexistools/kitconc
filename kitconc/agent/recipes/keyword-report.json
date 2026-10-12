@@ -1,0 +1,22 @@
+{
+  "name": "keyword-report",
+  "title": "Keyword report",
+  "description": "Statistically careful keyword analysis: positive keywords with log-likelihood, log-ratio effect size, Bonferroni-corrected significance and a minimum range, enriched with dispersion and an example sentence; plus negative keywords (underused words).",
+  "tags": ["lexis", "comparison", "aboutness"],
+  "params": {
+    "corpus": {"type": "string", "required": true, "description": "Corpus id."},
+    "ref_corpus": {"type": "string", "default": null, "description": "Reference corpus id; if omitted, the bundled reference list of ref_language (or the corpus language) is used."},
+    "ref_language": {"type": "string", "default": null, "description": "Bundled reference list to use when ref_corpus is omitted."},
+    "p_value": {"type": "string", "default": "p<0.01", "description": "Significance cut-off before correction."},
+    "min_range": {"type": "integer", "default": 2, "description": "Minimum number of texts (avoids keywords from a single text)."},
+    "top": {"type": "integer", "default": 40, "description": "Keywords to enrich and return."}
+  },
+  "steps": [
+    {"id": "keywords", "tool": "analyze_keywords", "args": {"corpus": "$params.corpus", "ref_corpus": "$params.ref_corpus", "ref_language": "$params.ref_language", "effect": ["log-ratio"], "polarity": "positive", "p_value": "$params.p_value", "bonferroni": true, "min_range": "$params.min_range", "limit": 0}},
+    {"id": "top", "tool": "result_filter", "args": {"result_id": "$keywords.result_id", "keep": "$params.top", "limit": 0}},
+    {"id": "report", "tool": "result_enrich", "args": {"result_id": "$top.result_id", "column": "WORD", "corpus": "$params.corpus", "add": ["dispersion", "example"], "max_rows": "$params.top", "limit": "$params.top"}},
+    {"id": "negative", "tool": "analyze_keywords", "args": {"corpus": "$params.corpus", "ref_corpus": "$params.ref_corpus", "ref_language": "$params.ref_language", "effect": ["log-ratio"], "polarity": "negative", "p_value": "$params.p_value", "limit": 20}, "continue_on_error": true}
+  ],
+  "output": "report",
+  "interpretation": "KEYNESS is log-likelihood (significance, grows with corpus size); LOG-RATIO is the effect size (1 = twice as frequent as in the reference, 2 = four times). Only keywords that pass the Bonferroni-corrected p-value and occur in at least min_range texts are kept. Use DP (0 = even, 1 = concentrated in few texts) to flag keywords driven by one or two texts. Group keywords into semantic or functional themes and illustrate each theme with the EXAMPLE sentences. Negative keywords show what the corpus avoids relative to the reference."
+}

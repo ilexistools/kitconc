@@ -1,0 +1,22 @@
+{
+  "name": "synonym-comparison",
+  "title": "Near-synonym comparison",
+  "description": "Compare near-synonyms or variants (e.g. big/large, task/assignment): frequency and dispersion of each word, their collocates side by side (shared vs. exclusive) and a KWIC sample of each.",
+  "tags": ["lexis", "comparison", "semantics"],
+  "params": {
+    "corpus": {"type": "string", "required": true, "description": "Corpus id."},
+    "words": {"type": "array", "required": true, "description": "Two or more single words to compare."},
+    "min_freq": {"type": "integer", "default": 2, "description": "Minimum co-occurrence frequency for collocates."},
+    "sample": {"type": "integer", "default": 8, "description": "KWIC lines per word."}
+  },
+  "steps": [
+    {"id": "usage", "tool": "analyze_dispersion_measures", "args": {"corpus": "$params.corpus", "words": "$params.words"}},
+    {"id": "collocates", "tool": "analyze_collocates", "foreach": "$params.words", "as": "word", "args": {"corpus": "$params.corpus", "node": "$word", "measure": "log-dice", "min_freq": "$params.min_freq", "stoplist": "default", "limit": 0}, "continue_on_error": true},
+    {"id": "stacked", "tool": "result_combine", "args": {"result_ids": "$collocates.result_ids", "operation": "union", "key": "WORD", "source_column": "NODE", "label_from_param": "node", "deduplicate": false, "limit": 0}},
+    {"id": "sorted", "tool": "result_filter", "args": {"result_id": "$stacked.result_id", "sort_by": "ASSOCIATION", "limit": 0}},
+    {"id": "comparison", "tool": "result_aggregate", "args": {"result_id": "$sorted.result_id", "group_by": ["WORD"], "aggregations": {"NODES": "list(NODE)", "N_NODES": "nunique(NODE)", "TOTAL_FREQ": "sum(FREQUENCY)", "BEST_LOGDICE": "max(ASSOCIATION)"}, "sort_by": "N_NODES", "limit": 40}},
+    {"id": "kwic", "tool": "analyze_kwic", "foreach": "$params.words", "as": "word", "args": {"corpus": "$params.corpus", "node": "$word", "sample": "$params.sample", "seed": 7, "limit": "$params.sample"}, "continue_on_error": true}
+  ],
+  "output": "comparison",
+  "interpretation": "usage compares frequency, range and DP of each word. comparison lists every collocate with the compared words it attaches to: N_NODES > 1 = shared collocate (overlap in meaning); N_NODES = 1 = exclusive (see NODES) - these show the differences. Exclusive collocates are listed after shared ones; page with result_page or filter with result_filter(where='N_NODES == 1', sort_by='BEST_LOGDICE'). Words that produced no collocates appear in collocates.errors. Use the KWIC samples (kwic.items) to characterise typical contexts, register and evaluative prosody of each word."
+}

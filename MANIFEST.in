@@ -5,3 +5,5 @@ include kitconc/data/*.ttf
 include kitconc/data/images/*.png
 include kitconc/data/images/*.ico
 include kitconc/data/scripts/*.py
+include kitconc/agent/guides/*.md
+include kitconc/agent/recipes/*.json

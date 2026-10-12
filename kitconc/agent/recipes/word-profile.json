@@ -1,0 +1,25 @@
+{
+  "name": "word-profile",
+  "title": "Word profile",
+  "description": "Everything about one word or multi-word term: dispersion, collocates (log-dice, MI, t-score), clusters to the left and right, definitional contexts and a reproducible KWIC sample for close reading.",
+  "tags": ["lexis", "phraseology"],
+  "params": {
+    "corpus": {"type": "string", "required": true, "description": "Corpus id."},
+    "node": {"type": "string", "required": true, "description": "Word or multi-word term."},
+    "min_freq": {"type": "integer", "default": 3, "description": "Minimum co-occurrence frequency for collocates."},
+    "span": {"type": "integer", "default": 4, "description": "Collocation window on each side."},
+    "sample": {"type": "integer", "default": 20, "description": "KWIC lines to sample."},
+    "seed": {"type": "integer", "default": 42, "description": "Random seed for the sample."},
+    "top": {"type": "integer", "default": 20, "description": "Rows returned per list."}
+  },
+  "steps": [
+    {"id": "dispersion", "tool": "analyze_dispersion", "args": {"corpus": "$params.corpus", "node": "$params.node", "limit": 10}},
+    {"id": "collocates", "tool": "analyze_collocates", "args": {"corpus": "$params.corpus", "node": "$params.node", "measure": "log-dice", "extra_measures": ["mutual information", "t-score"], "min_freq": "$params.min_freq", "left_span": "$params.span", "right_span": "$params.span", "stoplist": "default", "limit": "$params.top"}},
+    {"id": "clusters_right", "tool": "analyze_clusters", "args": {"corpus": "$params.corpus", "word": "$params.node", "position": "left", "size": 3, "min_freq": 2, "limit": "$params.top"}, "continue_on_error": true},
+    {"id": "clusters_left", "tool": "analyze_clusters", "args": {"corpus": "$params.corpus", "word": "$params.node", "position": "right", "size": 3, "min_freq": 2, "limit": "$params.top"}, "continue_on_error": true},
+    {"id": "contexts", "tool": "context_mine", "args": {"corpus": "$params.corpus", "term": "$params.node", "limit": 5}},
+    {"id": "kwic", "tool": "analyze_kwic", "args": {"corpus": "$params.corpus", "node": "$params.node", "sample": "$params.sample", "seed": "$params.seed", "limit": "$params.sample"}}
+  ],
+  "output": "kwic",
+  "interpretation": "dispersion.stats gives frequency (hits), range (texts) and DP (0 = even, 1 = concentrated). Collocates are ranked by log-dice (stable across corpus sizes); MI favours rare exclusive partners and t-score frequent ones, so compare them. clusters_right shows what follows the node (node starts the cluster), clusters_left what precedes it. contexts holds candidate definitions (heuristic - verify). Read the KWIC sample to describe senses, typical contexts and semantic prosody, quoting lines as evidence."
+}

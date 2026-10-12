@@ -1,0 +1,19 @@
+{
+  "name": "corpus-qa",
+  "title": "Corpus quality check",
+  "description": "Quality control before analysis: non-text files ingested by mistake, duplicate texts, very short or very long texts, encoding problems, metadata mismatches and tagging, with the most atypical texts listed.",
+  "tags": ["quality", "overview"],
+  "params": {
+    "corpus": {"type": "string", "required": true, "description": "Corpus id."},
+    "min_words": {"type": "integer", "default": 20, "description": "Texts with fewer words are flagged."},
+    "outlier_factor": {"type": "number", "default": 10, "description": "Texts longer than this times the median are flagged."}
+  },
+  "steps": [
+    {"id": "qa", "tool": "corpus_qa", "args": {"corpus": "$params.corpus", "min_words": "$params.min_words", "outlier_factor": "$params.outlier_factor"}},
+    {"id": "longest", "tool": "result_filter", "args": {"result_id": "$qa.stats_result_id", "sort_by": "TOKENS", "keep": 10, "fields": ["FILENAME", "TOKENS", "WORDS", "TTR", "NON_WORD_RATIO"], "limit": 10}},
+    {"id": "shortest", "tool": "result_filter", "args": {"result_id": "$qa.stats_result_id", "sort_by": "TOKENS", "descending": false, "keep": 10, "fields": ["FILENAME", "TOKENS", "WORDS", "TTR", "NON_WORD_RATIO"], "limit": 10}},
+    {"id": "noisiest", "tool": "result_filter", "args": {"result_id": "$qa.stats_result_id", "sort_by": "NON_WORD_RATIO", "keep": 10, "fields": ["FILENAME", "TOKENS", "NON_WORD_RATIO", "MEAN_WORD_LENGTH"], "limit": 10}}
+  ],
+  "output": "qa",
+  "interpretation": "Report issues by severity (error first). 'non_text' or very high NON_WORD_RATIO usually means a binary or badly converted file got into the corpus: recreate the corpus without it. Duplicates inflate frequencies and keyness: remove one copy. Very short texts may be empty conversions; very long ones may dominate frequencies (check DP in later analyses). 'encoding' points to texts read with the wrong encoding (convert to UTF-8). Use corpus_read_file to inspect suspicious texts before recommending changes; never delete anything without the user's confirmation."
+}

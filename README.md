@@ -144,192 +144,41 @@ print(rows["rows"][:3])
 MCP Server (for agent integrations)
 =========
 
-An MCP server entrypoint is available:
+Kitconc ships an MCP server that lets any MCP client (Claude Code, Claude Desktop, Cursor, VS Code,
+custom agents) run corpus studies on a workspace:
 
 ```bash
-kitconc-mcp --transport stdio
+kitconc-mcp --transport stdio --workspace /data/kitconc_workspace
+kitconc-mcp --transport streamable-http --host 127.0.0.1 --port 8001 --workspace /data/kitconc_workspace
 ```
 
-For HTTP clients (recommended, simpler setup):
+Claude Code: `claude mcp add kitconc -- uv --directory /path/to/kitconc run kitconc-mcp --workspace /data/kitconc_workspace`
 
-```bash
-kitconc-mcp --transport streamable-http --host 127.0.0.1 --port 8001
-```
+The server is organized as composable building blocks rather than fixed reports:
 
-or (legacy SSE transport):
+* **Primitives** — `workspace_info`, `corpus_*` (including `corpus_tagset`, `corpus_qa`,
+  `subcorpus_create`), `analyze_*` (wordlist, keywords, KWIC, concordance, collocates, clusters,
+  n-grams, p-frames, lemmas, dispersion), `term_candidates` (works with any POS tagset),
+  `context_mine`, `text_stats`, `semantic_*`.
+* **Results** — analyses store their table on the server (persisted in the workspace) and return a
+  `result_id` plus one compact page. `result_filter`, `result_derive` (safe expressions with
+  `per_million`, `log_likelihood`, `log_ratio`, `c_value`...), `result_join`, `result_combine`,
+  `result_aggregate`, `result_enrich` (examples, definitions, dispersion, collocates per row) and
+  `result_export` turn analyses into answers without moving rows through the conversation.
+* **Composition** — `pipeline_run` wires tools together in one call; `recipe_*` provides editable,
+  documented pipelines: corpus QA, corpus profile, word profile, near-synonyms, collocation entry,
+  keyword report, corpus comparison, word frequencies across corpora, lexical bundles, glossary
+  candidates (general and domain-specific).
+* **Long work** — `job_start` / `job_status` / `job_cancel` run tools, pipelines or recipes in the
+  background with progress and persisted status.
+* **Context** — MCP resources (`kitconc://corpora`, texts, results, recipes, guides), one prompt per
+  recipe plus `plan-analysis`, argument completion, and built-in guides (`guide_read`).
 
-```bash
-kitconc-mcp --transport sse --host 127.0.0.1 --port 8001
-```
+Useful options: `--read-only`, `--tool-set legacy` (previous one-tool-per-method catalog),
+`--disk-capacity`, `--job-workers`.
 
-Notes:
-
-* Tools are auto-generated from `KitconcActions.mcp_tool_catalog()`.
-* Includes semantic retrieval tool: `semantic_search` (`query`, `top_k`, `db_path`, `model_name`).
-* `mcp` runtime is included in the core uv dependencies (`uv sync` is enough).
-
-
-MCP Tool Reference (complete)
-=========
-
-Kitconc MCP tools are auto-exposed from public methods in `kitconc.agent.actions.KitconcActions`.
-The current catalog includes operational tools, utility helpers, and typed wrappers.
-
-Recommended operational tools
--------------
-
-These are the tools most clients should use in normal workflows:
-
-* `workspace(path=None)` - get/set current workspace
-* `workspace_status()` - inspect current workspace and selected corpus
-* `ls(corpus_name=None)` - list corpora or output files
-* `list_corpora()` - list corpus metadata in workspace
-* `use(corpus_name)` - select corpus for subsequent commands
-* `home()` - clear selected corpus
-* `create(name, source, language, tagged=False, verbose=False)` - create corpus from folder
-* `delete(corpus_name)` - remove corpus
-* `cleanse(corpus_name=None)` - delete output files from a corpus
-* `open(filename, corpus_name=None, launch=False)` - resolve generated output file path
-* `wordlist(corpus_name=None, lowercase=True, limit=None, ...)` - compute word frequency list
-  (optional `search`, `stoplist`/`allowlist`, `min_range`, `dispersion` columns)
-* `keywords(...)` - compute keywords (`log-likelihood`, `log-likelihood-2`, `chi-square`, `chi-square-yates`,
-  `tf-idf`, `text-dispersion`); optional `ref_corpus`, `effect`, `polarity`, `p_value`
-* `kwic(node, ...)` - keyword in context (optional `wildcards`, `context` search, `sample`, `kpf`)
-* `concordance(node, ...)` - sentence-style concordance
-* `collocates(node, ...)` - collocate statistics (13 association measures, `extra_measures`, `min_freq`)
-* `pframes(...)` - n-grams with open slots (p-frames)
-* `lemmalist(...)` - lemma (headword) frequency list
-* `dispersion_measures(...)` - Range, SD, CV, Juilland's D and Gries' DP per word
-* `fileview(filename, node=None, ...)` - text of a corpus file with hits marked
-* `wordcloud(output_path, ...)` - word cloud PNG of the wordlist or keywords
-* `collgraph(node, ..., plot=False)` - collocates formatted for graph workflows
-* `wtfreq(corpus_name=None, lowercase=True, limit=None)` - word-tag frequency
-* `wfreqinfiles(corpus_name=None, lowercase=True, limit=None)` - per-file frequencies
-* `clusters(word, ...)` - lexical clusters around a node
-* `ngrams(corpus_name=None, ...)` - n-gram extraction
-* `dispersion(node, ...)` - dispersion by corpus sections
-* `keywords_dispersion(corpus_name=None, ...)` - dispersion for top keywords
-* `semantic_search(query, top_k=5, db_path=None, model_name=None, corpus_name=None)` - vector semantic retrieval
-* `index_corpus(corpus_name, source_folder=None, db_path=None, model_name=None, chunk_size=500, chunk_overlap=50, batch_size=64, rebuild=False)` - build a semantic index from corpus source files
-* `semantic_index_status(corpus_name=None, db_path=None)` - inspect an index and its indexed chunk count
-* `export_analysis_result(analysis_result, output_path, sheet_name='Results')` - export analysis rows to `.tab`, `.tsv`, or `.xlsx`
-* `text2utf8(source, target=None, source_encoding='mbcs', verbose=False)` - normalize corpus text encoding
-* `train_model(source, language=None, reflist=None, stoplist=None, verbose=False)` - train language model resources
-* `export_corpus(dest_path, corpus_name=None)` - export corpus as zip
-* `import_corpus(filename)` - import exported corpus zip
-* `examples(dest_path=None)` - download example corpora
-* `version()` / `app_version()` - package version
-* `help(command=None)` / `command_help(command=None)` - command help text
-
-Utility methods also exposed by MCP
--------------
-
-These are usually for orchestration and diagnostics:
-
-* `set_workspace(workspace)`
-* `save_workspace_file(filename='kitconc.tmp')`
-* `from_workspace_file(filename='kitconc.tmp')`
-* `list_commands()`
-* `list_output_files(corpus_name=None)`
-* `export_analysis_result(analysis_result, output_path, sheet_name='Results')`
-* `list_ref_languages()`
-* `corpus_exists(corpus_name)`
-* `get_corpus_info(corpus_name)`
-* `create_corpus(corpus_name, language, source_folder, tagged=False, verbose=False)`
-* `delete_corpus(corpus_name)`
-
-Typed wrappers (migration layer)
--------------
-
-These wrappers accept schema objects and return typed payloads:
-
-* `workspace_typed(request)`
-* `create_typed(request)`
-* `keywords_typed(request)`
-* `kwic_typed(request)`
-* `collgraph_typed(request)`
-* `dispersion_typed(request)`
-* `keywords_dispersion_typed(request)`
-* `text2utf8_typed(request)`
-* `train_model_typed(request)`
-* `semantic_search_typed(request)`
-
-Quick prompt suggestions
--------------
-
-Use prompts like these with your MCP client/agent:
-
-* "Set workspace to `/data/kitconc_workspace`, list corpora, and summarize what is available."
-* "Create corpus `ads_en` from `/data/corpora/ads` in English, then select it."
-* "Run `wordlist` and `keywords` (log-likelihood, limit 30), then compare top terms."
-* "Generate KWIC for `experience` with horizon 7 and show 20 rows."
-* "Find collocates for `experience` with `left_span=3`, `right_span=3`, and rank by MI."
-* "Run `ngrams` with `size=3` and `minfreq=3`; return top 50."
-* "Run `dispersion` for `experience` and explain section totals."
-* "Export current corpus to `/data/exports` and return the zip path."
-* "Import corpus from `/data/exports/ads_en.zip`, select it, and verify metadata."
-* "Run semantic search for `customer loyalty` with top_k 10 using default DB path."
-
-Suggested MCP usage flows
--------------
-
-Flow 1: New corpus to first insights
-1. `workspace(path)`
-2. `create(name, source, language)`
-3. `use(corpus_name)`
-4. `wordlist(...)`
-5. `keywords(...)`
-6. `kwic(node, ...)`
-
-Flow 2: Comparative lexical exploration
-1. `use(corpus_name)`
-2. `keywords(...)`
-3. `collocates(node, ...)`
-4. `clusters(word, ...)`
-5. `ngrams(...)`
-6. `export_corpus(dest_path)`
-
-Flow 3: File hygiene and publishing outputs
-1. `ls()`
-2. `list_output_files(corpus_name)`
-3. `open(filename, launch=False)`
-4. `cleanse(corpus_name)` (only when safe to remove files)
-
-Flow 4: Semantic retrieval workflow
-1. `use(corpus_name)`
-2. `semantic_index_status(corpus_name)`
-3. If no index exists, call `index_corpus(corpus_name)`; pass `source_folder` when the source path in `info.tab` is no longer available.
-4. `semantic_search(query, top_k)`
-5. Combine semantic hits with `kwic`/`concordance` for qualitative inspection
-
-`index_corpus` reads TXT, Markdown, RST, and PDF files recursively. Its per-corpus index is stored under `<workspace>/.semantic_indexes/`; an existing index is preserved unless `rebuild=true` is explicitly requested. Install the optional embedding dependencies with `uv sync --extra full`.
-
-For file exports, pass the complete response object from an analysis action to `export_analysis_result`, then set `output_path` to a filename ending in `.tab`, `.tsv`, or `.xlsx`. Only the response's `rows` are written as a table; metadata such as `total` is not added as a row. The tool returns the resolved output path, selected format, and number of rows and columns written. The file is written atomically; TSV and TAB are UTF-8 tab-delimited files. XLSX exports use the optional `sheet_name` argument.
-
-Example: after calling `wordlist(corpus_name="ads")`, pass its entire result to the export tool:
-
-```json
-{
-  "analysis_result": {"rows": [{"word": "example", "freq": 12}], "total": 1},
-  "output_path": "C:/exports/wordlist.xlsx",
-  "sheet_name": "Wordlist"
-}
-```
-
-The export response has this shape: `{"output_path": "...", "format": "xlsx", "rows_written": 1, "columns_written": 2}`. Parent directories are created when needed. Use an absolute `output_path` to make the destination unambiguous. For XLSX, the worksheet name must be 1–31 characters and cannot contain `[]:*?/\\`.
-
-Flow 5: Portability and replication
-1. `export_corpus(dest_path, corpus_name)`
-2. transfer zip file
-3. `import_corpus(filename)`
-4. `get_corpus_info(corpus_name)`
-
-Safety notes
--------------
-
-* `delete`, `delete_corpus`, and `cleanse` are destructive and execute immediately.
-* `open(..., launch=False)` is safer for server-side environments.
-* `collgraph(..., plot=True)` may require a GUI-capable environment; use `plot=False` on headless servers.
+Full documentation: [docs/MCP.md](docs/MCP.md). Python action-layer contract:
+[kitconc/agent/CONTRACT.md](kitconc/agent/CONTRACT.md).
 
 
 Language resources

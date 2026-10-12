@@ -54,7 +54,7 @@ kitconc-mcp = "kitconc.agent.mcp_server:main"
 exclude = ["tests", "tests.*"]
 
 [tool.setuptools.package-data]
-kitconc = ["data/*.*", "data/images/*.*", "data/scripts/*.*"]
+kitconc = ["data/*.*", "data/images/*.*", "data/scripts/*.*", "agent/guides/*.md", "agent/recipes/*.json"]
 
 [[tool.uv.index]]
 name = "pytorch-cpu"

@@ -1,0 +1,31 @@
+{
+  "name": "glossary-contrastive",
+  "title": "Domain-specific glossary candidates",
+  "description": "Term candidates that are specific to a domain corpus compared with a reference corpus: candidates are extracted from both, joined, scored by log-likelihood, log-ratio and C-value, filtered to clearly overrepresented terms and enriched with corpus evidence.",
+  "tags": ["terminology", "comparison"],
+  "params": {
+    "corpus": {"type": "string", "required": true, "description": "Domain (study) corpus id."},
+    "ref_corpus": {"type": "string", "required": true, "description": "General or contrasting reference corpus id (same language)."},
+    "patterns": {"type": "array", "default": null, "description": "Token patterns; default: a set for the corpus language word order."},
+    "min_freq": {"type": "integer", "default": 3, "description": "Minimum frequency in the domain corpus."},
+    "min_range": {"type": "integer", "default": 2, "description": "Minimum number of domain texts."},
+    "min_log_ratio": {"type": "number", "default": 1, "description": "Minimum log-ratio (1 = twice as frequent as in the reference)."},
+    "min_ll": {"type": "number", "default": 6.63, "description": "Minimum log-likelihood (6.63 = p<0.01)."},
+    "top": {"type": "integer", "default": 60, "description": "Candidates to enrich and return."},
+    "export_path": {"type": "string", "default": null, "description": "Optional .xlsx/.tsv path for the final table."}
+  },
+  "steps": [
+    {"id": "domain", "tool": "term_candidates", "args": {"corpus": "$params.corpus", "patterns": "$params.patterns", "min_freq": "$params.min_freq", "min_range": "$params.min_range", "limit": 0}},
+    {"id": "reference", "tool": "term_candidates", "args": {"corpus": "$params.ref_corpus", "patterns": "$params.patterns", "min_freq": 1, "min_range": 1, "limit": 0}},
+    {"id": "joined", "tool": "result_join", "args": {"left_id": "$domain.result_id", "right_id": "$reference.result_id", "on": "TERM", "how": "left", "right_fields": ["FREQUENCY"], "suffix": "_REF", "limit": 0}},
+    {"id": "scored", "tool": "result_derive", "args": {"result_id": "$joined.result_id", "columns": {
+      "LL": "round(log_likelihood(FREQUENCY, corpus_tokens('${params.corpus}'), FREQUENCY_REF, corpus_tokens('${params.ref_corpus}')), 2)",
+      "LOG_RATIO": "round(log_ratio(FREQUENCY, corpus_tokens('${params.corpus}'), FREQUENCY_REF, corpus_tokens('${params.ref_corpus}')), 2)",
+      "CVALUE": "round(c_value(TERM, FREQUENCY), 2)"}, "limit": 0}},
+    {"id": "ranked", "tool": "result_filter", "args": {"result_id": "$scored.result_id", "where": "LOG_RATIO >= ${params.min_log_ratio} and LL >= ${params.min_ll} and CVALUE > 0", "sort_by": "LL", "keep": "$params.top", "limit": 0}},
+    {"id": "glossary", "tool": "result_enrich", "args": {"result_id": "$ranked.result_id", "column": "TERM", "corpus": "$params.corpus", "add": ["dispersion", "example", "definition", "collocates"], "max_rows": "$params.top", "limit": "$params.top"}},
+    {"id": "export", "tool": "result_export", "when": "$params.export_path", "args": {"result_id": "$glossary.result_id", "output_path": "$params.export_path", "sheet_name": "Glossary"}}
+  ],
+  "output": "glossary",
+  "interpretation": "FREQUENCY_REF = 0 means the term never occurs in the reference corpus. LL measures how reliable the difference is, LOG_RATIO how large it is, CVALUE whether the candidate is a complete term rather than a fragment. Terms passing all three are strong domain-specific candidates. Check DP to avoid terms from a single text, verify DEFINITION contexts, and use EXAMPLE/TOP_COLLOCATES to draft entries."
+}

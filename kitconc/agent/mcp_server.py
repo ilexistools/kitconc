@@ -17,6 +17,8 @@ from kitconc.agent.actions import (
     StateError,
     ValidationError,
 )
+from kitconc.agent.results import DEFAULT_DISK_CAPACITY
+from kitconc.agent.tools import DEFAULT_RESULT_CAPACITY, SERVER_INSTRUCTIONS, KitconcTools, register_tools
 
 try:
     from mcp.server.fastmcp import FastMCP
@@ -85,7 +87,23 @@ def build_server(
     workspace_file: str | None = None,
     host: str = "127.0.0.1",
     port: int = 8001,
+    tool_set: str = "curated",
+    read_only: bool = False,
+    result_capacity: int = DEFAULT_RESULT_CAPACITY,
+    disk_capacity: int = DEFAULT_DISK_CAPACITY,
+    job_workers: int = 2,
 ):
+    """Build the FastMCP server.
+
+    tool_set="curated" exposes the agent-oriented tools from `kitconc.agent.tools`, plus resources,
+    recipe prompts and argument completion (`kitconc.agent.resources`);
+    tool_set="legacy" exposes every `KitconcActions` method, as in earlier versions.
+
+    result_capacity: results kept in memory; disk_capacity: results kept in
+    <workspace>/.kitconc_results (0 disables persistence); job_workers: concurrent background jobs.
+    """
+    if tool_set not in {"curated", "legacy"}:
+        raise ValueError("tool_set must be 'curated' or 'legacy'.")
     if FastMCP is None:
         raise RuntimeError(
             "MCP runtime not installed. Run: uv sync"
@@ -98,8 +116,20 @@ def build_server(
         server_kwargs["host"] = host
     if "port" in init_params:
         server_kwargs["port"] = port
-    server = FastMCP("kitconc", **server_kwargs)
-    _register_tools(server, actions)
+    if tool_set == "legacy":
+        server = FastMCP("kitconc", **server_kwargs)
+        _register_tools(server, actions)
+        return server
+    from kitconc.agent.resources import register_completion, register_prompts, register_resources
+
+    server = FastMCP("kitconc", instructions=SERVER_INSTRUCTIONS, **server_kwargs)
+    tools = KitconcTools(actions, result_capacity, disk_capacity, job_workers)
+    register_tools(server, tools, read_only=read_only)
+    register_resources(server, tools)
+    if not read_only:
+        register_prompts(server, tools)
+    register_completion(server, tools)
+    server.kitconc_tools = tools
     return server
 
 
@@ -120,10 +150,49 @@ def main() -> None:
     )
     parser.add_argument("--host", default="127.0.0.1", help="Host for SSE transport")
     parser.add_argument("--port", type=int, default=8001, help="Port for SSE transport")
+    parser.add_argument(
+        "--tool-set",
+        choices=["curated", "legacy"],
+        default="curated",
+        help="curated: agent-oriented tools (default); legacy: every KitconcActions method",
+    )
+    parser.add_argument(
+        "--read-only",
+        action="store_true",
+        help="Expose only read-only tools (curated tool set)",
+    )
+    parser.add_argument(
+        "--result-capacity",
+        type=int,
+        default=DEFAULT_RESULT_CAPACITY,
+        help="Number of analysis results kept in memory for paging/export",
+    )
+    parser.add_argument(
+        "--disk-capacity",
+        type=int,
+        default=DEFAULT_DISK_CAPACITY,
+        help="Number of results kept on disk in <workspace>/.kitconc_results (0 disables persistence)",
+    )
+    parser.add_argument(
+        "--job-workers",
+        type=int,
+        default=2,
+        help="Number of background jobs that run concurrently",
+    )
     args = parser.parse_args()
     transport = "streamable-http" if args.transport == "streamable_http" else args.transport
 
-    server = build_server(args.workspace, args.workspace_file, args.host, args.port)
+    server = build_server(
+        args.workspace,
+        args.workspace_file,
+        args.host,
+        args.port,
+        tool_set=args.tool_set,
+        read_only=args.read_only,
+        result_capacity=args.result_capacity,
+        disk_capacity=args.disk_capacity,
+        job_workers=args.job_workers,
+    )
     if transport == "stdio":
         server.run(transport="stdio")
     elif transport == "sse":

@@ -1,0 +1,25 @@
+{
+  "name": "glossary-candidates",
+  "title": "Glossary candidates",
+  "description": "Single- and multi-word term candidates for a glossary: tagset-agnostic POS patterns (or stopword-bounded n-grams on untagged corpora), ranked by C-value termhood, filtered by frequency and range, enriched with dispersion, an example sentence, a definitional context and top collocates; optionally exported to a spreadsheet.",
+  "tags": ["terminology"],
+  "params": {
+    "corpus": {"type": "string", "required": true, "description": "Corpus id."},
+    "patterns": {"type": "array", "default": null, "description": "Token patterns (e.g. ['NOUN', 'ADJ NOUN', 'NOUN ADP NOUN']); default: a set for the corpus language word order."},
+    "mode": {"type": "string", "default": "auto", "description": "auto, pos or stopwords (see term_candidates)."},
+    "min_freq": {"type": "integer", "default": 3, "description": "Minimum frequency."},
+    "min_range": {"type": "integer", "default": 2, "description": "Minimum number of texts."},
+    "min_length": {"type": "integer", "default": 1, "description": "Minimum words per term (2 = multi-word terms only)."},
+    "top": {"type": "integer", "default": 60, "description": "Candidates to enrich and return."},
+    "export_path": {"type": "string", "default": null, "description": "Optional .xlsx/.tsv path for the final table."}
+  },
+  "steps": [
+    {"id": "candidates", "tool": "term_candidates", "args": {"corpus": "$params.corpus", "mode": "$params.mode", "patterns": "$params.patterns", "min_freq": "$params.min_freq", "min_range": "$params.min_range", "limit": 0}},
+    {"id": "scored", "tool": "result_derive", "args": {"result_id": "$candidates.result_id", "columns": {"CVALUE": "round(c_value(TERM, FREQUENCY), 2)", "TEXTS_PCT": "round(RANGE * 100 / corpus_texts('${params.corpus}'), 1)"}, "limit": 0}},
+    {"id": "ranked", "tool": "result_filter", "args": {"result_id": "$scored.result_id", "where": "LENGTH >= ${params.min_length} and CVALUE > 0", "sort_by": "CVALUE", "keep": "$params.top", "limit": 0}},
+    {"id": "glossary", "tool": "result_enrich", "args": {"result_id": "$ranked.result_id", "column": "TERM", "corpus": "$params.corpus", "add": ["dispersion", "example", "definition", "collocates"], "max_rows": "$params.top", "limit": "$params.top"}},
+    {"id": "export", "tool": "result_export", "when": "$params.export_path", "args": {"result_id": "$glossary.result_id", "output_path": "$params.export_path", "sheet_name": "Glossary"}}
+  ],
+  "output": "glossary",
+  "interpretation": "CVALUE ranks termhood: frequent candidates that are not just fragments of longer terms score higher (it uses log2(length+1), so single words are included). TEXTS_PCT and DP show whether a term is general to the corpus or tied to a few texts. EXAMPLE gives a usage sentence; DEFINITION is a heuristic definitional context (verify it); TOP_COLLOCATES help write the entry. Remove generic words that are frequent but not terms (e.g. 'experience', 'ability') - for domain specificity run glossary-contrastive with a general reference corpus. Propose a definition for each retained term grounded in the example/definition sentences and cite the file."
+}

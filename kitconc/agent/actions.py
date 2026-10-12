@@ -123,6 +123,11 @@ def _read_info_tab(info_file: Path) -> dict[str, str]:
     return {key.lower(): value for key, value in kit_util.parse_info_tab(str(info_file))}
 
 
+def _columns(df) -> list[str]:
+    """Column names of a result, kept so empty results still describe their schema."""
+    return [str(c) for c in df.columns]
+
+
 def _df_to_records(df, limit: int | None = None) -> list[dict[str, Any]]:
     if limit is not None and limit >= 0:
         df = df.head(limit)
@@ -501,7 +506,7 @@ class KitconcActions:
                                  regexp=regexp, stoplist=stoplist, allowlist=allowlist,
                                  dispersion=dispersion, verbose=False)
         records = _df_to_records(result.df, limit)
-        return {"rows": records, "total": len(result.df)}
+        return {"rows": records, "total": len(result.df), "columns": _columns(result.df)}
 
     def keywords(
         self,
@@ -563,7 +568,7 @@ class KitconcActions:
             verbose=False,
         )
         records = _df_to_records(result.df, limit)
-        return {"rows": records, "total": len(result.df)}
+        return {"rows": records, "total": len(result.df), "columns": _columns(result.df)}
 
     def keywords_typed(self, request: KeywordsRequest) -> TabularResult:
         data = self.keywords(request)
@@ -624,7 +629,7 @@ class KitconcActions:
             positions = (list(kpf) + [None, None, None])[:3]
             result.kpf(*positions)
         records = _df_to_records(result.df, limit=None)
-        return {"rows": records, "total": len(result.df)}
+        return {"rows": records, "total": len(result.df), "columns": _columns(result.df)}
 
     def kwic_typed(self, request: KwicRequest) -> TabularResult:
         data = self.kwic(request)
@@ -656,7 +661,7 @@ class KitconcActions:
             verbose=False,
         )
         records = _df_to_records(result.df, limit=None)
-        return {"rows": records, "total": len(result.df)}
+        return {"rows": records, "total": len(result.df), "columns": _columns(result.df)}
 
     def collocates(
         self,
@@ -700,7 +705,7 @@ class KitconcActions:
             verbose=False,
         )
         records = _df_to_records(result.df, limit=None)
-        return {"rows": records, "total": len(result.df)}
+        return {"rows": records, "total": len(result.df), "columns": _columns(result.df)}
 
     def collgraph(
         self,
@@ -746,7 +751,7 @@ class KitconcActions:
             graph = CollGraph(node=node)
             graph.plot_graphcoll(coll)
         records = _df_to_records(coll.df, limit=None)
-        return {"rows": records, "total": len(coll.df)}
+        return {"rows": records, "total": len(coll.df), "columns": _columns(coll.df)}
 
     def collgraph_typed(self, request: CollgraphRequest) -> TabularResult:
         data = self.collgraph(request)
@@ -762,7 +767,7 @@ class KitconcActions:
         corpus = self._open_corpus(selected)
         result = corpus.wtfreq(lowercase=lowercase, verbose=False)
         records = _df_to_records(result.df, limit)
-        return {"rows": records, "total": len(result.df)}
+        return {"rows": records, "total": len(result.df), "columns": _columns(result.df)}
 
     def wfreqinfiles(
         self,
@@ -774,7 +779,7 @@ class KitconcActions:
         corpus = self._open_corpus(selected)
         result = corpus.wfreqinfiles(lowercase=lowercase, verbose=False)
         records = _df_to_records(result.df, limit)
-        return {"rows": records, "total": len(result.df)}
+        return {"rows": records, "total": len(result.df), "columns": _columns(result.df)}
 
     def clusters(
         self,
@@ -813,7 +818,7 @@ class KitconcActions:
             verbose=False,
         )
         records = _df_to_records(result.df, limit)
-        return {"rows": records, "total": len(result.df)}
+        return {"rows": records, "total": len(result.df), "columns": _columns(result.df)}
 
     def ngrams(
         self,
@@ -844,7 +849,7 @@ class KitconcActions:
             verbose=False,
         )
         records = _df_to_records(result.df, limit)
-        return {"rows": records, "total": len(result.df)}
+        return {"rows": records, "total": len(result.df), "columns": _columns(result.df)}
 
     def pframes(
         self,
@@ -866,7 +871,7 @@ class KitconcActions:
         result = corpus.pframes(size=size, slots=slots, pos=pos, minfreq=minfreq, minrange=minrange,
                                 min_variants=min_variants, lowercase=lowercase, stoplist=stoplist)
         records = _df_to_records(result.df, limit)
-        return {"rows": records, "total": len(result.df)}
+        return {"rows": records, "total": len(result.df), "columns": _columns(result.df)}
 
     def lemmalist(
         self,
@@ -885,7 +890,7 @@ class KitconcActions:
         result = corpus.lemmalist(lemma_file=lemma_file, lemma_format=lemma_format, min_freq=min_freq,
                                   min_range=min_range, stoplist=stoplist)
         records = _df_to_records(result.df, limit)
-        return {"rows": records, "total": len(result.df)}
+        return {"rows": records, "total": len(result.df), "columns": _columns(result.df)}
 
     def dispersion_measures(
         self,
@@ -900,7 +905,7 @@ class KitconcActions:
         corpus = self._open_corpus(selected)
         result = corpus.dispersion_measures(words, min_freq=min_freq, lowercase=lowercase)
         records = _df_to_records(result.df, limit)
-        return {"rows": records, "total": len(result.df)}
+        return {"rows": records, "total": len(result.df), "columns": _columns(result.df)}
 
     def fileview(
         self,
@@ -981,6 +986,7 @@ class KitconcActions:
         records = _df_to_records(result.df, limit=None)
         return {
             "rows": records,
+            "columns": _columns(result.df),
             "total": len(result.df),
             "stats": result.stats,
             "totals": {
@@ -1023,6 +1029,7 @@ class KitconcActions:
         records = _df_to_records(result.df, limit=None)
         return {
             "rows": records,
+            "columns": _columns(result.df),
             "total": len(result.df),
             "totals": {
                 "s1": result.total_s1,

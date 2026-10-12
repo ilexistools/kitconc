@@ -1,0 +1,19 @@
+{
+  "name": "word-frequency-comparison",
+  "title": "Word frequencies across corpora",
+  "description": "Frequency of a list of words in several corpora side by side, normalized per million tokens, in long format (one row per word and corpus) and as totals per word. Useful for variation across genres, periods (subcorpora) or varieties.",
+  "tags": ["comparison", "lexis"],
+  "params": {
+    "corpora": {"type": "array", "required": true, "description": "Corpus ids to compare."},
+    "words": {"type": "array", "required": true, "description": "Words to look up."}
+  },
+  "steps": [
+    {"id": "counts", "tool": "analyze_wordlist", "foreach": "$params.corpora", "as": "c", "args": {"corpus": "$c", "allowlist": "$params.words", "limit": 0}},
+    {"id": "stacked", "tool": "result_combine", "args": {"result_ids": "$counts.result_ids", "operation": "union", "key": "WORD", "source_column": "CORPUS", "labels": "$params.corpora", "deduplicate": false, "limit": 0}},
+    {"id": "normalized", "tool": "result_derive", "args": {"result_id": "$stacked.result_id", "columns": {"PER_MILLION": "round(per_million(FREQUENCY, corpus_tokens(CORPUS)), 2)"}, "limit": 0}},
+    {"id": "table", "tool": "result_filter", "args": {"result_id": "$normalized.result_id", "fields": ["WORD", "CORPUS", "FREQUENCY", "PER_MILLION"], "sort_by": "WORD", "descending": false, "limit": 200}},
+    {"id": "totals", "tool": "result_aggregate", "args": {"result_id": "$normalized.result_id", "group_by": ["WORD"], "aggregations": {"CORPORA": "nunique(CORPUS)", "TOTAL_FREQ": "sum(FREQUENCY)", "MAX_PER_MILLION": "max(PER_MILLION)", "MIN_PER_MILLION": "min(PER_MILLION)"}, "sort_by": "TOTAL_FREQ"}}
+  ],
+  "output": "table",
+  "interpretation": "Compare PER_MILLION, not raw FREQUENCY, because corpora differ in size. Words absent from a corpus have no row for it (CORPORA in 'totals' tells in how many corpora each word occurs). For a significance test between two corpora use compare-corpora, or result_join + result_derive with log_likelihood/log_ratio."
+}

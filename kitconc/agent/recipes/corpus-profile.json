@@ -1,0 +1,22 @@
+{
+  "name": "corpus-profile",
+  "title": "Corpus profile",
+  "description": "First look at a corpus: size, per-text statistics, frequent content words, keywords against the bundled reference list, recurrent phraseology and term candidates.",
+  "tags": ["overview", "lexis"],
+  "params": {
+    "corpus": {"type": "string", "required": true, "description": "Corpus id."},
+    "top": {"type": "integer", "default": 25, "description": "Rows returned per list."}
+  },
+  "steps": [
+    {"id": "info", "tool": "corpus_info", "args": {"corpus": "$params.corpus"}},
+    {"id": "texts", "tool": "text_stats", "args": {"corpus": "$params.corpus", "limit": 0}},
+    {"id": "texts_all", "tool": "result_derive", "args": {"result_id": "$texts.result_id", "columns": {"CORPUS": "'${params.corpus}'"}, "limit": 0}},
+    {"id": "text_summary", "tool": "result_aggregate", "args": {"result_id": "$texts_all.result_id", "group_by": ["CORPUS"], "aggregations": {"TEXTS": "count()", "MEAN_TOKENS": "mean(TOKENS)", "MEDIAN_TOKENS": "median(TOKENS)", "MIN_TOKENS": "min(TOKENS)", "MAX_TOKENS": "max(TOKENS)", "MEAN_TTR": "mean(TTR)", "MEAN_SENTENCE_LENGTH": "mean(MEAN_SENTENCE_LENGTH)"}}},
+    {"id": "content_words", "tool": "analyze_wordlist", "args": {"corpus": "$params.corpus", "stoplist": "default", "min_range": 2, "dispersion": true, "limit": "$params.top"}},
+    {"id": "keywords", "tool": "analyze_keywords", "args": {"corpus": "$params.corpus", "effect": ["log-ratio"], "p_value": "p<0.01", "min_range": 2, "polarity": "positive", "limit": "$params.top"}},
+    {"id": "bundles", "tool": "analyze_ngrams", "args": {"corpus": "$params.corpus", "size": 3, "min_freq": 3, "min_range": 3, "limit": "$params.top"}},
+    {"id": "terms", "tool": "term_candidates", "args": {"corpus": "$params.corpus", "min_freq": 3, "min_range": 2, "limit": "$params.top"}}
+  ],
+  "output": "keywords",
+  "interpretation": "Report size (texts, tokens, types; TTR is a percentage and depends on corpus size), the spread of text lengths (texts result: TOKENS, SENTENCES), the most frequent content words with their dispersion (DP near 0 = evenly spread, near 1 = concentrated), the strongest keywords (KEYNESS = log-likelihood, LOG-RATIO = effect size; a log-ratio of 1 means twice as frequent as in the reference) and recurrent 3-grams and term candidates as signs of the corpus' phraseology and topics. Page each list with result_page using the result_ids."
+}

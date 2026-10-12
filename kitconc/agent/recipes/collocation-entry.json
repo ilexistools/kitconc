@@ -1,0 +1,28 @@
+{
+  "name": "collocation-entry",
+  "title": "Collocation dictionary entry",
+  "description": "A collocation-dictionary style entry for a word: its collocates grouped by part of speech (nouns, adjectives, verbs, adverbs), ranked by log-dice, using the corpus' own tagset mapped to coarse categories, plus a KWIC sample.",
+  "tags": ["lexis", "phraseology", "lexicography"],
+  "params": {
+    "corpus": {"type": "string", "required": true, "description": "Corpus id (must be POS-tagged)."},
+    "node": {"type": "string", "required": true, "description": "Headword."},
+    "span": {"type": "integer", "default": 4, "description": "Collocation window on each side."},
+    "min_freq": {"type": "integer", "default": 2, "description": "Minimum co-occurrence frequency."},
+    "min_logdice": {"type": "number", "default": 0, "description": "Minimum log-dice score."},
+    "tag_map": {"type": "object", "default": null, "description": "Optional raw tag -> category overrides (see corpus_tagset)."}
+  },
+  "steps": [
+    {"id": "collocates", "tool": "analyze_collocates", "args": {"corpus": "$params.corpus", "node": "$params.node", "measure": "log-dice", "extra_measures": ["mutual information", "t-score"], "left_span": "$params.span", "right_span": "$params.span", "min_freq": "$params.min_freq", "limit": 0}},
+    {"id": "word_tags", "tool": "analyze_word_tag_freq", "args": {"corpus": "$params.corpus", "limit": 0}},
+    {"id": "tagset", "tool": "corpus_tagset", "args": {"corpus": "$params.corpus", "tag_map": "$params.tag_map", "limit": 0}},
+    {"id": "word_categories", "tool": "result_join", "args": {"left_id": "$word_tags.result_id", "right_id": "$tagset.result_id", "on": "TAG", "right_fields": ["CATEGORY"], "ignore_case": false, "limit": 0}},
+    {"id": "by_frequency", "tool": "result_filter", "args": {"result_id": "$word_categories.result_id", "sort_by": "FREQUENCY", "limit": 0}},
+    {"id": "dominant", "tool": "result_aggregate", "args": {"result_id": "$by_frequency.result_id", "group_by": ["WORD"], "aggregations": {"CATEGORY": "first(CATEGORY)"}, "limit": 0}},
+    {"id": "tagged", "tool": "result_join", "args": {"left_id": "$collocates.result_id", "right_id": "$dominant.result_id", "on": "WORD", "right_fields": ["CATEGORY"], "limit": 0}},
+    {"id": "lexical", "tool": "result_filter", "args": {"result_id": "$tagged.result_id", "where": "CATEGORY in ['NOUN', 'PROPN', 'ADJ', 'VERB', 'ADV'] and not is_stopword(WORD) and ASSOCIATION >= ${params.min_logdice}", "sort_by": "ASSOCIATION", "limit": 0}},
+    {"id": "entry", "tool": "result_aggregate", "args": {"result_id": "$lexical.result_id", "group_by": ["CATEGORY"], "aggregations": {"COLLOCATES": "list(WORD)", "N": "count()", "BEST_LOGDICE": "max(ASSOCIATION)"}, "sort_by": "N"}},
+    {"id": "kwic", "tool": "analyze_kwic", "args": {"corpus": "$params.corpus", "node": "$params.node", "sample": 15, "seed": 11, "limit": 15}}
+  ],
+  "output": "entry",
+  "interpretation": "Each row of 'entry' is a part of speech with its strongest collocates in log-dice order (up to 10; page 'lexical' for all, with LEFT/RIGHT counts showing position). The category of each collocate is its most frequent tag in the corpus, mapped to a coarse category - check corpus_tagset if categories look wrong and pass tag_map. Write the entry as in a collocation dictionary: ADJ + node, VERB + node, node + NOUN..., using LEFT/RIGHT to decide position and KWIC lines as examples. On untagged corpora every category is X and the entry is empty; use word-profile instead."
+}

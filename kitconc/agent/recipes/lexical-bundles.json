@@ -1,0 +1,23 @@
+{
+  "name": "lexical-bundles",
+  "title": "Lexical bundles and phrase frames",
+  "description": "Recurrent word sequences (lexical bundles) above a normalized frequency and range threshold, with dispersion and examples, plus the phrase frames (p-frames) that show their variable slots. Useful for EAP/ESP teaching materials and register studies.",
+  "tags": ["phraseology", "teaching"],
+  "params": {
+    "corpus": {"type": "string", "required": true, "description": "Corpus id."},
+    "size": {"type": "integer", "default": 4, "description": "Bundle length in words (3-5)."},
+    "min_per_million": {"type": "number", "default": 20, "description": "Minimum normalized frequency (Biber et al. use 20-40 per million)."},
+    "min_range": {"type": "integer", "default": 3, "description": "Minimum number of texts."},
+    "top": {"type": "integer", "default": 50, "description": "Bundles returned."},
+    "examples": {"type": "integer", "default": 20, "description": "Bundles to enrich with dispersion and examples."}
+  },
+  "steps": [
+    {"id": "ngrams", "tool": "analyze_ngrams", "args": {"corpus": "$params.corpus", "size": "$params.size", "min_freq": 2, "min_range": "$params.min_range", "limit": 0}},
+    {"id": "normalized", "tool": "result_derive", "args": {"result_id": "$ngrams.result_id", "columns": {"PER_MILLION": "round(per_million(FREQUENCY, corpus_tokens('${params.corpus}')), 1)"}, "limit": 0}},
+    {"id": "bundles", "tool": "result_filter", "args": {"result_id": "$normalized.result_id", "where": "PER_MILLION >= ${params.min_per_million} and matches(col('N-GRAM'), '^[^\\\\W\\\\d_]+([ ][^\\\\W\\\\d_]+)*$')", "sort_by": "FREQUENCY", "keep": "$params.top", "rename": {"N-GRAM": "BUNDLE"}, "limit": "$params.top"}},
+    {"id": "evidence", "tool": "result_enrich", "args": {"result_id": "$bundles.result_id", "column": "BUNDLE", "corpus": "$params.corpus", "add": ["dispersion", "example"], "max_rows": "$params.examples", "limit": "$params.examples"}},
+    {"id": "frames", "tool": "analyze_pframes", "args": {"corpus": "$params.corpus", "size": "$params.size", "min_freq": 3, "min_variants": 2, "limit": 30}}
+  ],
+  "output": "bundles",
+  "interpretation": "Bundles are frequent, widely distributed word sequences (only sequences made of words are kept). Classify them by function (referential: 'the end of the'; stance: 'it is important to'; discourse organizing: 'on the other hand') and by structure (NP/PP-based, VP-based, dependent-clause). P-frames show fixed frames with a variable slot (TOP_VARIANTS lists the fillers; high ENTROPY = open slot). Use EXAMPLE sentences from 'evidence' for teaching material."
+}
