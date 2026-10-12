@@ -83,6 +83,46 @@ VS Code (`.vscode/mcp.json`):
 HTTP clients connect to `http://127.0.0.1:8001/mcp` after starting the server with
 `--transport streamable-http`.
 
+Codex (`~/.codex/config.toml`):
+
+```toml
+[mcp_servers.kitconc]
+command = "uvx"
+args = ["--from", "kitconc", "kitconc-mcp", "--workspace", "/data/kitconc_workspace"]
+```
+
+### Without MCP: `kitconc-tool`
+
+`kitconc-tool` runs the same tools in-process and prints JSON — for coding agents, scripts and
+clients without MCP support:
+
+```bash
+kitconc-tool --workspace /data/kitconc_workspace workspace_info
+kitconc-tool analyze_collocates '{"corpus": "ads", "node": "skills", "measure": "log-dice"}'
+echo '{"name": "corpus-qa", "params": {"corpus": "ads"}}' | kitconc-tool recipe_run -
+kitconc-tool --list
+```
+
+Arguments are one JSON object (or `-` to read it from stdin). Errors are printed as the same JSON
+error payload with exit code 1. Results persist in the workspace, so `result_id`s returned by one
+call can be used in the next. `job_start` is not available because each call is a separate process;
+run tools, pipelines and recipes directly.
+
+### Agent skill for Claude and Codex
+
+`kitconc/agent/skill/kitconc/` is an [Agent Skills](https://agentskills.io) folder (`SKILL.md` plus
+references on pipelines, expressions and the Python API). It tells the assistant how to reach
+Kitconc (MCP, `kitconc-tool` or Python), which recipe answers which question, how to choose
+measures and how to report evidence.
+
+```bash
+kitconc-skill install                   # ~/.claude/skills/kitconc and ~/.agents/skills/kitconc
+kitconc-skill install --target claude   # or --target codex
+kitconc-skill install --scope project   # ./.claude/skills and ./.agents/skills
+kitconc-skill install --dest DIR        # any skills folder; --force replaces an installation
+kitconc-skill path                      # location of the bundled skill
+```
+
 ## Architecture
 
 ```
@@ -101,6 +141,9 @@ kitconc/agent/
 ├── jobs.py          JobManager, job_start / job_status / job_cancel
 ├── progress.py      progress reporting and cooperative cancellation
 ├── resources.py     MCP resources, recipe prompts, argument completion
+├── tool_cli.py      kitconc-tool: the same tools from the command line (JSON in/out)
+├── skill_installer.py  kitconc-skill: installs the agent skill for Claude and Codex
+├── skill/kitconc/   the agent skill (SKILL.md + references/)
 └── guides/*.md      guides served by guide_read and kitconc://guide/<name>
 ```
 

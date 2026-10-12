@@ -49,12 +49,14 @@ dev = [
 [project.scripts]
 kitconc-app = "kitconc.cli_app:main"
 kitconc-mcp = "kitconc.agent.mcp_server:main"
+kitconc-tool = "kitconc.agent.tool_cli:main"
+kitconc-skill = "kitconc.agent.skill_installer:main"
 
 [tool.setuptools.packages.find]
 exclude = ["tests", "tests.*"]
 
 [tool.setuptools.package-data]
-kitconc = ["data/*.*", "data/images/*.*", "data/scripts/*.*", "agent/guides/*.md", "agent/recipes/*.json"]
+kitconc = ["data/*.*", "data/images/*.*", "data/scripts/*.*", "agent/guides/*.md", "agent/recipes/*.json", "agent/skill/kitconc/*.md", "agent/skill/kitconc/references/*.md"]
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
