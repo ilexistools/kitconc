@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Author: jlopes@alumni.usp.br
-"""Additional corpus analyses inspired by AntConc 4.
+"""Additional corpus analyses: search options, statistics and new analyses.
 
 All functions read the file-based corpus index created by kitconc
 (``data/npy/*.npy`` arrays with columns word_id, tag_id, sent_id, file_id and
@@ -35,7 +35,7 @@ def _npy_files(workspace: str, corpus_name: str) -> List[str]:
 # ---------------------------------------------------------------------------
 
 def wildcard_to_regex(query: str) -> str:
-    """Converts an AntConc-style wildcard query into kitconc's token regex syntax.
+    """Converts a wildcard query (* ? + | [a,b]) into kitconc's token regex syntax.
 
     Each space-separated token is converted independently:
       ``*``           any sequence of characters (``teach*``, ``*ing``)
@@ -196,7 +196,7 @@ def _kwic_position(row, position: str) -> str:
 
 
 def kwic_pattern_frequency(df, positions: Sequence[str] = ('R1', 'R2', 'R3'), sort: bool = True):
-    """KWIC Pattern Frequency (AntConc's KPF).
+    """KWIC Pattern Frequency (KPF): frequency of the words at given positions around the node.
 
     Adds the columns PATTERN (words in the given positions) and KPF (number of
     lines sharing that pattern). When ``sort`` is True, lines are ordered by
@@ -278,7 +278,7 @@ def load_lemma_map(source: str, fmt: str = 'auto') -> Dict[str, str]:
 
     fmt:
       'form-lemma'      one ``form<TAB>lemma`` pair per line (kitconc bundled lists)
-      'headword-forms'  ``headword<TAB>form1<TAB>form2...`` (AntConc lemma lists;
+      'headword-forms'  ``headword<TAB>form1<TAB>form2...`` (common headword list format;
                         ``headword -> form1, form2`` is also accepted)
       'auto'            'headword-forms' if any line has more than two tab-separated
                         fields or uses `` -> ``, otherwise 'form-lemma'

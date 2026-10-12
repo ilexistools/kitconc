@@ -262,7 +262,7 @@ class Corpus (object):
                 pass
 
 
-    # helpers for optional (AntConc-like) features
+    # helpers for optional analysis features
 
     @staticmethod
     def _prepare_query(node, regexp=False, wildcards=False):
@@ -2030,12 +2030,12 @@ class Corpus (object):
 
     def lemmalist(self, **kwargs):
         """
-        Generates a frequency list of lemmas (headwords), as AntConc's Headword display.
+        Generates a frequency list of lemmas (headwords) with the forms counted under each one.
 
         Keyword Arguments:
           lemma_file (str, optional): Lemma list. Default: the bundled ``lemmas_<language>.tab``.
           lemma_format (str, optional): 'auto' (default), 'form-lemma' (``form<TAB>lemma``) or
-                                        'headword-forms' (``headword<TAB>form1<TAB>form2...``, AntConc style).
+                                        'headword-forms' (``headword<TAB>form1<TAB>form2...``).
           min_freq / min_range (int, optional): Minimum frequency / number of text files (default is 1).
           stoplist / allowlist (optional): Applied to lemmas.
           unlisted (bool, optional): Keep words not found in the lemma list as their own lemma (default True).

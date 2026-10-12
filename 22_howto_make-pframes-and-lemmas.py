@@ -6,7 +6,7 @@ print(clusters.df.head(10))
 # p-frames: n-grams with open slots, e.g. "the * of"
 pframes = corpus.pframes(size=3,slots=[2],verbose=True)
 print(pframes.df.head(10))
-# lemma list (bundled English list or lemma_file='my_lemmas.txt' in AntConc format)
+# lemma list (bundled English list or lemma_file='my_lemmas.txt' in headword-forms format)
 lemmas = corpus.lemmalist()
 print(lemmas.df.head(10))
 pframes.save_excel(corpus.output_path + 'pframes.xlsx')

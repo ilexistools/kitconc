@@ -884,7 +884,7 @@ class KitconcActions:
         limit: int | None = None,
     ) -> dict[str, Any]:
         """Frequency list of lemmas (headwords) with their forms. lemma_file defaults to the bundled list
-        of the corpus language; lemma_format: auto, form-lemma or headword-forms (AntConc style)."""
+        of the corpus language; lemma_format: auto, form-lemma or headword-forms (headword<TAB>form1<TAB>form2...)."""
         selected = self._resolve_corpus_name(corpus_name)
         corpus = self._open_corpus(selected)
         result = corpus.lemmalist(lemma_file=lemma_file, lemma_format=lemma_format, min_freq=min_freq,

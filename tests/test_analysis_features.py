@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Tests for the AntConc-inspired features (statistics, search options, new analyses)."""
+"""Tests for the advanced analysis features (statistics, search options, new analyses)."""
 import math
 import os
 import zipfile

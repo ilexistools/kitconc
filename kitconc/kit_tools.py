@@ -458,7 +458,7 @@ class Kwic(object):
         return s 
 
     def kpf(self, first='R1', second='R2', third='R3', sort=True):
-        """Adds KWIC Pattern Frequency (AntConc's KPF) columns PATTERN and KPF.
+        """Adds KWIC Pattern Frequency (KPF) columns PATTERN and KPF.
 
         Lines are grouped by the words in the given positions (L1..L5, R1..R5 or N for the node);
         with ``sort`` the most frequent patterns come first. Returns self.

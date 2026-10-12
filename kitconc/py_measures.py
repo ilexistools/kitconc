@@ -136,7 +136,7 @@ def effect_size(freq_tar: float, freq_ref: float, tokens_tar: float, tokens_ref:
     """Effect size of a keyword comparison (target vs. reference).
 
     Zero reference frequencies are replaced by 0.5 for ratio-based measures,
-    as in AntConc and Hardie's Log Ratio.
+    following Hardie's Log Ratio.
     """
     if tokens_tar <= 0 or tokens_ref <= 0:
         return 0.0
