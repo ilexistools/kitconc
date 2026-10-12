@@ -192,6 +192,69 @@ def load(filename: str, base_dir: Optional[str] = None) -> Any:
 
 _SKIP_FILES = {'.DS_Store', 'desktop.ini', 'Thumbs.db'}
 
+_TEXT_BOMS = (b'\xef\xbb\xbf', b'\xff\xfe', b'\xfe\xff')
+
+
+def is_probably_text(path: str, sniff_bytes: int = 8192) -> bool:
+    """Returns False for binary files (NUL bytes without a UTF-16/32 BOM), e.g. databases or images."""
+    with open(path, 'rb') as fh:
+        head = fh.read(sniff_bytes)
+    if head.startswith(_TEXT_BOMS):
+        return True
+    return b'\x00' not in head
+
+
+def list_source_files(source_folder: str) -> tuple:
+    """Splits the files of a source folder into ``(accepted, skipped)`` file names.
+
+    Accepted files are plain-text files and documents with a converter in ``SOURCE_CONVERTERS``.
+    Skipped files are system files (``_SKIP_FILES``) and binary files such as SQLite databases.
+    """
+    accepted, skipped = [], []
+    for name in sorted(os.listdir(source_folder)):
+        path = os.path.join(source_folder, name)
+        if not os.path.isfile(path):
+            continue
+        if name in _SKIP_FILES:
+            skipped.append(name)
+        elif os.path.splitext(name)[1].lower() in SOURCE_CONVERTERS or is_probably_text(path):
+            accepted.append(name)
+        else:
+            skipped.append(name)
+    return accepted, skipped
+
+
+INFO_TAB_KEYS = ('workspace', 'corpus name', 'language', 'encoding', 'Textfiles', 'Source',
+                 'Tokens', 'Types', 'Type/token')
+
+
+def parse_info_tab(path: str) -> list:
+    """Reads an ``info.tab`` file as an ordered list of ``(key, value)`` pairs.
+
+    Keys keep their original case, without the trailing colon. Lines merged by older versions
+    (e.g. ``encoding:\\tutf-8Textfiles:\\t98``) are split at the known keys.
+    """
+    import re
+
+    with open(path, 'r', encoding='utf-8') as fh:
+        content = fh.read()
+    keys = '|'.join(re.escape(k) for k in INFO_TAB_KEYS)
+    content = re.sub(r'(?<=[^\n\t])(?=(?:%s):\t)' % keys, '\n', content)
+    pairs = []
+    for line in content.splitlines():
+        line = line.strip()
+        if '\t' not in line:
+            continue
+        key, value = line.split('\t', 1)
+        pairs.append((key.rstrip(':').strip(), value.strip()))
+    return pairs
+
+
+def write_info_tab(path: str, pairs) -> None:
+    """Writes ``(key, value)`` pairs to an ``info.tab`` file, one ``key:\\tvalue`` per line."""
+    with open(path, 'w', encoding='utf-8') as fh:
+        fh.write(''.join('%s:\t%s\n' % (key, value) for key, value in pairs))
+
 
 def _pdf_to_text(pdf_path: str) -> str:
     """Extracts plain text from a PDF file.
@@ -396,6 +459,8 @@ def prepare_source_folder(source_folder: str) -> tuple:
     If the folder contains PDF, Word (.docx), OpenDocument (.odt), EPUB,
     HTML/XHTML or XML files, creates a temporary directory where each one is
     converted to a plain-text .txt file (other files are copied as-is).
+    Binary files (see ``list_source_files``) are left out; when there are any,
+    the temporary directory holds only the accepted files.
     Returns ``(effective_folder, temp_folder_or_None)``.
 
     The caller is responsible for deleting ``temp_folder`` (when not None)
@@ -407,13 +472,11 @@ def prepare_source_folder(source_folder: str) -> tuple:
     if not source_folder.endswith('/'):
         source_folder = source_folder + '/'
 
-    all_files = [
-        f for f in os.listdir(source_folder)
-        if f not in _SKIP_FILES and os.path.isfile(os.path.join(source_folder, f))
-    ]
+    all_files, skipped = list_source_files(source_folder)
+    skipped = [f for f in skipped if f not in _SKIP_FILES]
     convert_files = [f for f in all_files if os.path.splitext(f)[1].lower() in SOURCE_CONVERTERS]
 
-    if not convert_files:
+    if not convert_files and not skipped:
         return source_folder, None
 
     # At least one document to convert — build a temp copy of the folder

@@ -32,6 +32,7 @@ import platform
 import shutil
 import pickle
 import tempfile
+import warnings
 import re
 from pathlib import Path
 from kitconc.archive import download_and_import_corpus, import_corpus_zip
@@ -210,13 +211,9 @@ class Corpus (object):
         language (str): The language associated with the corpus.
         encoding (str): The text encoding format (e.g., 'utf-8') for the corpus files.
         """
-        info = []
-        info.append('workspace:' + '\t' + workspace)
-        info.append('corpus name:' + '\t' + corpus_name)
-        info.append('language:' + '\t' + language)
-        info.append('encoding:' + '\t' + encoding)
-        with open(workspace + corpus_name + '/info.tab', 'w', encoding='utf-8') as fh:
-            fh.write('\n'.join(info))
+        info = [('workspace', workspace), ('corpus name', corpus_name), ('language', language),
+                ('encoding', encoding)]
+        kit_util.write_info_tab(workspace + corpus_name + '/info.tab', info)
 
     
     def __load_corpus_info(self, workspace, corpus_name):
@@ -234,14 +231,7 @@ class Corpus (object):
         Returns:
         dict: A dictionary containing corpus metadata with keys such as 'workspace', 'corpus name', 'language', and 'encoding'.
         """
-        info = {}
-        with open(workspace + corpus_name + '/info.tab', 'r', encoding='utf-8') as fh:
-            for line in fh:
-                if len(line.strip()) != 0:
-                    fields = line.strip().split('\t')
-                    if len(fields) >= 2:
-                        info[fields[0].replace(':', '')] = fields[1]
-        return info
+        return dict(kit_util.parse_info_tab(workspace + corpus_name + '/info.tab'))
 
     
     # show progress function
@@ -354,9 +344,13 @@ class Corpus (object):
         if not source_path.is_dir():
             raise ValueError(f"Source folder does not exist: {source_path}")
         skipped_names = {'.DS_Store', 'desktop.ini', 'Thumbs.db'}
-        source_files = [path for path in source_path.iterdir() if path.is_file() and path.name not in skipped_names]
+        accepted, skipped = kit_util.list_source_files(str(source_path))
+        binary_skipped = [name for name in skipped if name not in skipped_names]
+        if binary_skipped:
+            warnings.warn(f"Skipping binary files in {source_path}: {', '.join(binary_skipped)}", stacklevel=2)
+        source_files = [source_path / name for name in accepted]
         if not source_files:
-            raise ValueError(f"Source folder contains no files: {source_path}")
+            raise ValueError(f"Source folder contains no text files: {source_path}")
         if any(path.stat().st_size == 0 for path in source_files):
             raise ValueError(f"Empty file found in {source_path}; remove it before proceeding.")
 
@@ -547,37 +541,16 @@ class Corpus (object):
         ntexts = int(kwargs.get('_processed_file_count', 0))
         original_source = kwargs.get('_source_path', source_folder)
         info_path = Path(self.workspace) / self.corpus_name / 'info.tab'
-        existing_info = {}
-        if info_path.is_file():
-            with info_path.open('r', encoding='utf-8') as fh:
-                for line in fh:
-                    if '\t' in line:
-                        key, value = line.rstrip('\r\n').split('\t', 1)
-                        existing_info[key.rstrip(':').strip().lower()] = value.strip()
+        pairs = kit_util.parse_info_tab(str(info_path)) if info_path.is_file() else []
+        existing_info = {key.lower(): value for key, value in pairs}
         try:
             total_texts = int(existing_info.get('textfiles', '0')) + ntexts
         except ValueError:
             total_texts = ntexts
-        lines = []
-        wrote_texts = wrote_source = False
-        with info_path.open('r', encoding='utf-8') as fh:
-            for line in fh:
-                key = line.split('\t', 1)[0].rstrip(':').strip().lower()
-                if key == 'textfiles':
-                    if not wrote_texts:
-                        lines.append(f'Textfiles:\t{total_texts}\n')
-                        wrote_texts = True
-                elif key == 'source':
-                    if not wrote_source:
-                        lines.append(f'Source:\t{original_source}\n')
-                        wrote_source = True
-                else:
-                    lines.append(line)
-        if not wrote_texts:
-            lines.append(f'Textfiles:\t{total_texts}\n')
-        if not wrote_source:
-            lines.append(f'Source:\t{original_source}\n')
-        info_path.write_text(''.join(lines).rstrip('\n') + '\n', encoding='utf-8')
+        pairs = [(key, value) for key, value in pairs if key.lower() not in ('textfiles', 'source')]
+        position = next((i + 1 for i, (key, _) in enumerate(pairs) if key.lower() == 'encoding'), len(pairs))
+        pairs[position:position] = [('Textfiles', total_texts), ('Source', original_source)]
+        kit_util.write_info_tab(str(info_path), pairs)
         
         # Time end and print total time if progress display is enabled
         if verbose:

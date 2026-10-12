@@ -9,6 +9,7 @@ import PIL.Image
 import PIL.ImageTk
 import kitconc 
 from kitconc.kit_corpus import Corpus
+from kitconc import kit_util
 from kitconc.py_keywords import available_ref_languages
 from kitconc import version 
 from kitconc.kit_cmd import Kit 
@@ -1214,21 +1215,17 @@ class KitApp(Window):
         locale.setlocale(locale.LC_ALL, '')
         corpus_info = []
         if os.path.exists(self.kit.workspace +'/' + self.kit.corpus_in_use + '/info.tab'):
-            with open (self.kit.workspace +'/' + self.kit.corpus_in_use + '/info.tab','r', encoding='utf-8') as fh:
-                for line in fh:
-                    if len(line.strip())!=0:
-                        fields = line.strip().split('\t')
-                        if len(fields) >= 2:
-                            if fields[0].startswith('Textfiles'):
-                                corpus_info.append(self.__gui_lang[120] + ' %s' % locale.format_string("%d", int(fields[1]), grouping=True) )
-                            elif fields[0].startswith('Tokens'):
-                                corpus_info.append(self.__gui_lang[121] + ' %s' % locale.format_string("%d", int(fields[1]), grouping=True)  )
-                            elif fields[0].startswith('Types'):
-                                corpus_info.append(self.__gui_lang[122] + ' %s' % locale.format_string("%d", int(fields[1]), grouping=True) )
-                            elif fields[0].startswith('Type/token'):
-                                corpus_info.append(self.__gui_lang[123] + ' %s' % round(float(fields[1]),2) )
-                            elif fields[0].startswith('Source:'):
-                                self.textfiles_path = fields[1]
+            for key, value in kit_util.parse_info_tab(self.kit.workspace + '/' + self.kit.corpus_in_use + '/info.tab'):
+                if key == 'Textfiles':
+                    corpus_info.append(self.__gui_lang[120] + ' %s' % locale.format_string("%d", int(value), grouping=True) )
+                elif key == 'Tokens':
+                    corpus_info.append(self.__gui_lang[121] + ' %s' % locale.format_string("%d", int(value), grouping=True)  )
+                elif key == 'Types':
+                    corpus_info.append(self.__gui_lang[122] + ' %s' % locale.format_string("%d", int(value), grouping=True) )
+                elif key == 'Type/token':
+                    corpus_info.append(self.__gui_lang[123] + ' %s' % round(float(value),2) )
+                elif key == 'Source':
+                    self.textfiles_path = value
         return ' - '.join(corpus_info) + '     '
                         
                     

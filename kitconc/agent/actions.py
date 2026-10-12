@@ -118,17 +118,9 @@ def _normalize_path(path: str) -> str:
 
 
 def _read_info_tab(info_file: Path) -> dict[str, str]:
-    data: dict[str, str] = {}
     if not info_file.exists():
-        return data
-    with info_file.open("r", encoding="utf-8") as handle:
-        for line in handle:
-            row = line.strip()
-            if not row or "\t" not in row:
-                continue
-            key, value = row.split("\t", 1)
-            data[key.replace(":", "").strip().lower()] = value.strip()
-    return data
+        return {}
+    return {key.lower(): value for key, value in kit_util.parse_info_tab(str(info_file))}
 
 
 def _df_to_records(df, limit: int | None = None) -> list[dict[str, Any]]:

@@ -438,14 +438,8 @@ class Kit(Cmd):
                         if os.path.isdir(self.workspace + filename):
                             if os.path.exists(self.workspace + filename + '/info.tab') == True:
                                 d = {}
-                                with open(self.workspace + filename + '/info.tab','r',encoding='utf-8') as fh:
-                                    for line in fh:
-                                        if len(line.strip())!=0:
-                                            f = line.strip().split('\t')
-                                            k = f[0].replace(':','').lower()
-                                            v = f[1]
-                                            if k not in d:
-                                                d[k]=v
+                                for k, v in kit_util.parse_info_tab(self.workspace + filename + '/info.tab'):
+                                    d.setdefault(k.lower(), v)
                                 l = []
                                 if 'corpus name' in d:
                                     l.append(d['corpus name'])
@@ -586,14 +580,7 @@ class Kit(Cmd):
     
     
     def __corpus_info (self,corpus_name):
-        info = {}
-        with open(self.workspace + corpus_name + '/info.tab','r',encoding='utf-8') as fh:
-            for line in fh:
-                if len(line.strip()) !=0:
-                    fields = line.strip().split('\t')
-                    if len(fields) >= 2:
-                        info[fields[0].replace(':','')]=fields[1]
-        return info
+        return dict(kit_util.parse_info_tab(self.workspace + corpus_name + '/info.tab'))
     
     def do_create(self,arg):
         parser = self.get_parser('create')

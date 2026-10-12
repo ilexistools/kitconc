@@ -7,6 +7,8 @@ from typing import Any, Dict, List, Tuple
 
 import numpy as np
 
+from kitconc import kit_util
+
 
 def load_dict(dict_path: str) -> Any:
     with open(dict_path, 'rb') as fh:
@@ -107,8 +109,11 @@ def make_wordlist(workspace: str, corpus_name: str, language: str, lowercase: bo
         info = [tokens,types,type_token,hapax]
         with open(workspace + corpus_name + '/data/idx/info.pickle','wb') as fh:
             pickle.dump(info,fh)
-        with open(workspace + corpus_name + '/info.tab','a',encoding='utf-8') as fh:
-            fh.write('\nTokens:\t%s\nTypes:\t%s\nType/token:\t%s' % (tokens,types,type_token))
+        info_path = workspace + corpus_name + '/info.tab'
+        pairs = kit_util.parse_info_tab(info_path) if os.path.exists(info_path) else []
+        pairs = [(k, v) for k, v in pairs if k.lower() not in ('tokens', 'types', 'type/token')]
+        pairs += [('Tokens', tokens), ('Types', types), ('Type/token', type_token)]
+        kit_util.write_info_tab(info_path, pairs)
     return (tokens,types,type_token,hapax,wordlist)  
     
     
