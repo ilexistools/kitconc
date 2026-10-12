@@ -102,12 +102,13 @@ or (legacy SSE):
 
 kitconc-mcp --transport sse --host 127.0.0.1 --port 8001
 
-Semantic MCP tools:
-semantic_index_status (corpus_name, db_path)
-index_corpus (corpus_name, source_folder, db_path, model_name, chunk_size,
-              chunk_overlap, batch_size, rebuild)
-semantic_search (query, top_k, db_path, model_name, corpus_name)
-export_analysis_result (analysis_result, output_path, sheet_name)
+Semantic MCP tools::
+
+    semantic_index_status (corpus_name, db_path)
+    index_corpus (corpus_name, source_folder, db_path, model_name, chunk_size,
+                  chunk_overlap, batch_size, rebuild)
+    semantic_search (query, top_k, db_path, model_name, corpus_name)
+    export_analysis_result (analysis_result, output_path, sheet_name)
 
 Use index_corpus to create a per-corpus semantic index from TXT, Markdown,
 RST, and PDF files in the source folder recorded in info.tab. Set source_folder
@@ -123,7 +124,7 @@ To save an analysis result, pass its complete response object to
 export_analysis_result and set output_path to a filename ending in .tab,
 .tsv, or .xlsx. Only the response's rows are written; metadata such as total
 is not exported. TAB and TSV files are UTF-8 tab-delimited; XLSX accepts an
-optional sheet_name (1-31 characters, without []:*?/\\). Files are written
+optional sheet_name (1-31 characters; invalid characters: ``[]:*?/\\``). Files are written
 atomically and replace an existing destination only after a successful
 export. Parent directories are created when needed. The result reports the
 resolved output_path, format, rows_written, and columns_written.
