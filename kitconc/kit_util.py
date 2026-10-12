@@ -244,12 +244,159 @@ def _pdf_to_text(pdf_path: str) -> str:
     return text
 
 
+class _MarkupText:
+    """Collects the visible text of HTML/XML markup (stdlib only)."""
+
+    BLOCK_TAGS = {'p', 'div', 'br', 'li', 'tr', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+                  'title', 'section', 'article', 'blockquote', 'pre', 'td', 'th', 'dt', 'dd'}
+    SKIP_TAGS = {'script', 'style', 'head'}
+
+    @classmethod
+    def extract(cls, markup: str, xml: bool = False) -> str:
+        from html.parser import HTMLParser
+        import html as html_mod
+        import re as re_mod
+
+        if xml:
+            # XML: keep every text node, separate elements by line breaks
+            try:
+                import xml.etree.ElementTree as ET
+                root = ET.fromstring(markup)
+                parts = [t.strip() for t in root.itertext() if t and t.strip()]
+                return '\n'.join(parts)
+            except Exception:
+                pass
+
+        class Parser(HTMLParser):
+            def __init__(self):
+                super().__init__(convert_charrefs=True)
+                self.parts = []
+                self.skip = 0
+
+            def handle_starttag(self, tag, attrs):
+                if tag in cls.SKIP_TAGS:
+                    self.skip += 1
+                elif tag in cls.BLOCK_TAGS:
+                    self.parts.append('\n')
+
+            def handle_endtag(self, tag):
+                if tag in cls.SKIP_TAGS and self.skip:
+                    self.skip -= 1
+                elif tag in cls.BLOCK_TAGS:
+                    self.parts.append('\n')
+
+            def handle_data(self, data):
+                if not self.skip:
+                    self.parts.append(data)
+
+        parser = Parser()
+        parser.feed(markup)
+        parser.close()
+        text = html_mod.unescape(''.join(parser.parts))
+        text = re_mod.sub(r'[ \t\r\f\v]+', ' ', text)
+        text = re_mod.sub(r'\n\s*\n+', '\n', text)
+        return text.strip()
+
+
+def _docx_to_text(path: str) -> str:
+    """Extracts paragraphs from a .docx file (WordprocessingML) without dependencies."""
+    import zipfile
+    import xml.etree.ElementTree as ET
+    ns = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
+    with zipfile.ZipFile(path) as zf:
+        xml_bytes = zf.read('word/document.xml')
+    root = ET.fromstring(xml_bytes)
+    paragraphs = []
+    for p in root.iter(ns + 'p'):
+        chunks = []
+        for node in p.iter():
+            if node.tag == ns + 't' and node.text:
+                chunks.append(node.text)
+            elif node.tag == ns + 'tab':
+                chunks.append('\t')
+            elif node.tag in (ns + 'br', ns + 'cr'):
+                chunks.append('\n')
+        paragraphs.append(''.join(chunks))
+    return '\n'.join(p for p in paragraphs if p.strip())
+
+
+def _odt_to_text(path: str) -> str:
+    """Extracts paragraphs from an OpenDocument text (.odt) file."""
+    import zipfile
+    import xml.etree.ElementTree as ET
+    ns_text = '{urn:oasis:names:tc:opendocument:xmlns:text:1.0}'
+    with zipfile.ZipFile(path) as zf:
+        root = ET.fromstring(zf.read('content.xml'))
+    paragraphs = []
+    for node in root.iter():
+        if node.tag in (ns_text + 'p', ns_text + 'h'):
+            paragraphs.append(''.join(node.itertext()))
+    return '\n'.join(p for p in paragraphs if p.strip())
+
+
+def _epub_to_text(path: str) -> str:
+    """Extracts the text of an EPUB following its reading order (spine)."""
+    import posixpath
+    import zipfile
+    import xml.etree.ElementTree as ET
+    with zipfile.ZipFile(path) as zf:
+        names = set(zf.namelist())
+        documents = []
+        try:
+            container = ET.fromstring(zf.read('META-INF/container.xml'))
+            rootfile = next(el for el in container.iter() if el.tag.endswith('rootfile')).get('full-path')
+            opf = ET.fromstring(zf.read(rootfile))
+            base = posixpath.dirname(rootfile)
+            manifest = {}
+            for el in opf.iter():
+                if el.tag.endswith('item') and el.get('id') and el.get('href'):
+                    manifest[el.get('id')] = posixpath.normpath(posixpath.join(base, el.get('href')))
+            for el in opf.iter():
+                if el.tag.endswith('itemref') and el.get('idref') in manifest:
+                    documents.append(manifest[el.get('idref')])
+        except Exception:
+            documents = []
+        if not documents:
+            documents = sorted(n for n in names if n.lower().endswith(('.xhtml', '.html', '.htm')))
+        texts = []
+        for name in documents:
+            if name in names:
+                markup = zf.read(name).decode('utf-8', errors='replace')
+                texts.append(_MarkupText.extract(markup))
+    return '\n'.join(t for t in texts if t.strip())
+
+
+def _markup_file_to_text(path: str, xml: bool = False) -> str:
+    return _MarkupText.extract(read_text_detected(path), xml=xml)
+
+
+# Converters for non-plain-text source files (extension → function returning text)
+SOURCE_CONVERTERS = {
+    '.pdf': _pdf_to_text,
+    '.docx': _docx_to_text,
+    '.odt': _odt_to_text,
+    '.epub': _epub_to_text,
+    '.html': _markup_file_to_text,
+    '.htm': _markup_file_to_text,
+    '.xhtml': _markup_file_to_text,
+    '.xml': lambda path: _markup_file_to_text(path, xml=True),
+}
+
+
+def convert_to_text(path: str) -> Optional[str]:
+    """Returns the plain text of a supported document, or None for plain-text files."""
+    ext = os.path.splitext(path)[1].lower()
+    converter = SOURCE_CONVERTERS.get(ext)
+    return converter(path) if converter else None
+
+
 def prepare_source_folder(source_folder: str) -> tuple:
     """Ensures source_folder is ready for corpus ingestion.
 
-    If the folder contains PDF files, creates a temporary directory where
-    each PDF is converted to a plain-text .txt file (other files are copied
-    as-is).  Returns ``(effective_folder, temp_folder_or_None)``.
+    If the folder contains PDF, Word (.docx), OpenDocument (.odt), EPUB,
+    HTML/XHTML or XML files, creates a temporary directory where each one is
+    converted to a plain-text .txt file (other files are copied as-is).
+    Returns ``(effective_folder, temp_folder_or_None)``.
 
     The caller is responsible for deleting ``temp_folder`` (when not None)
     after processing.
@@ -264,19 +411,25 @@ def prepare_source_folder(source_folder: str) -> tuple:
         f for f in os.listdir(source_folder)
         if f not in _SKIP_FILES and os.path.isfile(os.path.join(source_folder, f))
     ]
-    pdf_files = [f for f in all_files if f.lower().endswith('.pdf')]
+    convert_files = [f for f in all_files if os.path.splitext(f)[1].lower() in SOURCE_CONVERTERS]
 
-    if not pdf_files:
+    if not convert_files:
         return source_folder, None
 
-    # At least one PDF — build a temp copy of the folder
+    # At least one document to convert — build a temp copy of the folder
     temp_dir = tempfile.mkdtemp()
     try:
+        taken = {f for f in all_files if f not in convert_files}
         for filename in all_files:
             src = os.path.join(source_folder, filename)
-            if filename.lower().endswith('.pdf'):
-                text = _pdf_to_text(src)
-                txt_name = filename[:-4] + '.txt'  # replace .pdf → .txt
+            if filename in convert_files:
+                text = convert_to_text(src)
+                if not text or not text.strip():
+                    raise ValueError(f"Could not extract text from '{src}'.")
+                txt_name = os.path.splitext(filename)[0] + '.txt'  # replace extension → .txt
+                if txt_name in taken:
+                    txt_name = filename + '.txt'
+                taken.add(txt_name)
                 with open(os.path.join(temp_dir, txt_name), 'w', encoding='utf-8') as fh:
                     fh.write(text)
             else:

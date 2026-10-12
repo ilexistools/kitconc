@@ -26,6 +26,7 @@ import sys
 import time  
 import subprocess
 import pandas as pd
+import numpy as np
 import collections
 import platform
 import shutil
@@ -49,6 +50,9 @@ from kitconc.py_clusters import make_clusters
 from kitconc.py_ngrams import make_ngrams
 from kitconc.py_dispersion import make_dispersion
 from kitconc.py_keywords_dispersion import make_keywords_dispersion
+from kitconc.py_keywords import load_reference, _re_number, _re_strange
+from kitconc import py_measures
+from kitconc import py_extras
 
 
 def _run_pipeline(command, stage):
@@ -267,6 +271,65 @@ class Corpus (object):
             except OSError:
                 pass
 
+
+    # helpers for optional (AntConc-like) features
+
+    @staticmethod
+    def _prepare_query(node, regexp=False, wildcards=False):
+        """Converts wildcard queries (teach*, *ing, a|b, [a,b]) to kitconc's token regex syntax."""
+        if wildcards and not regexp:
+            return py_extras.wildcard_to_regex(node), True
+        return node, regexp
+
+    @staticmethod
+    def _renumber(df):
+        df = df.copy()
+        df['N'] = [i + 1 for i in range(len(df))]
+        df.reset_index(drop=True, inplace=True)
+        return df
+
+    @staticmethod
+    def _filter_items(df, column, search, regexp=False, lowercase=True):
+        """Keeps rows whose item (or any of its words) matches the search query."""
+        query = search if regexp else py_extras.wildcard_to_regex(search)
+        flags = re.IGNORECASE if lowercase else 0
+        patterns = [re.compile(p, flags) for p in query.split(' ') if p]
+
+        def keep(item):
+            words = str(item).split(' ')
+            return any(p.match(w) for p in patterns for w in words)
+
+        return df[df[column].map(keep).astype(bool)]
+
+    def _add_dispersion_columns(self, df, column, lowercase=True, keep_columns=True):
+        """Adds RANGE, JUILLAND_D and DP columns (or a temporary _RANGE column)."""
+        table = py_extras.dispersion_table(self.workspace, self.corpus_name, lowercase,
+                                           words=list(df[column]))
+        df = df.copy()
+        empty = {'range': 0, 'juilland-d': 0.0, 'dp': 0.0}
+        key = (lambda w: str(w).lower()) if lowercase else (lambda w: str(w))
+        ranges = [int(table.get(key(w), empty)['range']) for w in df[column]]
+        if keep_columns:
+            df['RANGE'] = ranges
+            df['JUILLAND_D'] = [round(table.get(key(w), empty)['juilland-d'], 4) for w in df[column]]
+            df['DP'] = [round(table.get(key(w), empty)['dp'], 4) for w in df[column]]
+        else:
+            df['_RANGE'] = ranges
+        return df
+
+    def _reference_data(self, ref_corpus=None, ref_language=None, lowercase=True):
+        """Returns (tokens, {word: freq}, {word: range} or None, files or None) for keyness."""
+        if ref_corpus is not None:
+            if isinstance(ref_corpus, Corpus):
+                workspace, name = ref_corpus.workspace, ref_corpus.corpus_name
+            else:
+                workspace, name = self.workspace, str(ref_corpus)
+            if not os.path.exists(workspace + name + '/data/npy'):
+                raise ValueError(f'Reference corpus not found: {name}')
+            tokens, freq, rng, files = py_extras.corpus_frequency_list(workspace, name, lowercase)
+            return tokens, freq, rng, files
+        tokens, freq = load_reference(ref_language or self.language)
+        return tokens, freq, None, None
 
     def has_empty_files(self, folder_path):
         """
@@ -541,6 +604,14 @@ class Corpus (object):
         Keyword Arguments:
         - lowercase (bool): If True (default), converts all letters to lowercase.
         - min_freq (int): Minimum frequency required for a word to be included in the list (default is 1).
+        - min_range (int): Minimum number of text files in which the word occurs (default is 1).
+        - search (str): Keeps only words matching this query (wildcards such as ``teach*``,
+                        ``*ing`` or ``colour|color``; a regular expression when ``regexp`` is True).
+        - regexp (bool): Interprets ``search`` as a regular expression (default is False).
+        - stoplist / allowlist: Words to exclude / to keep. A list, a file path (one word per line)
+                        or 'default' for the bundled stoplist of the corpus language.
+        - dispersion (bool): Adds the columns RANGE, JUILLAND_D and DP (Gries' deviation of
+                        proportions) computed over the text files (default is False).
         - verbose (bool): If True, prints progress messages and the total execution time (default is False).
 
         Returns:
@@ -568,7 +639,24 @@ class Corpus (object):
         wlst.df = pd.DataFrame(xwordlist, columns=['N', 'WORD', 'FREQUENCY', '%'])
         wlst.df = wlst.df[wlst.df.FREQUENCY >= min_freq]
         wlst.df['%'] = wlst.df['%'].apply(lambda x: round(x, 2))
-        
+
+        # optional filters and dispersion columns
+        search = kwargs.get('search', None)
+        if search:
+            wlst.df = self._filter_items(wlst.df, 'WORD', search, kwargs.get('regexp', False), lowercase)
+        wlst.df = py_extras.filter_by_words(wlst.df, 'WORD', kwargs.get('stoplist', None),
+                                            kwargs.get('allowlist', None), self.language)
+        min_range = kwargs.get('min_range', 1)
+        if kwargs.get('dispersion', False) or min_range > 1:
+            wlst.df = self._add_dispersion_columns(wlst.df, 'WORD', lowercase,
+                                                   keep_columns=kwargs.get('dispersion', False))
+            if min_range > 1:
+                wlst.df = wlst.df[wlst.df['RANGE' if 'RANGE' in wlst.df else '_RANGE'] >= min_range]
+                if '_RANGE' in wlst.df:
+                    wlst.df = wlst.df.drop(columns=['_RANGE'])
+        if search or kwargs.get('stoplist') or kwargs.get('allowlist') or min_range > 1:
+            wlst.df.reset_index(drop=True, inplace=True)
+
         # time end
         if verbose:
             t1 = time.time()
@@ -588,17 +676,34 @@ class Corpus (object):
         and assigns a ranking. The method supports two statistical measures: 'log-likelihood' (default) and 'chi-square'.
         
         Keyword Arguments:
-        - measure (str): The statistical measure to use for keyword extraction. Acceptable values are 
+        - measure (str): The statistical measure to use for keyword extraction. Acceptable values are
                         'log-likelihood' (default) and 'chi-square'. Any other value defaults to 'log-likelihood'.
-        - stoplist (list): A list of words to exclude from the keyword extraction process.
+                        Also accepted: 'tf-idf', 'log-likelihood-2' (two-term LL), 'chi-square-yates' and
+                        'text-dispersion' (keyness of text ranges; requires ``ref_corpus``).
+        - stoplist (list): A list of words to exclude from the keyword extraction process
+                        (a file path or 'default' are also accepted).
+        - allowlist (list): Only these words are kept (list, file path or 'default').
+        - ref_language (str): Language of the bundled reference word list (default: corpus language).
+        - ref_corpus (str or Corpus): A corpus of the workspace used as reference corpus instead of the
+                        bundled word list. Adds the columns REF_FREQUENCY, RANGE and REF_RANGE.
+        - effect (str or list): Effect-size measure(s) added as extra columns, e.g. 'log-ratio', 'dice',
+                        'log-dice', 'mi', 'mi3', 'rrf', 'drf', 'z-score', 't-score', '%diff', 'odds-ratio'.
+        - polarity (str): 'all' (default), 'positive' or 'negative' (negative keywords: words
+                        unusually infrequent in the corpus; they are sorted from the most negative).
+        - p_value (str or float): Keeps only keywords whose keyness reaches the critical value,
+                        e.g. 'p<0.05', 'p<0.01', 0.001.
+        - bonferroni (bool): Applies the Bonferroni correction to ``p_value`` (default is False).
+        - min_freq / min_range (int): Minimum frequency / number of text files in the corpus.
+        - sort_by (str): 'keyness' (default) or 'effect' (the first effect measure).
         - verbose (bool): If True, prints progress messages and timing information during processing.
-        
+
         Returns:
         Keywords: An object containing a pandas DataFrame with the following columns:
             - 'N': Ranking index of the keyword.
             - 'WORD': The keyword.
             - 'FREQUENCY': The number of occurrences of the keyword in the corpus.
             - 'KEYNESS': The computed keyness score for the keyword, rounded to two decimal places.
+            Optional columns are appended after these four.
         """
         # args
         measure = kwargs.get('measure', 'log-likelihood')
@@ -608,7 +713,15 @@ class Corpus (object):
         ignore_numbers = kwargs.get('ignore_numbers', True)
         ignore_strange = kwargs.get('ignore_strange', True)
         min_chars = kwargs.get('min_chars', 2)
-        
+
+        extended = any(kwargs.get(k) not in (None, False, [], 'all', 1, 'keyness') for k in
+                       ('ref_corpus', 'effect', 'polarity', 'p_value', 'allowlist', 'min_freq',
+                        'min_range', 'sort_by')) \
+            or measure in ('log-likelihood-2', 'chi-square-yates', 'text-dispersion') \
+            or (stoplist and not isinstance(stoplist, (list, tuple, set)))
+        if extended and measure != 'tf-idf':
+            return self._keywords_extended(**kwargs)
+
         # get statistical measure identifier
         use_tfidf = (measure == 'tf-idf')
         if measure == 'log-likelihood':
@@ -658,7 +771,145 @@ class Corpus (object):
         
         return kwlst
 
-    
+    def _keywords_extended(self, **kwargs):
+        """Keyword analysis with reference corpora, effect sizes, polarity and p-values."""
+        measure = kwargs.get('measure', 'log-likelihood')
+        stoplist = kwargs.get('stoplist', None)
+        allowlist = kwargs.get('allowlist', None)
+        verbose = kwargs.get('verbose', False)
+        ref_language = kwargs.get('ref_language', None)
+        ref_corpus = kwargs.get('ref_corpus', None)
+        ignore_numbers = kwargs.get('ignore_numbers', True)
+        ignore_strange = kwargs.get('ignore_strange', True)
+        min_chars = kwargs.get('min_chars', 2)
+        effect = kwargs.get('effect', None)
+        polarity = kwargs.get('polarity', 'all') or 'all'
+        p_value = kwargs.get('p_value', None)
+        use_bonferroni = kwargs.get('bonferroni', False)
+        min_freq = kwargs.get('min_freq', 1) or 1
+        min_range = kwargs.get('min_range', 1) or 1
+        sort_by = kwargs.get('sort_by', 'keyness') or 'keyness'
+
+        if polarity not in ('all', 'positive', 'negative'):
+            raise ValueError("polarity must be 'all', 'positive' or 'negative'")
+        if measure == 'log-likelihood' or measure not in py_measures.KEYNESS_MEASURES + ('text-dispersion',):
+            measure = 'log-likelihood'
+        if measure == 'text-dispersion' and ref_corpus is None:
+            raise ValueError("The 'text-dispersion' measure requires a reference corpus (ref_corpus).")
+        effects = [] if not effect else ([effect] if isinstance(effect, str) else list(effect))
+        for e in effects:
+            if e not in py_measures.EFFECT_MEASURES:
+                raise ValueError(f'Unknown effect measure: {e}. Use one of {py_measures.EFFECT_MEASURES}')
+
+        if verbose:
+            print('Running...')
+            t0 = time.time()
+
+        # target data
+        tokens, _, _, _, wordlist = make_wordlist(self.workspace, self.corpus_name, self.language, True)
+        ref_tokens, ref_freq, ref_range, ref_files = self._reference_data(ref_corpus, ref_language, True)
+        need_range = ref_corpus is not None or min_range > 1 or measure == 'text-dispersion'
+        tar_range, tar_files = {}, 0
+        if need_range:
+            _, _, tar_range, tar_files = py_extras.corpus_frequency_list(self.workspace, self.corpus_name, True)
+
+        rows = []
+        for row in wordlist:
+            word, freq = row[1], row[2]
+            if ignore_numbers and _re_number.match(word):
+                continue
+            if ignore_strange and _re_strange.search(word):
+                continue
+            if len(word) < min_chars or freq < min_freq:
+                continue
+            if need_range and tar_range.get(word, 0) < min_range:
+                continue
+            if ref_corpus is None:
+                # the bundled reference list is smoothed with frequency 1 (as in the default analysis)
+                rf = ref_freq.get(word, 1)
+            else:
+                rf = ref_freq.get(word, 0)
+            if measure == 'text-dispersion':
+                k = py_measures.keyness(tar_range.get(word, 0), ref_range.get(word, 0), tar_files, ref_files,
+                                        'log-likelihood')
+            elif ref_corpus is None and measure in ('log-likelihood', 'chi-square'):
+                # same values as the default analysis with the bundled reference list
+                from kitconc.py_keywords import ll as legacy_ll, chi_square as legacy_chi
+                if measure == 'log-likelihood':
+                    k = legacy_ll(freq, rf, tokens, ref_tokens)
+                else:
+                    k = legacy_chi(freq, rf, tokens, ref_tokens) * py_measures._sign(freq, rf, tokens, ref_tokens)
+            else:
+                k = py_measures.keyness(freq, rf, tokens, ref_tokens, measure)
+            record = [word, freq, round(k, 2)]
+            if ref_corpus is not None:
+                record += [rf, tar_range.get(word, 0), ref_range.get(word, 0)]
+            for e in effects:
+                record.append(round(py_measures.effect_size(freq, rf, tokens, ref_tokens, e), 4))
+            rows.append(record)
+
+        # words that occur only in the reference corpus (possible negative keywords)
+        if ref_corpus is not None and polarity in ('all', 'negative'):
+            target_words = {r[1] for r in wordlist}
+            for word, rf in ref_freq.items():
+                if word in target_words or len(word) < min_chars:
+                    continue
+                if ignore_numbers and _re_number.match(word):
+                    continue
+                if ignore_strange and _re_strange.search(word):
+                    continue
+                if min_freq > 1 or min_range > 1:
+                    continue
+                if measure == 'text-dispersion':
+                    k = py_measures.keyness(0, ref_range.get(word, 0), tar_files, ref_files, 'log-likelihood')
+                else:
+                    k = py_measures.keyness(0, rf, tokens, ref_tokens, measure)
+                record = [word, 0, round(k, 2), rf, 0, ref_range.get(word, 0)]
+                for e in effects:
+                    record.append(round(py_measures.effect_size(0, rf, tokens, ref_tokens, e), 4))
+                rows.append(record)
+
+        columns = ['WORD', 'FREQUENCY', 'KEYNESS']
+        if ref_corpus is not None:
+            columns += ['REF_FREQUENCY', 'RANGE', 'REF_RANGE']
+        effect_columns = [e.upper() for e in effects]
+        columns += effect_columns
+        df = pd.DataFrame(rows, columns=columns)
+
+        # filters
+        if polarity == 'positive':
+            df = df[df.KEYNESS > 0]
+        elif polarity == 'negative':
+            df = df[df.KEYNESS < 0]
+        if p_value is not None:
+            p = p_value
+            if use_bonferroni:
+                p = py_measures.bonferroni(float(str(p).replace('p<', '')), max(len(df), 1))
+            critical = py_measures.p_value_threshold(p)
+            df = df[df.KEYNESS.abs() >= critical]
+        if stoplist is not None and isinstance(stoplist, (list, tuple, set)):
+            df = df[~df['WORD'].isin(stoplist)]
+        else:
+            df = py_extras.filter_by_words(df, 'WORD', stoplist, None, self.language)
+        df = py_extras.filter_by_words(df, 'WORD', None, allowlist, self.language)
+
+        # sort
+        if sort_by == 'effect' and effect_columns:
+            key = effect_columns[0]
+        else:
+            key = 'KEYNESS'
+        df = df.sort_values(key, ascending=(polarity == 'negative'), kind='mergesort')
+        df.insert(0, 'N', range(1, len(df) + 1))
+        df.reset_index(drop=True, inplace=True)
+
+        kwlst = kit_tools.Keywords()
+        kwlst.df = df
+        if verbose:
+            print('')
+            print('Total time: %s seconds' % round(time.time() - t0, 2))
+        return kwlst
+
+
     def wtfreq(self, **kwargs):
         """
         Generates a word-tag frequency list based on the corpus text files.
@@ -780,6 +1031,13 @@ class Corpus (object):
         regexp (bool, optional): If True, the search term is treated as a regular expression. Default is False.
         horizon (int, optional): The number of words to include on each side of the search term in the concordance. Default is 10.
         limit (int, optional): The maximum number of concordance lines to return. If None, all matches are returned.
+        wildcards (bool, optional): Interprets ``*``, ``?``, ``a|b`` and ``[a,b]`` as wildcards. Default is False.
+        context (str or list, optional): Context word(s) required near the node (Context Search). Default is None.
+        context_span (int or tuple, optional): Context window in tokens, e.g. 5 or (3, 5) for 3L-5R. Default is 5.
+        context_mode (str, optional): 'or' (any context word) or 'and' (all context words). Default is 'or'.
+        context_exclude (bool, optional): Keeps only lines WITHOUT the context words. Default is False.
+        sample (int, optional): Returns a random sample of this many lines (kept in corpus order).
+        seed (int, optional): Random seed for ``sample``.
         verbose (bool, optional): If True, prints progress messages and timing information during processing. Default is False.
 
         Returns:
@@ -801,18 +1059,38 @@ class Corpus (object):
         horizon = kwargs.get('horizon', 10)
         limit = kwargs.get('limit', None)
         verbose = kwargs.get('verbose', False)
-        
+        node, regexp = self._prepare_query(node, regexp, kwargs.get('wildcards', False))
+        context = kwargs.get('context', None)
+        span = kwargs.get('context_span', 5)
+        left_span, right_span = (span, span) if isinstance(span, int) else (int(span[0]), int(span[1]))
+        search_horizon = max(horizon, left_span, right_span) if context else horizon
+
         # time start
         if verbose:
             print('Running...')
             t0 = time.time()
-        
+
         # Process concordance lines
-        nl, lst_kwic = make_kwic(self.workspace, self.corpus_name, node, pos, case_sensitive, regexp, horizon)
+        nl, lst_kwic = make_kwic(self.workspace, self.corpus_name, node, pos, case_sensitive, regexp, search_horizon)
         kwic = kit_tools.Kwic(node_length=nl)
         kwic.df = pd.DataFrame(lst_kwic, columns=['N', 'LEFT', 'NODE', 'RIGHT', 'FILENAME', 'TOKEN_ID', 'SENT_ID', 'FILE_ID'])
         lst_kwic = None
-        
+
+        # Context search (and trimming of the wider search horizon)
+        if context:
+            kwic.df = py_extras.context_filter(kwic.df, context, left_span, right_span,
+                                               kwargs.get('context_mode', 'or'),
+                                               kwargs.get('context_exclude', False),
+                                               case_sensitive, kwargs.get('context_regexp', False))
+            if search_horizon != horizon:
+                kwic.df = kwic.df.copy()
+                kwic.df['LEFT'] = kwic.df['LEFT'].map(lambda s: ' '.join(str(s).split(' ')[-horizon:]) if horizon > 0 else '')
+                kwic.df['RIGHT'] = kwic.df['RIGHT'].map(lambda s: ' '.join(str(s).split(' ')[:horizon]) if horizon > 0 else '')
+
+        # Random sample
+        if kwargs.get('sample', None):
+            kwic.df = py_extras.random_sample(kwic.df, int(kwargs['sample']), kwargs.get('seed', None))
+
         # Limit results if a limit is specified
         if limit is not None:
             kwic.df = kwic.df.head(limit)
@@ -849,6 +1127,8 @@ class Corpus (object):
         case_sensitive (bool, optional): If True, the search will be case-sensitive. Default is False.
         regexp (bool, optional): If True, the search term is interpreted as a regular expression. Default is False.
         limit (int, optional): The maximum number of concordance lines to return. If None, returns all matching lines.
+        wildcards (bool, optional): Interprets ``*``, ``?``, ``a|b`` and ``[a,b]`` as wildcards. Default is False.
+        sample (int, optional): Returns a random sample of this many lines; ``seed`` sets the random seed.
         verbose (bool, optional): If True, prints progress messages and timing information. Default is False.
 
         Returns:
@@ -865,6 +1145,7 @@ class Corpus (object):
         pos = kwargs.get('pos', None)
         case_sensitive = kwargs.get('case_sensitive', False)
         regexp = kwargs.get('regexp', False)
+        node, regexp = self._prepare_query(node, regexp, kwargs.get('wildcards', False))
         limit = kwargs.get('limit', None)
         verbose = kwargs.get('verbose', False)
         
@@ -878,7 +1159,11 @@ class Corpus (object):
         conc = kit_tools.Concordance(node_length=nl)
         conc.df = pd.DataFrame(lst_conc, columns=['N', 'CONCORDANCE', 'FILENAME', 'TOKEN_ID', 'SENT_ID', 'FILE_ID'])
         lst_conc = None
-        
+
+        # Random sample
+        if kwargs.get('sample', None):
+            conc.df = py_extras.random_sample(conc.df, int(kwargs['sample']), kwargs.get('seed', None))
+
         # Limit results if a limit is specified
         if limit is not None:
             conc.df = conc.df.head(limit)
@@ -921,6 +1206,13 @@ class Corpus (object):
         lowercase (bool, optional): If True, converts text to lowercase before processing. Default is True.
         measure (str or int, optional): Statistical measure for association; use 't-score' (default) or 'mutual information'.
                                         If a string is provided, it will be mapped to an internal identifier.
+                                        Also accepted: 'mi2', 'mi3', 'log-likelihood', 'log-likelihood-2',
+                                        'chi-square', 'dice', 'log-dice', 'log-ratio', 'z-score', 'ms', 'mu'.
+        extra_measures (str or list, optional): Further measures added as extra columns (named in upper case),
+                                        e.g. ['log-likelihood', 'log-dice'].
+        min_freq (int, optional): Minimum co-occurrence frequency (default is 1).
+        stoplist / allowlist (optional): Collocates to exclude / to keep (list, file path or 'default').
+        wildcards (bool, optional): Interprets ``*``, ``?``, ``a|b`` and ``[a,b]`` in the node as wildcards.
         limit (int, optional): Maximum number of collocate results to return. If None, all results are returned.
         verbose (bool, optional): If True, prints progress messages and execution time. Default is False.
 
@@ -940,31 +1232,58 @@ class Corpus (object):
         coll_pos = kwargs.get('coll_pos', None)
         case_sensitive = kwargs.get('case_sensitive', False)
         regexp = kwargs.get('regexp', False)
+        node, regexp = self._prepare_query(node, regexp, kwargs.get('wildcards', False))
         left_span = kwargs.get('left_span', 5)
         right_span = kwargs.get('right_span', 5)
         lowercase = kwargs.get('lowercase', True)
         measure = kwargs.get('measure', 1)
         limit = kwargs.get('limit', None)
         verbose = kwargs.get('verbose', False)
-        
+        extra = kwargs.get('extra_measures', None)
+        extra = [] if not extra else ([extra] if isinstance(extra, str) else list(extra))
+        for m in extra:
+            if m not in py_measures.COLLOCATE_MEASURES:
+                raise ValueError(f'Unknown association measure: {m}. Use one of {py_measures.COLLOCATE_MEASURES}')
+
         # time start
         if verbose:
             print('Running...')
             t0 = time.time()
-        
+
         # Determine statistical measure
         if measure == 't-score':
             measure = 1
-        elif measure == 'mutual information':
+        elif measure in ('mutual information', 'mi'):
             measure = 2
-        
+        elif isinstance(measure, str) and measure not in py_measures.COLLOCATE_MEASURES:
+            import warnings
+            warnings.warn(f"Unknown collocate measure '{measure}'; mutual information is used.", stacklevel=2)
+            measure = 2
+
         # Generate collocates list
-        lst_coll = make_collocates(self.workspace, self.corpus_name, node, pos, case_sensitive, regexp, 
-                                coll_pos, lowercase, left_span, right_span, measure)
+        details = {}
+        lst_coll = make_collocates(self.workspace, self.corpus_name, node, pos, case_sensitive, regexp,
+                                coll_pos, lowercase, left_span, right_span, measure, details=details)
         coll = kit_tools.Collocates()
         coll.df = pd.DataFrame(lst_coll, columns=['N', 'WORD', 'FREQUENCY', 'LEFT', 'RIGHT', 'ASSOCIATION'])
         lst_coll = None
-        
+
+        # Optional filters and extra association columns
+        min_freq = kwargs.get('min_freq', 1)
+        if min_freq > 1:
+            coll.df = coll.df[coll.df.FREQUENCY >= min_freq]
+        coll.df = py_extras.filter_by_words(coll.df, 'WORD', kwargs.get('stoplist', None),
+                                            kwargs.get('allowlist', None), self.language)
+        if extra and details:
+            freqs = details['collocate_freqs']
+            for m in extra:
+                coll.df[m.upper()] = [round(py_measures.association(f, details['node_count'], freqs.get(w, 0),
+                                                                     details['tokens'], m), 2)
+                                      for w, f in zip(coll.df['WORD'], coll.df['FREQUENCY'])]
+        elif extra:
+            for m in extra:
+                coll.df[m.upper()] = []
+
         # Sort by association score (descending)
         coll.df.sort_values('ASSOCIATION', ascending=False, inplace=True)
         
@@ -1273,6 +1592,15 @@ class Corpus (object):
         lowercase (bool, optional): If True (default), converts text to lowercase before processing.
         minfreq (int, optional): The minimum frequency a cluster must have to be included. Default is 1.
         minrange (int, optional): The minimum range (number of documents or distinct contexts) a cluster must cover. Default is 1.
+        position (str, optional): Position of the search word in the cluster: 'both' (default, any position),
+                                  'left' (clusters starting with the word) or 'right' (clusters ending with it).
+        case_sensitive, regexp, wildcards (bool, optional): Search options. By default only the first word
+                                  of the search term is used; multi-word search terms are matched as a phrase
+                                  when any extended option (position, size > 3, case_sensitive, regexp,
+                                  wildcards) is used.
+        stoplist / allowlist (optional): Clusters containing a stoplist word are removed; with an
+                                  allowlist, only clusters made of allowed words are kept.
+        Any cluster size >= 1 is accepted (sizes above 3 use the extended algorithm).
         verbose (bool, optional): If True, prints progress messages and the total execution time. Default is False.
 
         Returns:
@@ -1297,7 +1625,16 @@ class Corpus (object):
             print('Running...')
             t0 = time.time()
         
-        lst_clusters = make_clusters(self.workspace, self.corpus_name, word, pos, lowercase, size)
+        position = kwargs.get('position', 'both')
+        case_sensitive = kwargs.get('case_sensitive', False)
+        regexp = kwargs.get('regexp', False)
+        word, regexp = self._prepare_query(word, regexp, kwargs.get('wildcards', False))
+        # the original algorithm (sizes 1-3, first word of the search term only) is kept as default
+        if size <= 3 and position == 'both' and not regexp and not case_sensitive:
+            lst_clusters = make_clusters(self.workspace, self.corpus_name, word, pos, lowercase, size)
+        else:
+            lst_clusters = py_extras.make_clusters_ext(self.workspace, self.corpus_name, word, pos, lowercase,
+                                                       size, position, case_sensitive, regexp)
         clusters = kit_tools.Clusters()
         clusters.df = pd.DataFrame(lst_clusters, columns=['N', 'CLUSTER', 'FREQUENCY', 'RANGE', '%'])
         lst_clusters = None
@@ -1308,6 +1645,8 @@ class Corpus (object):
         # apply filtering based on minimum frequency and range
         clusters.df = clusters.df[(clusters.df.FREQUENCY >= min_freq)]
         clusters.df = clusters.df[(clusters.df.RANGE >= min_range)]
+        clusters.df = py_extras.filter_by_words(clusters.df, 'CLUSTER', kwargs.get('stoplist', None),
+                                                kwargs.get('allowlist', None), self.language, split_items=True)
         
         # process DataFrame: round percentage, reassign sequential indexes, and reset index
         clusters.df['%'] = clusters.df['%'].apply(lambda x: round(x, 2))
@@ -1339,6 +1678,10 @@ class Corpus (object):
         - lowercase (bool, optional): If True (default), converts text to lowercase before processing.
         - minfreq (int, optional): Minimum frequency required for an n-gram to be included. Default is 1.
         - minrange (int, optional): Minimum range (e.g., number of distinct documents or contexts) for an n-gram. Default is 1.
+        - search (str, optional): Keeps only n-grams containing a word that matches the query
+                                  (wildcards, or a regular expression when ``regexp`` is True).
+        - stoplist / allowlist (optional): N-grams containing a stoplist word are removed; with an
+                                  allowlist, only n-grams made of allowed words are kept.
         - verbose (bool, optional): If True, prints progress messages and timing information. Default is False.
 
         Returns:
@@ -1374,6 +1717,10 @@ class Corpus (object):
         # filter by minimum frequency and range
         ng.df = ng.df[(ng.df.FREQUENCY >= min_freq)]
         ng.df = ng.df[(ng.df.RANGE >= min_range)]
+        if kwargs.get('search', None):
+            ng.df = self._filter_items(ng.df, 'N-GRAM', kwargs['search'], kwargs.get('regexp', False), lowercase)
+        ng.df = py_extras.filter_by_words(ng.df, 'N-GRAM', kwargs.get('stoplist', None),
+                                          kwargs.get('allowlist', None), self.language, split_items=True)
         
         # reset indexes and round percentage values
         ng.df['%'] = ng.df['%'].apply(lambda x: round(x, 2))
@@ -1407,11 +1754,16 @@ class Corpus (object):
           limit (int, optional): Maximum number of concordance lines to consider. Default is None.
           verbose (bool, optional): If True, displays progress messages and timing info. Default is False.
         
+          wildcards (bool, optional): Interprets ``*``, ``?``, ``a|b`` and ``[a,b]`` as wildcards. Default is False.
+        
         Returns:
           Dispersion: An object with attributes:
               - df: A pandas DataFrame with columns ['N','FILENAME','TOTAL','HITS','S1','S2','S3','S4','S5'].
               - dpts: Dispersion points data.
               - total_s1, total_s2, total_s3, total_s4, total_s5: Totals for each section.
+              - stats: corpus-level dispersion of the search term over the text files
+                       (range, sd, cv, juilland-d, dp, dp-norm, files, hits).
+              - range, juilland_d, dp: shortcuts to the values in ``stats``.
         """
         node = node.strip()
         pos = kwargs.get('pos', None)
@@ -1424,11 +1776,18 @@ class Corpus (object):
             print('Running...')
             t0 = time.time()
         
+        node, regexp = self._prepare_query(node, regexp, kwargs.get('wildcards', False))
         totals, dpts, lst_disp = make_dispersion(self.workspace, self.corpus_name, node, pos, case_sensitive, regexp)
         disp = kit_tools.Dispersion(output_path=self.output_path)
         disp.df = pd.DataFrame(lst_disp, columns=['N', 'FILENAME', 'TOTAL', 'HITS', 'S1', 'S2', 'S3', 'S4', 'S5'])
         disp.dpts = dpts
+        if not totals:  # no hits
+            totals = (0, 0, 0, 0, 0)
         disp.total_s1, disp.total_s2, disp.total_s3, disp.total_s4, disp.total_s5 = totals
+        disp.stats = self._dispersion_stats(disp.df)
+        disp.range = disp.stats['range']
+        disp.juilland_d = disp.stats['juilland-d']
+        disp.dp = disp.stats['dp']
         lst_disp = None
         
         disp.df.sort_values('HITS', ascending=False, inplace=True)
@@ -1442,6 +1801,21 @@ class Corpus (object):
             print('')
             print('Total time: %s seconds' % round(t1 - t0, 2))
         return disp
+
+    def _dispersion_stats(self, df):
+        """Corpus-level dispersion of a search term from a dispersion table (all text files)."""
+        npy_path = self.workspace + self.corpus_name + '/data/npy/'
+        sizes = {}
+        for filename in os.listdir(npy_path):
+            arr = np.load(npy_path + filename, mmap_mode='r')
+            sizes[filename[:-4] if filename.endswith('.npy') else filename] = int(arr.shape[0])
+        hits = {str(f): int(h) for f, h in zip(df['FILENAME'], df['HITS'])}
+        names = sorted(sizes)
+        stats = py_measures.dispersion([hits.get(n, 0) for n in names], [sizes[n] for n in names])
+        stats = {k: round(v, 4) for k, v in stats.items()}
+        stats['files'] = len(names)
+        stats['hits'] = int(sum(hits.values()))
+        return stats
 
     def keywords_dispersion(self, keywords, **kwargs):
         """
@@ -1635,6 +2009,223 @@ class Corpus (object):
             print('')
             print('Total time: %s seconds' % round(t1 - t0, 2))
         return cmblist
+
+    def pframes(self, **kwargs):
+        """
+        Generates n-grams with open slots (phrase-frames or p-frames), e.g. "the * of the".
+
+        Keyword Arguments:
+          size (int, optional): N-gram size (default is 4).
+          slots (int or list, optional): Number of open slots (every position combination is generated)
+                                         or a list of 1-based slot positions, e.g. [2]. Default is 1.
+          pos (str, optional): One POS tag per position to filter the n-grams.
+          lowercase (bool, optional): Default is True.
+          minfreq / minrange (int, optional): Minimum frequency / number of text files. Defaults are 2 and 1.
+          min_variants (int, optional): Minimum number of distinct slot fillers (default is 2).
+          stoplist / allowlist (optional): Applied to the fixed words of the frame.
+          limit (int, optional): Maximum number of rows.
+          verbose (bool, optional): Default is False.
+
+        Returns:
+          Pframes: an object whose DataFrame has the columns ['N', 'P-FRAME', 'FREQUENCY', 'RANGE', '%',
+                   'VARIANTS', 'TTR', 'ENTROPY', 'TOP_VARIANTS'] (TTR = variants/frequency; ENTROPY in bits).
+        """
+        verbose = kwargs.get('verbose', False)
+        if verbose:
+            print('Running...')
+            t0 = time.time()
+        rows = py_extras.make_pframes(self.workspace, self.corpus_name, kwargs.get('size', 4), kwargs.get('slots', 1),
+                                      kwargs.get('lowercase', True), kwargs.get('pos', None))
+        df = pd.DataFrame(rows, columns=['N', 'P-FRAME', 'FREQUENCY', 'RANGE', '%', 'VARIANTS', 'TTR', 'ENTROPY',
+                                         'TOP_VARIANTS'])
+        df = df[(df.FREQUENCY >= kwargs.get('minfreq', 2)) & (df.RANGE >= kwargs.get('minrange', 1))
+                & (df.VARIANTS >= kwargs.get('min_variants', 2))]
+        fixed = df['P-FRAME'].map(lambda f: ' '.join(w for w in f.split(' ') if w != '*'))
+        kept = py_extras.filter_by_words(pd.DataFrame({'F': fixed}), 'F', kwargs.get('stoplist', None),
+                                         kwargs.get('allowlist', None), self.language, split_items=True)
+        df = df.loc[kept.index]
+        df = df.sort_values(['FREQUENCY', 'VARIANTS'], ascending=False, kind='mergesort')
+        if kwargs.get('limit', None) is not None:
+            df = df.head(kwargs['limit'])
+        for col, nd in (('%', 2), ('TTR', 3), ('ENTROPY', 3)):
+            df[col] = df[col].round(nd)
+        result = kit_tools.Pframes()
+        result.df = self._renumber(df)
+        if verbose:
+            print('Total time: %s seconds' % round(time.time() - t0, 2))
+        return result
+
+    def lemmalist(self, **kwargs):
+        """
+        Generates a frequency list of lemmas (headwords), as AntConc's Headword display.
+
+        Keyword Arguments:
+          lemma_file (str, optional): Lemma list. Default: the bundled ``lemmas_<language>.tab``.
+          lemma_format (str, optional): 'auto' (default), 'form-lemma' (``form<TAB>lemma``) or
+                                        'headword-forms' (``headword<TAB>form1<TAB>form2...``, AntConc style).
+          min_freq / min_range (int, optional): Minimum frequency / number of text files (default is 1).
+          stoplist / allowlist (optional): Applied to lemmas.
+          unlisted (bool, optional): Keep words not found in the lemma list as their own lemma (default True).
+          verbose (bool, optional): Default is False.
+
+        Returns:
+          Lemmalist: an object whose DataFrame has the columns ['N', 'LEMMA', 'FREQUENCY', '%', 'RANGE', 'FORMS'].
+        """
+        verbose = kwargs.get('verbose', False)
+        lemma_file = kwargs.get('lemma_file', None)
+        if lemma_file is None:
+            lemma_file = self.resource_data_path + 'lemmas_' + self.language + '.tab'
+            if not os.path.exists(lemma_file):
+                raise ValueError(f'No bundled lemma list for {self.language}; pass lemma_file=...')
+        if verbose:
+            print('Running...')
+            t0 = time.time()
+        lemma_map = py_extras.load_lemma_map(lemma_file, kwargs.get('lemma_format', 'auto'))
+        freqs, sizes, _ = py_extras.word_file_frequencies(self.workspace, self.corpus_name, True)
+        if not kwargs.get('unlisted', True):
+            freqs = {w: v for w, v in freqs.items() if w in lemma_map}
+        grouped = py_extras.lemma_frequencies(freqs, lemma_map)
+        tokens = float(sum(sizes)) or 1.0
+        rows = []
+        for lemma, (freq, files, forms) in grouped.items():
+            rows.append([lemma, freq, round(freq * 100 / tokens, 2), len(files),
+                         ' '.join(f'{w}({c})' for w, c in forms.most_common())])
+        df = pd.DataFrame(rows, columns=['LEMMA', 'FREQUENCY', '%', 'RANGE', 'FORMS'])
+        df = df[(df.FREQUENCY >= kwargs.get('min_freq', 1)) & (df.RANGE >= kwargs.get('min_range', 1))]
+        df = py_extras.filter_by_words(df, 'LEMMA', kwargs.get('stoplist', None), kwargs.get('allowlist', None),
+                                       self.language)
+        df = df.sort_values(['FREQUENCY', 'LEMMA'], ascending=[False, True], kind='mergesort')
+        df.insert(0, 'N', range(1, len(df) + 1))
+        df.reset_index(drop=True, inplace=True)
+        result = kit_tools.Lemmalist()
+        result.df = df
+        if verbose:
+            print('Total time: %s seconds' % round(time.time() - t0, 2))
+        return result
+
+    def dispersion_measures(self, words=None, **kwargs):
+        """
+        Dispersion statistics of words over the text files of the corpus.
+
+        Parameters:
+          words (list, optional): Words to analyse. Default: every word in the corpus.
+
+        Keyword Arguments:
+          lowercase (bool, optional): Default is True.
+          min_freq (int, optional): Minimum frequency (default is 1).
+
+        Returns:
+          DispersionMeasures: an object whose DataFrame has the columns ['N', 'WORD', 'FREQUENCY', 'RANGE',
+                              'R%', 'SD', 'CV', 'JUILLAND_D', 'DP', 'DP_NORM'], sorted by frequency.
+        """
+        lowercase = kwargs.get('lowercase', True)
+        freqs, sizes, _ = py_extras.word_file_frequencies(self.workspace, self.corpus_name, lowercase)
+        selected = list(freqs) if words is None else [w.lower() if lowercase else w for w in words]
+        rows = []
+        for w in selected:
+            per_file = freqs.get(w, {})
+            vector = [per_file.get(i, 0) for i in range(len(sizes))]
+            st = py_measures.dispersion(vector, sizes)
+            rows.append([w, int(sum(vector)), int(st['range']),
+                         round(st['range'] * 100 / len(sizes), 2) if sizes else 0.0,
+                         round(st['sd'], 4), round(st['cv'], 4), round(st['juilland-d'], 4),
+                         round(st['dp'], 4), round(st['dp-norm'], 4)])
+        df = pd.DataFrame(rows, columns=['WORD', 'FREQUENCY', 'RANGE', 'R%', 'SD', 'CV', 'JUILLAND_D', 'DP',
+                                         'DP_NORM'])
+        df = df[df.FREQUENCY >= kwargs.get('min_freq', 1)]
+        df = df.sort_values(['FREQUENCY', 'WORD'], ascending=[False, True], kind='mergesort')
+        df.insert(0, 'N', range(1, len(df) + 1))
+        df.reset_index(drop=True, inplace=True)
+        result = kit_tools.DispersionMeasures()
+        result.df = df
+        return result
+
+    def fileview(self, filename, node=None, **kwargs):
+        """
+        Shows the text of one corpus file (one sentence per line), optionally marking a search term.
+
+        Parameters:
+          filename (str): Name of the text file in the corpus (as in the FILENAME column of other tools).
+          node (str, optional): Search term to highlight.
+
+        Keyword Arguments:
+          case_sensitive, regexp, wildcards (bool, optional): Search options.
+          marker (str, optional): Format used to mark hits (default is '[[{}]]').
+
+        Returns:
+          FileView: an object with ``text`` (str), ``hits`` (int), ``tokens`` (int), ``types`` (int),
+                    ``filename`` and a DataFrame ``df`` with the hits (N, TOKEN_ID, SENT_ID, HIT).
+        """
+        npy_file = self.workspace + self.corpus_name + '/data/npy/' + filename + '.npy'
+        if not os.path.exists(npy_file):
+            raise ValueError(f'File not found in corpus {self.corpus_name}: {filename}')
+        arr = np.load(npy_file)
+        with open(self.workspace + self.corpus_name + '/data/idx/words.pickle', 'rb') as fh:
+            dict_words = pickle.load(fh)
+        words = [dict_words.get(int(i), '') for i in arr[:, 0]]
+        marks = set()
+        hits = []
+        if node:
+            n, regexp = self._prepare_query(node.strip(), kwargs.get('regexp', False), kwargs.get('wildcards', False))
+            case_sensitive = kwargs.get('case_sensitive', False)
+            terms = n.split()
+            if regexp:
+                flags = 0 if case_sensitive else re.IGNORECASE
+                pats = [re.compile(t, flags) for t in terms]
+                match = lambda w, j: pats[j].match(w) is not None
+            else:
+                match = (lambda w, j: w == terms[j]) if case_sensitive else (lambda w, j: w.lower() == terms[j].lower())
+            size = len(terms)
+            for i in range(len(words) - size + 1):
+                if all(match(words[i + j], j) for j in range(size)):
+                    hits.append((len(hits) + 1, i, int(arr[i, 2]), ' '.join(words[i:i + size])))
+                    marks.update(range(i, i + size))
+        marker = kwargs.get('marker', '[[{}]]')
+        lines, current, sent = [], [], None
+        for i, w in enumerate(words):
+            s = int(arr[i, 2])
+            if sent is not None and s != sent:
+                lines.append(' '.join(current))
+                current = []
+            sent = s
+            current.append(marker.format(w) if i in marks else w)
+        if current:
+            lines.append(' '.join(current))
+        view = kit_tools.FileView()
+        view.filename = filename
+        view.text = '\n'.join(lines)
+        view.hits = len(hits)
+        view.tokens = len(words)
+        view.types = len({w.lower() for w in words if not re.match(r'^\W+$', w)})
+        view.df = pd.DataFrame(hits, columns=['N', 'TOKEN_ID', 'SENT_ID', 'HIT'])
+        return view
+
+    def wordcloud(self, data=None, filename=None, **kwargs):
+        """
+        Creates a word cloud image from a result object/DataFrame (e.g. wordlist, keywords, collocates)
+        or, by default, from the corpus wordlist.
+
+        Parameters:
+          data (optional): A kitconc result object (with ``df``), a DataFrame, a dict {word: value} or text.
+                           Default: the corpus wordlist without the bundled stoplist words.
+          filename (str, optional): PNG file to save (relative names are saved in the corpus output folder).
+
+        Keyword Arguments (passed to kit_plots.wordcloud): word_column, value_column, max_words, width,
+          height, colormap, background, stoplist, font_path, min_font_size, max_font_size, scale ('linear',
+          'sqrt' or 'log'), seed.
+
+        Returns:
+          PIL.Image.Image
+        """
+        from kitconc import kit_plots
+        if data is None:
+            has_stoplist = os.path.exists(self.resource_data_path + 'stoplist_' + self.language + '.tab')
+            data = self.wordlist(stoplist='default') if has_stoplist else self.wordlist()
+        if filename is not None and not os.path.isabs(filename) and os.path.dirname(filename) == '':
+            filename = self.output_path + filename
+        if kwargs.get('stoplist') is not None and not isinstance(kwargs.get('stoplist'), (list, set, tuple)):
+            kwargs['stoplist'] = py_extras.load_word_set(kwargs['stoplist'], self.language)
+        return kit_plots.wordcloud(data, filename, **kwargs)
 
     def export(self, target_folder, **kwargs):
         """

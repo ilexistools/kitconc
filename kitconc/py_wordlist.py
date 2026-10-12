@@ -81,6 +81,9 @@ def make_wordlist(workspace: str, corpus_name: str, language: str, lowercase: bo
                 if v == 1:
                     hapax+=1
     else:
+        tokens = 0
+        n = 0
+        hapax = 0
         for k, v in sorted(word_count.items(), key=lambda item: item[1],reverse=True):
             tokens+=v
         total = float(tokens)

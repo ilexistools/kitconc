@@ -492,10 +492,22 @@ class KitconcActions:
         corpus_name: str | None = None,
         lowercase: bool = True,
         limit: int | None = None,
+        min_freq: int = 1,
+        min_range: int = 1,
+        search: str | None = None,
+        regexp: bool = False,
+        stoplist: list[str] | str | None = None,
+        allowlist: list[str] | str | None = None,
+        dispersion: bool = False,
     ) -> dict[str, Any]:
+        """Frequency word list. Optional: search (wildcards like teach* or *ing, or regex), stoplist /
+        allowlist (list, file path or 'default'), min_freq, min_range and dispersion columns
+        (RANGE, JUILLAND_D, DP)."""
         selected = self._resolve_corpus_name(corpus_name)
         corpus = self._open_corpus(selected)
-        result = corpus.wordlist(lowercase=lowercase, verbose=False)
+        result = corpus.wordlist(lowercase=lowercase, min_freq=min_freq, min_range=min_range, search=search,
+                                 regexp=regexp, stoplist=stoplist, allowlist=allowlist,
+                                 dispersion=dispersion, verbose=False)
         records = _df_to_records(result.df, limit)
         return {"rows": records, "total": len(result.df)}
 
@@ -509,7 +521,20 @@ class KitconcActions:
         ignore_strange: bool = True,
         min_chars: int = 2,
         limit: int | None = None,
+        ref_corpus: str | None = None,
+        effect: list[str] | str | None = None,
+        polarity: str = "all",
+        p_value: str | float | None = None,
+        bonferroni: bool = False,
+        min_freq: int = 1,
+        min_range: int = 1,
+        allowlist: list[str] | str | None = None,
+        sort_by: str = "keyness",
     ) -> dict[str, Any]:
+        """Keywords against the bundled reference list or another corpus of the workspace (ref_corpus).
+        measure: log-likelihood, log-likelihood-2, chi-square, chi-square-yates, tf-idf or text-dispersion.
+        effect: log-ratio, dice, log-dice, mi, mi3, rrf, drf, z-score, t-score, %diff, odds-ratio.
+        polarity: all, positive or negative (negative keywords). p_value: e.g. 'p<0.05', 0.01."""
         if isinstance(corpus_name, KeywordsRequest):
             req = corpus_name
             return self.keywords(
@@ -524,6 +549,9 @@ class KitconcActions:
             )
         selected = self._resolve_corpus_name(corpus_name)
         corpus = self._open_corpus(selected)
+        if ref_corpus is not None:
+            ref_corpus = self._resolve_corpus_name(ref_corpus)
+            self._open_corpus(ref_corpus)
         result = corpus.keywords(
             measure=measure,
             stoplist=stoplist or [],
@@ -531,6 +559,15 @@ class KitconcActions:
             ignore_numbers=ignore_numbers,
             ignore_strange=ignore_strange,
             min_chars=min_chars,
+            ref_corpus=ref_corpus,
+            effect=effect,
+            polarity=polarity,
+            p_value=p_value,
+            bonferroni=bonferroni,
+            min_freq=min_freq,
+            min_range=min_range,
+            allowlist=allowlist,
+            sort_by=sort_by,
             verbose=False,
         )
         records = _df_to_records(result.df, limit)
@@ -549,7 +586,19 @@ class KitconcActions:
         regexp: bool = False,
         horizon: int = 10,
         limit: int | None = None,
+        wildcards: bool = False,
+        context: list[str] | str | None = None,
+        context_left: int = 5,
+        context_right: int = 5,
+        context_mode: str = "or",
+        context_exclude: bool = False,
+        sample: int | None = None,
+        seed: int | None = None,
+        kpf: list[str] | None = None,
     ) -> dict[str, Any]:
+        """Concordance lines (KWIC). Optional: wildcards (teach*, *ing, a|b, [a,b]); context search
+        (context words within context_left/context_right tokens, mode 'or'/'and', or excluded);
+        random sample; kpf = positions such as ['R1', 'R2'] to add KWIC pattern frequency."""
         if isinstance(node, KwicRequest):
             req = node
             return self.kwic(
@@ -570,8 +619,18 @@ class KitconcActions:
             regexp=regexp,
             horizon=horizon,
             limit=limit,
+            wildcards=wildcards,
+            context=context,
+            context_span=(context_left, context_right),
+            context_mode=context_mode,
+            context_exclude=context_exclude,
+            sample=sample,
+            seed=seed,
             verbose=False,
         )
+        if kpf:
+            positions = (list(kpf) + [None, None, None])[:3]
+            result.kpf(*positions)
         records = _df_to_records(result.df, limit=None)
         return {"rows": records, "total": len(result.df)}
 
@@ -587,6 +646,9 @@ class KitconcActions:
         case_sensitive: bool = False,
         regexp: bool = False,
         limit: int | None = None,
+        wildcards: bool = False,
+        sample: int | None = None,
+        seed: int | None = None,
     ) -> dict[str, Any]:
         selected = self._resolve_corpus_name(corpus_name)
         corpus = self._open_corpus(selected)
@@ -596,6 +658,9 @@ class KitconcActions:
             case_sensitive=case_sensitive,
             regexp=regexp,
             limit=limit,
+            wildcards=wildcards,
+            sample=sample,
+            seed=seed,
             verbose=False,
         )
         records = _df_to_records(result.df, limit=None)
@@ -614,7 +679,14 @@ class KitconcActions:
         lowercase: bool = True,
         measure: str = "mutual information",
         limit: int | None = None,
+        extra_measures: list[str] | None = None,
+        min_freq: int = 1,
+        stoplist: list[str] | str | None = None,
+        allowlist: list[str] | str | None = None,
+        wildcards: bool = False,
     ) -> dict[str, Any]:
+        """Collocates of a node. measure / extra_measures: t-score, mutual information (mi), mi2, mi3,
+        log-likelihood, log-likelihood-2, chi-square, dice, log-dice, log-ratio, z-score, ms, mu."""
         selected = self._resolve_corpus_name(corpus_name)
         corpus = self._open_corpus(selected)
         result = corpus.collocates(
@@ -628,6 +700,11 @@ class KitconcActions:
             lowercase=lowercase,
             measure=measure,
             limit=limit,
+            extra_measures=extra_measures,
+            min_freq=min_freq,
+            stoplist=stoplist,
+            allowlist=allowlist,
+            wildcards=wildcards,
             verbose=False,
         )
         records = _df_to_records(result.df, limit=None)
@@ -717,7 +794,15 @@ class KitconcActions:
         minrange: int = 1,
         lowercase: bool = True,
         limit: int | None = None,
+        position: str = "both",
+        case_sensitive: bool = False,
+        regexp: bool = False,
+        wildcards: bool = False,
+        stoplist: list[str] | str | None = None,
+        allowlist: list[str] | str | None = None,
     ) -> dict[str, Any]:
+        """Clusters around a word. position: both, left (word starts the cluster) or right (word ends it);
+        any size is accepted."""
         selected = self._resolve_corpus_name(corpus_name)
         corpus = self._open_corpus(selected)
         result = corpus.clusters(
@@ -727,6 +812,12 @@ class KitconcActions:
             minfreq=minfreq,
             minrange=minrange,
             lowercase=lowercase,
+            position=position,
+            case_sensitive=case_sensitive,
+            regexp=regexp,
+            wildcards=wildcards,
+            stoplist=stoplist,
+            allowlist=allowlist,
             verbose=False,
         )
         records = _df_to_records(result.df, limit)
@@ -741,6 +832,10 @@ class KitconcActions:
         minrange: int = 1,
         lowercase: bool = True,
         limit: int | None = None,
+        search: str | None = None,
+        regexp: bool = False,
+        stoplist: list[str] | str | None = None,
+        allowlist: list[str] | str | None = None,
     ) -> dict[str, Any]:
         selected = self._resolve_corpus_name(corpus_name)
         corpus = self._open_corpus(selected)
@@ -750,10 +845,113 @@ class KitconcActions:
             minfreq=minfreq,
             minrange=minrange,
             lowercase=lowercase,
+            search=search,
+            regexp=regexp,
+            stoplist=stoplist,
+            allowlist=allowlist,
             verbose=False,
         )
         records = _df_to_records(result.df, limit)
         return {"rows": records, "total": len(result.df)}
+
+    def pframes(
+        self,
+        corpus_name: str | None = None,
+        size: int = 4,
+        slots: int | list[int] = 1,
+        pos: str | None = None,
+        minfreq: int = 2,
+        minrange: int = 1,
+        min_variants: int = 2,
+        lowercase: bool = True,
+        stoplist: list[str] | str | None = None,
+        limit: int | None = 100,
+    ) -> dict[str, Any]:
+        """N-grams with open slots (p-frames), e.g. 'the * of'. slots: number of open slots or a list of
+        1-based positions. Returns frequency, range, number of variants, TTR, entropy and top fillers."""
+        selected = self._resolve_corpus_name(corpus_name)
+        corpus = self._open_corpus(selected)
+        result = corpus.pframes(size=size, slots=slots, pos=pos, minfreq=minfreq, minrange=minrange,
+                                min_variants=min_variants, lowercase=lowercase, stoplist=stoplist)
+        records = _df_to_records(result.df, limit)
+        return {"rows": records, "total": len(result.df)}
+
+    def lemmalist(
+        self,
+        corpus_name: str | None = None,
+        lemma_file: str | None = None,
+        lemma_format: str = "auto",
+        min_freq: int = 1,
+        min_range: int = 1,
+        stoplist: list[str] | str | None = None,
+        limit: int | None = None,
+    ) -> dict[str, Any]:
+        """Frequency list of lemmas (headwords) with their forms. lemma_file defaults to the bundled list
+        of the corpus language; lemma_format: auto, form-lemma or headword-forms (AntConc style)."""
+        selected = self._resolve_corpus_name(corpus_name)
+        corpus = self._open_corpus(selected)
+        result = corpus.lemmalist(lemma_file=lemma_file, lemma_format=lemma_format, min_freq=min_freq,
+                                  min_range=min_range, stoplist=stoplist)
+        records = _df_to_records(result.df, limit)
+        return {"rows": records, "total": len(result.df)}
+
+    def dispersion_measures(
+        self,
+        corpus_name: str | None = None,
+        words: list[str] | None = None,
+        min_freq: int = 1,
+        lowercase: bool = True,
+        limit: int | None = None,
+    ) -> dict[str, Any]:
+        """Dispersion of words over the text files: range, SD, CV, Juilland's D and Gries' DP."""
+        selected = self._resolve_corpus_name(corpus_name)
+        corpus = self._open_corpus(selected)
+        result = corpus.dispersion_measures(words, min_freq=min_freq, lowercase=lowercase)
+        records = _df_to_records(result.df, limit)
+        return {"rows": records, "total": len(result.df)}
+
+    def fileview(
+        self,
+        filename: str,
+        corpus_name: str | None = None,
+        node: str | None = None,
+        case_sensitive: bool = False,
+        regexp: bool = False,
+        wildcards: bool = False,
+        marker: str = "[[{}]]",
+    ) -> dict[str, Any]:
+        """Text of one corpus file (one sentence per line) with the hits of a search term marked."""
+        selected = self._resolve_corpus_name(corpus_name)
+        corpus = self._open_corpus(selected)
+        view = corpus.fileview(filename, node, case_sensitive=case_sensitive, regexp=regexp,
+                               wildcards=wildcards, marker=marker)
+        return {"filename": view.filename, "text": view.text, "hits": view.hits, "tokens": view.tokens,
+                "types": view.types, "rows": _df_to_records(view.df), "total": len(view.df)}
+
+    def wordcloud(
+        self,
+        output_path: str,
+        corpus_name: str | None = None,
+        source: str = "wordlist",
+        max_words: int = 150,
+        width: int = 1200,
+        height: int = 800,
+        colormap: str = "viridis",
+        stoplist: list[str] | str | None = "default",
+    ) -> dict[str, Any]:
+        """Saves a word cloud PNG of the corpus wordlist or keywords (source: wordlist or keywords)."""
+        if source not in {"wordlist", "keywords"}:
+            raise ValidationError("source must be 'wordlist' or 'keywords'.")
+        target = Path(_normalize_path(output_path))
+        if target.suffix.lower() != ".png":
+            raise ValidationError("output_path must end in .png.")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        selected = self._resolve_corpus_name(corpus_name)
+        corpus = self._open_corpus(selected)
+        data = corpus.wordlist() if source == "wordlist" else corpus.keywords(polarity="positive")
+        corpus.wordcloud(data, str(target), max_words=max_words, width=width, height=height,
+                         colormap=colormap, stoplist=stoplist)
+        return {"output_path": str(target), "source": source}
 
     def dispersion(
         self,
@@ -763,7 +961,10 @@ class KitconcActions:
         case_sensitive: bool = False,
         regexp: bool = False,
         limit: int | None = None,
+        wildcards: bool = False,
     ) -> dict[str, Any]:
+        """Dispersion of a search term per file (5 sections) plus corpus-level statistics
+        (range, Juilland's D, Gries' DP) in `stats`."""
         if isinstance(node, DispersionRequest):
             req = node
             return self.dispersion(
@@ -782,12 +983,14 @@ class KitconcActions:
             case_sensitive=case_sensitive,
             regexp=regexp,
             limit=limit,
+            wildcards=wildcards,
             verbose=False,
         )
         records = _df_to_records(result.df, limit=None)
         return {
             "rows": records,
             "total": len(result.df),
+            "stats": result.stats,
             "totals": {
                 "s1": result.total_s1,
                 "s2": result.total_s2,

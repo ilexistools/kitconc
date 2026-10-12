@@ -457,6 +457,24 @@ class Kwic(object):
             s = s[:c]
         return s 
 
+    def kpf(self, first='R1', second='R2', third='R3', sort=True):
+        """Adds KWIC Pattern Frequency (AntConc's KPF) columns PATTERN and KPF.
+
+        Lines are grouped by the words in the given positions (L1..L5, R1..R5 or N for the node);
+        with ``sort`` the most frequent patterns come first. Returns self.
+        """
+        from kitconc.py_extras import kwic_pattern_frequency
+        positions = [p for p in (first, second, third) if p]
+        self.df = kwic_pattern_frequency(self.df, positions, sort)
+        self.df.reset_index(drop=True, inplace=True)
+        return self
+
+    def hide_node(self, mask='____'):
+        """Returns a copy of the KWIC table with the node replaced by a mask (gap-fill exercises)."""
+        df = self.df.copy()
+        df['NODE'] = mask
+        return df
+
     def save_excel(self,filename,**kwargs):
         # args
         width = kwargs.get('width',50)
@@ -1384,3 +1402,72 @@ class Combolist(object):
         
         
         
+
+class _Table(object):
+    """Generic result table with tab-separated and Excel export."""
+
+    sheet_name = 'Table'
+
+    def __init__(self, **kwargs):
+        self.df = None
+        self.encoding = kwargs.get('encoding', 'utf-8')
+
+    def read_str(self, str_table):
+        """Reads data table from string"""
+        self.df = pd.read_csv(StringIO(str_table), sep='\t')
+
+    def save_tab(self, filename):
+        self.df.to_csv(filename, sep='\t', index=False)
+        return True
+
+    def save_excel(self, filename):
+        style = xStyles()
+        workbook = xlsxwriter.Workbook(filename, {'constant_memory': True})
+        worksheet = workbook.add_worksheet()
+        worksheet.name = self.sheet_name
+        header_style = style.xls_header(workbook)
+        text_style = style.xls_column_cells(workbook, 'Tahoma', '#b30000', 11, False, 'right')
+        cell_style = style.xls_column_cells(workbook, 'Tahoma', '#000000', 11, False, 'center')
+        for c, name in enumerate(self.df.columns):
+            worksheet.set_column(c, c, 30 if self.df[name].dtype == object else 12)
+            worksheet.write(0, c, str(name), header_style)
+        for r, row in enumerate(self.df.itertuples(index=False), start=1):
+            for c, value in enumerate(row):
+                if isinstance(value, str):
+                    worksheet.write(r, c, value, text_style)
+                elif pd.isna(value):
+                    worksheet.write(r, c, '', cell_style)
+                else:
+                    worksheet.write(r, c, float(value) if not float(value).is_integer() else int(value), cell_style)
+        workbook.close()
+        return True
+
+
+class Pframes(_Table):
+    sheet_name = 'P-frames'
+
+
+class Lemmalist(_Table):
+    sheet_name = 'Lemmas'
+
+
+class DispersionMeasures(_Table):
+    sheet_name = 'Dispersion'
+
+
+class FileView(_Table):
+    sheet_name = 'File'
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.filename = ''
+        self.text = ''
+        self.hits = 0
+        self.tokens = 0
+        self.types = 0
+
+    def save_txt(self, filename):
+        with open(filename, 'w', encoding='utf-8') as fh:
+            fh.write(self.text)
+        return True
+

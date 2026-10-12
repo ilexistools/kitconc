@@ -133,6 +133,11 @@ class Kit(Cmd):
             parser.prog= "wordlist"
             parser.description='Makes a frequency word list from the current corpus'
             parser.add_argument('--lowercase', action='store', dest='lowercase', type=str, help='y or n default: y')
+            parser.add_argument('--search', action='store', dest='search', type=str, help='keep only matching words (wildcards: teach*, *ing, a|b)')
+            parser.add_argument('--stoplist', action='store', dest='stoplist', type=str, help='y (bundled stoplist) or path to a stoplist file')
+            parser.add_argument('--minfreq', action='store', dest='minfreq', type=int, help='minimum frequency default: 1')
+            parser.add_argument('--minrange', action='store', dest='minrange', type=int, help='minimum number of text files default: 1')
+            parser.add_argument('--dispersion', action='store', dest='dispersion', type=str, help='add RANGE, JUILLAND_D and DP columns (y or n) default: n')
         
         elif function_name == 'keywords':
             parser = argparse.ArgumentParser()
@@ -144,6 +149,13 @@ class Kit(Cmd):
             parser.add_argument('--nonumbers', action='store', dest='nonumbers', type=str, help='ignore numbers (y or n) default: y')
             parser.add_argument('--nostrange', action='store', dest='nostrange', type=str, help='ignore words with non-alphabetic characters (y or n) default: y')
             parser.add_argument('--minchars', action='store', dest='minchars', type=int, help='minimum word length in characters default: 2')
+            parser.add_argument('--refcorpus', action='store', dest='refcorpus', type=str, help='corpus of the workspace used as reference corpus')
+            parser.add_argument('--effect', action='store', dest='effect', type=str, help='effect size measure(s), comma separated (log-ratio, dice, log-dice, mi, mi3, rrf, drf, z-score, t-score, %%diff, odds-ratio)')
+            parser.add_argument('--polarity', action='store', dest='polarity', type=str, help='all, positive or negative default: all')
+            parser.add_argument('--pvalue', action='store', dest='pvalue', type=str, help='keyness threshold: p<0.05, p<0.01, p<0.001 or p<0.0001')
+            parser.add_argument('--bonferroni', action='store', dest='bonferroni', type=str, help='apply Bonferroni correction to --pvalue (y or n) default: n')
+            parser.add_argument('--minfreq', action='store', dest='minfreq', type=int, help='minimum frequency default: 1')
+            parser.add_argument('--minrange', action='store', dest='minrange', type=int, help='minimum number of text files default: 1')
         
         elif function_name == 'kwic':
             parser = argparse.ArgumentParser()
@@ -160,6 +172,13 @@ class Kit(Cmd):
             parser.add_argument('--sort3', action='store', dest='sort3', type=str, help='third sorting (L1,L2,L3,L4,L5,R1,R2,R3,R4 or R5)')
             parser.add_argument('--highlight', action='store', dest='highlight', type=str, help='highlights horizon (Example: L1 R1)')
             parser.add_argument('--limit', action='store', dest='limit', type=int, help='Number of concordance lines to return')
+            parser.add_argument('--wildcards', action='store', dest='wildcards', type=str, help='use wildcards: teach*, *ing, a|b, [a,b] (y or n) default: n')
+            parser.add_argument('--context', action='store', dest='context', type=str, help='context words required near the node (Context Search)')
+            parser.add_argument('--cspan', action='store', dest='cspan', type=int, help='context window size in tokens default: 5')
+            parser.add_argument('--cmode', action='store', dest='cmode', type=str, help='context logic: or / and default: or')
+            parser.add_argument('--cexclude', action='store', dest='cexclude', type=str, help='keep lines WITHOUT the context words (y or n) default: n')
+            parser.add_argument('--sample', action='store', dest='sample', type=int, help='random sample of concordance lines')
+            parser.add_argument('--kpf', action='store', dest='kpf', type=str, help='KWIC pattern frequency positions (Example: R1 R2)')
         
         elif function_name == 'concordance':
             parser = argparse.ArgumentParser()
@@ -182,8 +201,11 @@ class Kit(Cmd):
             parser.add_argument('--regexp', action='store', dest='regexp', type=str, help='Enable case sensitive and regular expression for search word matching (y or n) default: n')
             parser.add_argument('--left_span', action='store', dest='left_span', type=int, help='left span size for collocates')
             parser.add_argument('--right_span', action='store', dest='right_span', type=int, help='right span size for collocates')
-            parser.add_argument('--measure', action='store', dest='measure', type=str, help='statistic measure (mutual information or t-score) default: mutual information')
-        
+            parser.add_argument('--measure', action='store', dest='measure', type=str, help='statistic measure (mutual information, t-score, mi3, log-likelihood, log-dice, dice, log-ratio, z-score, ...) default: mutual information')
+            parser.add_argument('--extra', action='store', dest='extra', type=str, help='extra measure columns, comma separated (Example: log-likelihood,log-dice)')
+            parser.add_argument('--minfreq', action='store', dest='minfreq', type=int, help='minimum co-occurrence frequency default: 1')
+            parser.add_argument('--wildcards', action='store', dest='wildcards', type=str, help='use wildcards in the node (y or n) default: n')
+
         elif function_name == 'collgraph':
             parser = argparse.ArgumentParser()
             parser.prog= "collgraph"
@@ -219,7 +241,8 @@ class Kit(Cmd):
             parser.add_argument('--minfreq', action='store', dest='minfreq', type=int, help='minimum frequency of the cluster')
             parser.add_argument('--minrange', action='store', dest='minrange', type=int, help='minimum range frequency')
             parser.add_argument('--lowercase', action='store', dest='lowercase', type=str, help='y or n default: y')
-            
+            parser.add_argument('--position', action='store', dest='position', type=str, help='position of the word in the cluster: both, left or right default: both')
+
         elif function_name == 'ngrams':
             parser = argparse.ArgumentParser()
             parser.prog= "ngrams"
@@ -229,6 +252,41 @@ class Kit(Cmd):
             parser.add_argument('--minfreq', action='store', dest='minfreq', type=int, help='minimum frequency of the cluster')
             parser.add_argument('--minrange', action='store', dest='minrange', type=int, help='minimum range frequency')
             parser.add_argument('--lowercase', action='store', dest='lowercase', type=str, help='y or n default: y')
+            parser.add_argument('--search', action='store', dest='search', type=str, help='keep only n-grams containing a matching word (wildcards accepted)')
+            parser.add_argument('--stoplist', action='store', dest='stoplist', type=str, help='y (bundled stoplist) or path: remove n-grams with stoplist words')
+
+        elif function_name == 'pframes':
+            parser = argparse.ArgumentParser()
+            parser.prog= "pframes"
+            parser.description='Generates n-grams with open slots (p-frames), e.g. "the * of".'
+            parser.add_argument('size', type=int, nargs='?',help='n-gram size (default: 4)')
+            parser.add_argument('--slots', action='store', dest='slots', type=str, help='number of open slots, or slot positions separated by commas (Example: 2 or "2," or "2,3") default: 1')
+            parser.add_argument('--minfreq', action='store', dest='minfreq', type=int, help='minimum frequency default: 2')
+            parser.add_argument('--minrange', action='store', dest='minrange', type=int, help='minimum range default: 1')
+            parser.add_argument('--minvariants', action='store', dest='minvariants', type=int, help='minimum number of slot fillers default: 2')
+
+        elif function_name == 'lemmalist':
+            parser = argparse.ArgumentParser()
+            parser.prog= "lemmalist"
+            parser.description='Makes a frequency list of lemmas (headwords).'
+            parser.add_argument('--lemmas', action='store', dest='lemmas', type=str, help='lemma list file (default: bundled list of the corpus language)')
+            parser.add_argument('--format', action='store', dest='format', type=str, help='auto, form-lemma or headword-forms default: auto')
+            parser.add_argument('--minfreq', action='store', dest='minfreq', type=int, help='minimum frequency default: 1')
+
+        elif function_name == 'dispersion_measures':
+            parser = argparse.ArgumentParser()
+            parser.prog= "dispersion_measures"
+            parser.description="Computes range, SD, CV, Juilland's D and Gries' DP for the words of the corpus."
+            parser.add_argument('words', type=str, nargs='*',help='words to analyse (default: all words)')
+            parser.add_argument('--minfreq', action='store', dest='minfreq', type=int, help='minimum frequency default: 1')
+
+        elif function_name == 'fileview':
+            parser = argparse.ArgumentParser()
+            parser.prog= "fileview"
+            parser.description='Shows the text of a corpus file with the hits of a search term marked.'
+            parser.add_argument('filename', type=str, nargs='?',help='text file name (as shown in the FILENAME column)')
+            parser.add_argument('node', type=str, nargs='?',help='search word or phrase to mark')
+            parser.add_argument('--wildcards', action='store', dest='wildcards', type=str, help='use wildcards (y or n) default: n')
         
         elif function_name == 'dispersion':
             parser = argparse.ArgumentParser()
@@ -239,7 +297,8 @@ class Kit(Cmd):
             parser.add_argument('--case', action='store', dest='case', type=str, help='Case sensitive: (y or n) default: y')
             parser.add_argument('--regexp', action='store', dest='regexp', type=str, help='Enable case sensitive and regular expression for search word matching (y or n) default: n')
             parser.add_argument('--limit', action='store', dest='limit', type=int, help='Number of concordance lines to return')
-        
+            parser.add_argument('--wildcards', action='store', dest='wildcards', type=str, help='use wildcards (y or n) default: n')
+
         elif function_name == 'keywords_dispersion':
             parser = argparse.ArgumentParser()
             parser.prog= "keywords_dispersion"
@@ -254,7 +313,6 @@ class Kit(Cmd):
             parser.description='Creates a word cloud and shows a plot.'
             parser.add_argument('--wordlist', action='store', dest='wordlist', type=str, help='Wordlist type: frequency; keyness; range')
             parser.add_argument('--theme', action='store', dest='theme', type=int, help='Color theme: 0 random; 1 jet; 2 grayish; 3 fixed')
-            parser.add_argument('--vertical', action='store', dest='vertical', type=str, help='Allow vertical: (y or n) default: y')
             parser.add_argument('--stoplist', action='store', dest='stoplist', type=str, help='use the stoplist to filter keywords: (y or n) default:y')
             parser.add_argument('--limit', action='store', dest='limit', type=int, help='Maximum number of words to use (default: 400)')
             parser.add_argument('--format', action='store', dest='format', type=str, help='Plot or image (png) (default: plot)')
@@ -595,7 +653,18 @@ class Kit(Cmd):
                 if args.lowercase is not None:
                     if args.lowercase == 'n':
                         lowercase = False 
-                wordlist = corpus.wordlist(lowercase=lowercase,verbose=True)
+                options = {}
+                if args.search is not None:
+                    options['search'] = args.search
+                if args.stoplist is not None and args.stoplist != 'n':
+                    options['stoplist'] = 'default' if args.stoplist == 'y' else args.stoplist
+                if args.minfreq is not None:
+                    options['min_freq'] = args.minfreq
+                if args.minrange is not None:
+                    options['min_range'] = args.minrange
+                if args.dispersion == 'y':
+                    options['dispersion'] = True
+                wordlist = corpus.wordlist(lowercase=lowercase,verbose=True,**options)
                 wordlist.save_excel(self.workspace + self.corpus_in_use + '/output/wordlist.xlsx')
                 wordlist = None
                 print('')
@@ -614,6 +683,8 @@ class Kit(Cmd):
                 if args.measure !=None:
                     if args.measure == 'chi-square':
                         measure = corpus.MEASURE_CHI_SQUARE
+                    elif args.measure in ('tf-idf', 'log-likelihood-2', 'chi-square-yates', 'text-dispersion'):
+                        measure = args.measure
                 if args.stoplist !=None:
                     if args.stoplist == 'y':
                         with open (corpus.resource_data_path + 'stoplist_' + corpus.language + '.tab','r') as fh:
@@ -625,9 +696,23 @@ class Kit(Cmd):
                 ignore_strange = args.nostrange != 'n' if args.nostrange is not None else True
                 min_chars = args.minchars if args.minchars is not None else 2
                 print('Keywords:')
+                options = {}
+                if args.refcorpus is not None:
+                    options['ref_corpus'] = args.refcorpus
+                if args.effect is not None:
+                    options['effect'] = [e.strip() for e in args.effect.split(',') if e.strip()]
+                if args.polarity is not None:
+                    options['polarity'] = args.polarity
+                if args.pvalue is not None:
+                    options['p_value'] = args.pvalue
+                    options['bonferroni'] = args.bonferroni == 'y'
+                if args.minfreq is not None:
+                    options['min_freq'] = args.minfreq
+                if args.minrange is not None:
+                    options['min_range'] = args.minrange
                 keywords = corpus.keywords(measure=measure, stoplist=stoplist, verbose=True,
                                            ref_language=ref_language, ignore_numbers=ignore_numbers,
-                                           ignore_strange=ignore_strange, min_chars=min_chars)
+                                           ignore_strange=ignore_strange, min_chars=min_chars, **options)
                 keywords.save_excel(self.workspace + self.corpus_in_use + '/output/keywords.xlsx')
                 del keywords 
                 print('')
@@ -678,9 +763,21 @@ class Kit(Cmd):
                     arg_sort3 = args.sort3 
                 if args.highlight != None:
                     arg_highlight = args.highlight
-                kwic = corpus.kwic(args.node,pos=arg_pos,case_sensitive=arg_case_sensitive,regexp=arg_regexp,horizon=arg_horizon,limit=arg_limit,verbose=True)
+                options = {}
+                if args.wildcards == 'y':
+                    options['wildcards'] = True
+                if args.context is not None:
+                    options['context'] = args.context.split()
+                    options['context_span'] = args.cspan if args.cspan is not None else 5
+                    options['context_mode'] = args.cmode if args.cmode is not None else 'or'
+                    options['context_exclude'] = args.cexclude == 'y'
+                if args.sample is not None:
+                    options['sample'] = args.sample
+                kwic = corpus.kwic(args.node,pos=arg_pos,case_sensitive=arg_case_sensitive,regexp=arg_regexp,horizon=arg_horizon,limit=arg_limit,verbose=True,**options)
                 if arg_sort1 != None:
-                    kwic.sort(arg_sort1, arg_sort2, arg_sort3) 
+                    kwic.sort(arg_sort1, arg_sort2, arg_sort3)
+                if args.kpf is not None:
+                    kwic.kpf(*(args.kpf.split() + [None, None, None])[:3]) 
                 kwic.save_excel(self.workspace + self.corpus_in_use + '/output/kwic.xlsx',width=arg_width,highlight=arg_highlight)
                 print('')
         except Exception as e:
@@ -754,8 +851,15 @@ class Kit(Cmd):
 
                 if args.measure != None:
                     arg_measure = args.measure
+                options = {}
+                if args.extra is not None:
+                    options['extra_measures'] = [m.strip() for m in args.extra.split(',') if m.strip()]
+                if args.minfreq is not None:
+                    options['min_freq'] = args.minfreq
+                if args.wildcards == 'y':
+                    options['wildcards'] = True
 
-                collocates = corpus.collocates(args.node,pos=arg_pos,coll_pos=arg_coll_pos,left_span=arg_left_span,right_span=arg_right_span,measure=arg_measure,case_sensitive=arg_case_sensitive,regexp=arg_regexp,verbose=True)
+                collocates = corpus.collocates(args.node,pos=arg_pos,coll_pos=arg_coll_pos,left_span=arg_left_span,right_span=arg_right_span,measure=arg_measure,case_sensitive=arg_case_sensitive,regexp=arg_regexp,verbose=True,**options)
                 collocates.save_excel(self.workspace + self.corpus_in_use + '/output/collocates.xlsx')
                 print('')
         except Exception as e:
@@ -868,7 +972,10 @@ class Kit(Cmd):
                 if args.lowercase != None:
                     if args.lowercase != 'y':
                         arg_lowercase = False
-                clusters = corpus.clusters(args.word,pos=arg_pos,size=arg_size,minfreq=arg_minfreq,minrange=arg_minrange,lowercase=arg_lowercase,verbose=True)
+                options = {}
+                if args.position is not None:
+                    options['position'] = args.position
+                clusters = corpus.clusters(args.word,pos=arg_pos,size=arg_size,minfreq=arg_minfreq,minrange=arg_minrange,lowercase=arg_lowercase,verbose=True,**options)
                 clusters.save_excel(self.workspace + self.corpus_in_use + '/output/clusters.xlsx')
                 print('')
         except Exception as e:
@@ -903,9 +1010,111 @@ class Kit(Cmd):
                 if args.lowercase != None:
                     if args.lowercase != 'y':
                         arg_lowercase = False
-                ngrams = corpus.ngrams(pos=arg_pos,size=arg_size,minfreq=arg_minfreq,minrange=arg_minrange,lowercase=arg_lowercase,verbose=True)
+                options = {}
+                if args.search is not None:
+                    options['search'] = args.search
+                if args.stoplist is not None and args.stoplist != 'n':
+                    options['stoplist'] = 'default' if args.stoplist == 'y' else args.stoplist
+                ngrams = corpus.ngrams(pos=arg_pos,size=arg_size,minfreq=arg_minfreq,minrange=arg_minrange,lowercase=arg_lowercase,verbose=True,**options)
                 ngrams.save_excel(self.workspace + self.corpus_in_use + '/output/ngrams.xlsx')
                 print('')
+        except Exception as e:
+            print(e)
+
+    def do_pframes(self,arg):
+        parser = self.get_parser('pframes')
+        args = parser.parse_args(self.parse_arg(arg))
+        try:
+            if self.corpus_in_use is not None:
+                corpus_info = self.__corpus_info(self.corpus_in_use)
+                corpus = Corpus(self.workspace,self.corpus_in_use,corpus_info['language'])
+                slots = 1
+                if args.slots is not None:
+                    # "2" = number of open slots; "2," or "2,3" = slot positions
+                    if ',' in args.slots:
+                        slots = [int(v) for v in args.slots.split(',') if v.strip()]
+                    else:
+                        slots = int(args.slots)
+                pframes = corpus.pframes(size=args.size if args.size is not None else 4, slots=slots,
+                                         minfreq=args.minfreq if args.minfreq is not None else 2,
+                                         minrange=args.minrange if args.minrange is not None else 1,
+                                         min_variants=args.minvariants if args.minvariants is not None else 2,
+                                         verbose=True)
+                pframes.save_excel(self.workspace + self.corpus_in_use + '/output/pframes.xlsx')
+                print('')
+        except Exception as e:
+            print(e)
+
+    def do_lemmalist(self,arg):
+        parser = self.get_parser('lemmalist')
+        args = parser.parse_args(self.parse_arg(arg))
+        try:
+            if self.corpus_in_use is not None:
+                corpus_info = self.__corpus_info(self.corpus_in_use)
+                corpus = Corpus(self.workspace,self.corpus_in_use,corpus_info['language'])
+                lemmalist = corpus.lemmalist(lemma_file=args.lemmas, lemma_format=args.format or 'auto',
+                                             min_freq=args.minfreq if args.minfreq is not None else 1, verbose=True)
+                lemmalist.save_excel(self.workspace + self.corpus_in_use + '/output/lemmalist.xlsx')
+                print('')
+        except Exception as e:
+            print(e)
+
+    def do_dispersion_measures(self,arg):
+        parser = self.get_parser('dispersion_measures')
+        args = parser.parse_args(self.parse_arg(arg))
+        try:
+            if self.corpus_in_use is not None:
+                corpus_info = self.__corpus_info(self.corpus_in_use)
+                corpus = Corpus(self.workspace,self.corpus_in_use,corpus_info['language'])
+                measures = corpus.dispersion_measures(args.words or None,
+                                                      min_freq=args.minfreq if args.minfreq is not None else 1)
+                measures.save_excel(self.workspace + self.corpus_in_use + '/output/dispersion_measures.xlsx')
+                print('')
+        except Exception as e:
+            print(e)
+
+    def do_fileview(self,arg):
+        parser = self.get_parser('fileview')
+        args = parser.parse_args(self.parse_arg(arg))
+        try:
+            if self.corpus_in_use is not None:
+                corpus_info = self.__corpus_info(self.corpus_in_use)
+                corpus = Corpus(self.workspace,self.corpus_in_use,corpus_info['language'])
+                view = corpus.fileview(args.filename, args.node, wildcards=args.wildcards == 'y')
+                print('File: %s | tokens: %s | types: %s | hits: %s' % (view.filename, view.tokens, view.types, view.hits))
+                print(view.text)
+                print('')
+        except Exception as e:
+            print(e)
+
+    def do_wordcloud(self,arg):
+        parser = self.get_parser('wordcloud')
+        args = parser.parse_args(self.parse_arg(arg))
+        try:
+            if self.corpus_in_use is not None:
+                corpus_info = self.__corpus_info(self.corpus_in_use)
+                corpus = Corpus(self.workspace,self.corpus_in_use,corpus_info['language'])
+                source = args.wordlist or 'frequency'
+                if source == 'keyness':
+                    data = corpus.keywords(polarity='positive')
+                elif source == 'range':
+                    data = corpus.wfreqinfiles()
+                else:
+                    data = corpus.wordlist()
+                colormaps = {0: 'tab10', 1: 'jet', 2: 'Greys', 3: 'viridis'}
+                options = {'max_words': args.limit if args.limit is not None else 400,
+                           'colormap': colormaps.get(args.theme, 'viridis')}
+                if args.stoplist != 'n':
+                    options['stoplist'] = 'default'
+                filename = self.workspace + self.corpus_in_use + '/output/wordcloud.png'
+                image = corpus.wordcloud(data, filename, **options)
+                if (args.format or 'plot') == 'plot':
+                    import matplotlib.pyplot as plt
+                    plt.figure(figsize=(12, 8))
+                    plt.imshow(image)
+                    plt.axis('off')
+                    plt.show()
+                print(filename)
         except Exception as e:
             print(e)
     
@@ -935,8 +1144,9 @@ class Kit(Cmd):
                         arg_regexp = False
                 if args.limit != None:
                     arg_limit = int(args.limit)
-                dispersion = corpus.dispersion(args.node,pos=arg_pos,case_sensitive=arg_case_sensitive,regexp=arg_regexp,limit=arg_limit,verbose=True)
+                dispersion = corpus.dispersion(args.node,pos=arg_pos,case_sensitive=arg_case_sensitive,regexp=arg_regexp,limit=arg_limit,verbose=True,wildcards=args.wildcards == 'y')
                 dispersion.save_excel(self.workspace + self.corpus_in_use + '/output/dispersion.xlsx')
+                print("Range: %s/%s files | Juilland's D: %s | DP: %s" % (dispersion.stats['range'], dispersion.stats['files'], dispersion.stats['juilland-d'], dispersion.stats['dp']))
                 print('')
         except Exception as e:
             print(e)

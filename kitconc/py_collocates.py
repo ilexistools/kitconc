@@ -298,7 +298,7 @@ def tscore(ab,a,b,N, h=1):
     return T
 
 
-def calc_association(node_count,left_counts,right_counts,dict_words,wordlist,tokens,lowercase,measure):
+def calc_association(node_count,left_counts,right_counts,dict_words,wordlist,tokens,lowercase,measure,details=None):
     """Translates numbers to words and calculates association. Returns a list of collocates."""
     punct = re.compile(r'^\W+$')
     collocates = []
@@ -351,8 +351,22 @@ def calc_association(node_count,left_counts,right_counts,dict_words,wordlist,tok
                 d[w]=[0,v]
         right_counts = None
         dict_words = None
+    # optional raw counts for further measures
+    if details is not None:
+        details['node_count'] = node_count
+        details['tokens'] = tokens
+        details['collocate_freqs'] = {k: wordlist.get(k, 0) for k in d}
     # calc association
-    if measure == 1:
+    if isinstance(measure, str) and measure not in ('t-score', 'mutual information', 'mi'):
+        from kitconc.py_measures import association
+        i = 0
+        for k,v in d.items():
+            if punct.match(k) == None:
+                i+=1
+                b = wordlist.get(k, 0)
+                m = association(v[0]+v[1],node_count,b,tokens,measure)
+                collocates.append((i,k,v[0]+v[1],v[0],v[1],m))
+    elif measure == 1:
         i = 0 
         for k,v in d.items():
             if punct.match(k) == None:
@@ -375,7 +389,7 @@ def calc_association(node_count,left_counts,right_counts,dict_words,wordlist,tok
     return collocates 
         
     
-def make_collocates(workspace,corpus_name,node,pos,case_sensitive,regexp,collpos,lowercase,left_span,right_span,measure):
+def make_collocates(workspace,corpus_name,node,pos,case_sensitive,regexp,collpos,lowercase,left_span,right_span,measure,details=None):
     encoded_node,encoded_pos,encoded_collpos = parse_search(workspace,corpus_name,node,pos,case_sensitive,regexp,collpos)
     if encoded_node != None: # search node is OK
         node_count, left_counts, right_counts = search_node(workspace+corpus_name + '/data/npy/',encoded_node,encoded_pos,encoded_collpos,left_span,right_span)
@@ -383,7 +397,7 @@ def make_collocates(workspace,corpus_name,node,pos,case_sensitive,regexp,collpos
             dict_words = load_dict(workspace+corpus_name + '/data/idx/words.pickle')
             language=None
             tokens,wordlist = get_wordlist(workspace,corpus_name,language,lowercase)
-            collocates = calc_association(node_count,left_counts,right_counts,dict_words,wordlist,tokens,lowercase,measure)
+            collocates = calc_association(node_count,left_counts,right_counts,dict_words,wordlist,tokens,lowercase,measure,details)
         else:
             collocates=[]
     else: # no match in search node, set empty

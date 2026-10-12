@@ -4,14 +4,16 @@ Kitconc
 Kitconc is a package for Corpus Linguistics and text analysis with Python.
 It contains, among other things, tools for creating:
 
-* Corpora
-* Frequency wordlists
-* Keywords (Log-Likelihood, Chi-Square, TF-IDF)
-* Concordance lines (KWIC and sentence-based)
-* Collocates
-* N-gram lists
-* Dispersion plots
-* Excel data files
+* Corpora (from TXT, PDF, DOCX, ODT, EPUB, HTML/XHTML and XML files)
+* Frequency wordlists and lemma (headword) lists
+* Keywords (Log-Likelihood, Chi-Square, TF-IDF, Text Dispersion Keyness) against bundled
+  reference lists or your own reference corpus, with effect sizes and negative keywords
+* Concordance lines (KWIC and sentence-based), with wildcards, context search, random samples
+  and KWIC pattern frequency
+* Collocates (T-score, MI, MI2, MI3, Log-Likelihood, Dice, LogDice, LogRatio, Z-score and more)
+* Clusters, N-gram lists and p-frames (n-grams with open slots)
+* Dispersion plots and dispersion measures (Range, Juilland's D, Gries' DP)
+* Word clouds, file view and Excel data files
 * Semantic search with sentence embeddings
 
 The package is built on top of platforms and packages for scientific research: numpy, pandas, XlsxWriter and matplotlib. Its corpus tokenization and tagging pipeline uses built-in dependency-free components.
@@ -188,11 +190,18 @@ These are the tools most clients should use in normal workflows:
 * `delete(corpus_name)` - remove corpus
 * `cleanse(corpus_name=None)` - delete output files from a corpus
 * `open(filename, corpus_name=None, launch=False)` - resolve generated output file path
-* `wordlist(corpus_name=None, lowercase=True, limit=None)` - compute word frequency list
-* `keywords(...)` - compute keywords (`log-likelihood`, `chi-square`, `tf-idf`)
-* `kwic(node, ...)` - keyword in context
+* `wordlist(corpus_name=None, lowercase=True, limit=None, ...)` - compute word frequency list
+  (optional `search`, `stoplist`/`allowlist`, `min_range`, `dispersion` columns)
+* `keywords(...)` - compute keywords (`log-likelihood`, `log-likelihood-2`, `chi-square`, `chi-square-yates`,
+  `tf-idf`, `text-dispersion`); optional `ref_corpus`, `effect`, `polarity`, `p_value`
+* `kwic(node, ...)` - keyword in context (optional `wildcards`, `context` search, `sample`, `kpf`)
 * `concordance(node, ...)` - sentence-style concordance
-* `collocates(node, ...)` - collocate statistics
+* `collocates(node, ...)` - collocate statistics (13 association measures, `extra_measures`, `min_freq`)
+* `pframes(...)` - n-grams with open slots (p-frames)
+* `lemmalist(...)` - lemma (headword) frequency list
+* `dispersion_measures(...)` - Range, SD, CV, Juilland's D and Gries' DP per word
+* `fileview(filename, node=None, ...)` - text of a corpus file with hits marked
+* `wordcloud(output_path, ...)` - word cloud PNG of the wordlist or keywords
 * `collgraph(node, ..., plot=False)` - collocates formatted for graph workflows
 * `wtfreq(corpus_name=None, lowercase=True, limit=None)` - word-tag frequency
 * `wfreqinfiles(corpus_name=None, lowercase=True, limit=None)` - per-file frequencies
@@ -328,6 +337,49 @@ Language resources
 
 Kitconc comes with built-in language resources for Portuguese and English corpora.
 It also provides functions for adding your own language resources.
+
+
+What's new (unreleased): AntConc-style analyses
+=========
+
+All new options are optional keyword arguments; existing calls return the same results as before.
+
+```python
+from kitconc.kit_corpus import Corpus
+corpus = Corpus('kitconc_workspace', 'ads', 'english')
+
+# Keywords against another corpus of the workspace, with effect sizes and a significance threshold
+kw = corpus.keywords(ref_corpus='reference', effect=['log-ratio', 'log-dice'], p_value='p<0.01')
+neg = corpus.keywords(ref_corpus='reference', polarity='negative')       # negative keywords
+td = corpus.keywords(measure='text-dispersion', ref_corpus='reference')  # keyness of text ranges
+
+# Collocates with any association measure plus extra measure columns
+coll = corpus.collocates('new', measure='log-dice', extra_measures=['log-likelihood', 'mi3'], min_freq=2)
+
+# KWIC: wildcards (* ? + | [a,b]), context search, random sample and KWIC pattern frequency
+kwic = corpus.kwic('teach*', wildcards=True, context=['student', 'school'], context_span=(5, 5))
+kwic = corpus.kwic('new', sample=50, seed=1).kpf('R1', 'R2', None)
+
+# Clusters of any size with the search word on the left or right; p-frames ("the * of")
+clusters = corpus.clusters('new', size=4, position='left')
+frames = corpus.pframes(size=4, slots=1)
+
+# Dispersion: corpus-level statistics and per-word measures
+disp = corpus.dispersion('new'); print(disp.juilland_d, disp.dp, disp.stats)
+dm = corpus.dispersion_measures(['new', 'skills'])
+wl = corpus.wordlist(dispersion=True, stoplist='default', search='*ing')
+
+# Lemma list, file view and word cloud
+lemmas = corpus.lemmalist()                       # or lemma_file='my_lemmas.txt' (AntConc format accepted)
+view = corpus.fileview('ad_000.txt', 'new'); print(view.text)
+corpus.wordcloud(kw, 'keywords_cloud.png')        # saved in the corpus output folder
+```
+
+New CLI commands: `pframes`, `lemmalist`, `dispersion_measures`, `fileview` and `wordcloud`; existing commands
+accept new flags (see `help <command>`). Corpus creation also converts DOCX, ODT, EPUB, HTML/XHTML and XML files.
+Runnable examples: `19_howto_compare-keywords.py`, `20_howto_advanced-kwic.py`,
+`21_howto_measure-dispersion.py`, `22_howto_make-pframes-and-lemmas.py` and `23_howto_make-wordcloud-and-fileview.py`.
+A comparison with AntConc is available in `docs/ANTCONC_PESQUISA_E_COMPARACAO.md`.
 
 
 What's new in 3.2.0

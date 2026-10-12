@@ -256,3 +256,136 @@ class CollGraph(object):
         # show plot
         matplotlib.pyplot.show()
         
+
+
+_WORD_COLUMNS = ('WORD', 'N-GRAM', 'CLUSTER', 'LEMMA', 'P-FRAME', 'TYPE')
+_VALUE_COLUMNS = ('FREQUENCY', 'KEYNESS', 'ASSOCIATION', 'RANGE', 'TOTAL')
+
+
+def _wordcloud_items(data, word_column=None, value_column=None):
+    """Normalises the input of wordcloud() into a list of (word, value)."""
+    import re
+    if isinstance(data, str):
+        counts = {}
+        for w in re.findall(r'\w+', data.lower()):
+            counts[w] = counts.get(w, 0) + 1
+        return list(counts.items())
+    if isinstance(data, dict):
+        return [(str(k), float(v)) for k, v in data.items()]
+    df = getattr(data, 'df', data)
+    columns = list(df.columns)
+    if word_column is None:
+        word_column = next((c for c in _WORD_COLUMNS if c in columns), None)
+        if word_column is None:
+            word_column = next(c for c in columns if df[c].dtype == object)
+    if value_column is None:
+        value_column = next((c for c in _VALUE_COLUMNS if c in columns), None)
+        if value_column is None:
+            value_column = next(c for c in columns if c != 'N' and df[c].dtype != object)
+    return [(str(w), float(v)) for w, v in zip(df[word_column], df[value_column])]
+
+
+def wordcloud(data, filename=None, **kwargs):
+    """Draws a word cloud and returns it as a PIL image (saved as PNG when ``filename`` is given).
+
+    data: a kitconc result object (wordlist, keywords, collocates, n-grams...), a DataFrame,
+          a dict {word: value} or plain text.
+
+    Keyword Arguments:
+      word_column / value_column (str): Columns used for labels and sizes (detected automatically).
+      max_words (int): Default is 150.
+      width / height (int): Image size in pixels. Defaults are 1200 x 800.
+      background (str): Background colour (default 'white').
+      colormap (str): Matplotlib colormap name (default 'viridis').
+      font_path (str): TrueType font (default: the bundled Ubuntu font).
+      min_font_size / max_font_size (int): Defaults are 10 and height / 6.
+      scale (str): 'sqrt' (default), 'linear' or 'log' mapping of values to font sizes.
+      stoplist (iterable): Words to ignore.
+      margin (int): Space around each word in pixels (default 2).
+      seed (int): Random seed for colours (default 0).
+    """
+    from PIL import Image, ImageDraw, ImageFont
+    import math
+    import random
+
+    max_words = kwargs.get('max_words', 150)
+    width = int(kwargs.get('width', 1200))
+    height = int(kwargs.get('height', 800))
+    background = kwargs.get('background', 'white')
+    colormap = kwargs.get('colormap', 'viridis')
+    font_path = kwargs.get('font_path', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'ubuntu.ttf'))
+    min_font = int(kwargs.get('min_font_size', 10))
+    max_font = int(kwargs.get('max_font_size', height // 6))
+    scale = kwargs.get('scale', 'sqrt')
+    margin = int(kwargs.get('margin', 2))
+    stop = {str(w).lower() for w in (kwargs.get('stoplist') or [])}
+    rng = random.Random(kwargs.get('seed', 0))
+
+    items = _wordcloud_items(data, kwargs.get('word_column'), kwargs.get('value_column'))
+    items = [(w, v) for w, v in items if v > 0 and w.strip() and w.lower() not in stop]
+    items.sort(key=lambda x: x[1], reverse=True)
+    items = items[:max_words]
+
+    image = Image.new('RGB', (width, height), background)
+    if not items:
+        if filename:
+            image.save(filename)
+        return image
+
+    def transform(v):
+        if scale == 'log':
+            return math.log1p(v)
+        if scale == 'sqrt':
+            return math.sqrt(v)
+        return v
+
+    vmax = transform(items[0][1])
+    vmin = transform(items[-1][1])
+    try:
+        import matplotlib
+        cmap = matplotlib.colormaps.get_cmap(colormap) if hasattr(matplotlib, 'colormaps') else matplotlib.cm.get_cmap(colormap)
+    except Exception:
+        cmap = None
+
+    draw = ImageDraw.Draw(image)
+    occupied = np.zeros((height, width), dtype=bool)
+    cx, cy = width / 2.0, height / 2.0
+    fonts = {}
+
+    for word, value in items:
+        rel = 1.0 if vmax == vmin else (transform(value) - vmin) / (vmax - vmin)
+        size = int(min_font + rel * (max_font - min_font))
+        placed = False
+        while size >= min_font and not placed:
+            font = fonts.get(size)
+            if font is None:
+                font = fonts[size] = ImageFont.truetype(font_path, size)
+            left, top, right, bottom = draw.textbbox((0, 0), word, font=font)
+            w, h = right - left + 2 * margin, bottom - top + 2 * margin
+            if w < width and h < height:
+                t = 0.0
+                step = max(2.0, size / 6.0)
+                while True:
+                    r = 2.0 * t
+                    if r > math.hypot(width, height) / 2:
+                        break
+                    x = int(cx + r * math.cos(t) * (width / height) - w / 2)
+                    y = int(cy + r * math.sin(t) - h / 2)
+                    t += step / max(r, step)
+                    if x < 0 or y < 0 or x + w > width or y + h > height:
+                        continue
+                    if not occupied[y:y + h, x:x + w].any():
+                        occupied[y:y + h, x:x + w] = True
+                        if cmap is not None:
+                            rgba = cmap(0.8 * rng.random())
+                            color = tuple(int(255 * c) for c in rgba[:3])
+                        else:
+                            color = (0, 0, 0)
+                        draw.text((x + margin - left, y + margin - top), word, font=font, fill=color)
+                        placed = True
+                        break
+            if not placed:
+                size = int(size * 0.85) if size > min_font else min_font - 1
+    if filename:
+        image.save(filename)
+    return image

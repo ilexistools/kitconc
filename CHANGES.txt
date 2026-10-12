@@ -1,5 +1,25 @@
 Unreleased
 ----------
+- Added AntConc-style options (all optional; default results are unchanged):
+  - Keywords against another corpus of the workspace (`ref_corpus`), effect sizes (Log Ratio, Dice, LogDice, MI, MI3,
+    RRF, DRF, z, t, %DIFF, odds ratio), negative keywords (`polarity`), p-value thresholds with optional Bonferroni
+    correction, two-term log-likelihood, chi-square with Yates correction and Text Dispersion Keyness.
+  - Collocates with 13 association measures (`measure`), extra measure columns (`extra_measures`), `min_freq`,
+    stoplists and allowlists.
+  - KWIC/concordance wildcards (`* ? + | [a,b]`), context search (AND/OR, exclusion), random samples and KWIC
+    pattern frequency (`Kwic.kpf()`); `Kwic.hide_node()` for gap-fill exercises.
+  - Clusters of any size with the search word on the left or right (`position`).
+  - N-gram search filter and p-frames (n-grams with open slots, with variants, TTR and entropy).
+  - Dispersion statistics (Range, SD, CV, Juilland's D, Gries' DP) in `dispersion()` and `dispersion_measures()`;
+    optional RANGE/JUILLAND_D/DP columns in `wordlist(dispersion=True)`.
+  - Lemma lists (`lemmalist()`), file view (`fileview()`) and word clouds (`wordcloud()`).
+  - Stoplists/allowlists (lists, files or 'default') in wordlist, keywords, collocates, clusters and n-grams.
+  - New CLI commands `pframes`, `lemmalist`, `dispersion_measures`, `fileview` and `wordcloud`, new flags for existing
+    commands, and matching MCP tools.
+- Corpus creation converts DOCX, ODT, EPUB, HTML/XHTML and XML files to text.
+- Fixed `wordlist(lowercase=False)`, which raised an error.
+- Fixed `dispersion()` for search terms without hits, which raised an error.
+- Fixed the CLI/GUI `keywords --measure tf-idf`, which silently used log-likelihood.
 - Added an MCP export tool for analysis results in `.tab`, `.tsv`, and `.xlsx` formats.
 - Added MCP tools to build per-corpus semantic embedding indexes and inspect their status; semantic search now selects the active corpus index by default.
 - Improved filesystem-based corpus creation for source paths containing spaces and rejected unsafe or colliding corpus names.

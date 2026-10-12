@@ -6,7 +6,7 @@ This document defines the current internal action-layer contract exposed by `Kit
 
 - Target class: `KitconcActions`
 - Coverage goal: 1:1 parity with all `do_*` commands in `kitconc/kit_cmd.py`
-- Current parity: 31 / 31 commands
+- Current parity: 36 / 36 commands
 - Typed schemas module: `kitconc/agent/schemas.py`
 - MCP runtime entrypoint: `kitconc/agent/mcp_server.py` (`kitconc-mcp`)
 
@@ -46,17 +46,22 @@ Selection behavior:
 | `workspace` | `workspace(path=None)` | optional new workspace path | `str` workspace |
 | `create` | `create(name, source, language, tagged=False, verbose=False)` | corpus metadata + source | `dict` corpus info |
 | `use` | `use(corpus_name)` | corpus name | `dict` corpus info |
-| `wordlist` | `wordlist(corpus_name=None, lowercase=True, limit=None)` | options | `dict(rows,total)` |
-| `keywords` | `keywords(corpus_name=None, measure='log-likelihood', stoplist=None, ref_language=None, ignore_numbers=True, ignore_strange=True, min_chars=2, limit=None)` | options | `dict(rows,total)` |
-| `kwic` | `kwic(node, corpus_name=None, pos=None, case_sensitive=False, regexp=False, horizon=10, limit=None)` | options | `dict(rows,total)` |
-| `concordance` | `concordance(node, corpus_name=None, pos=None, case_sensitive=False, regexp=False, limit=None)` | options | `dict(rows,total)` |
-| `collocates` | `collocates(node, corpus_name=None, pos=None, coll_pos=None, case_sensitive=False, regexp=False, left_span=5, right_span=5, lowercase=True, measure='mutual information', limit=None)` | options | `dict(rows,total)` |
+| `wordlist` | `wordlist(corpus_name=None, lowercase=True, limit=None, min_freq=1, min_range=1, search=None, regexp=False, stoplist=None, allowlist=None, dispersion=False)` | options | `dict(rows,total)` |
+| `keywords` | `keywords(corpus_name=None, measure='log-likelihood', stoplist=None, ref_language=None, ignore_numbers=True, ignore_strange=True, min_chars=2, limit=None, ref_corpus=None, effect=None, polarity='all', p_value=None, bonferroni=False, min_freq=1, min_range=1, allowlist=None, sort_by='keyness')` | options | `dict(rows,total)` |
+| `kwic` | `kwic(node, corpus_name=None, pos=None, case_sensitive=False, regexp=False, horizon=10, limit=None, wildcards=False, context=None, context_left=5, context_right=5, context_mode='or', context_exclude=False, sample=None, seed=None, kpf=None)` | options | `dict(rows,total)` |
+| `concordance` | `concordance(node, corpus_name=None, pos=None, case_sensitive=False, regexp=False, limit=None, wildcards=False, sample=None, seed=None)` | options | `dict(rows,total)` |
+| `collocates` | `collocates(node, corpus_name=None, pos=None, coll_pos=None, case_sensitive=False, regexp=False, left_span=5, right_span=5, lowercase=True, measure='mutual information', limit=None, extra_measures=None, min_freq=1, stoplist=None, allowlist=None, wildcards=False)` | options | `dict(rows,total)` |
 | `collgraph` | `collgraph(node, corpus_name=None, pos=None, coll_pos=None, case_sensitive=False, regexp=False, left_span=5, right_span=5, measure='mutual information', plot=False)` | options | `dict(rows,total)` |
 | `wtfreq` | `wtfreq(corpus_name=None, lowercase=True, limit=None)` | options | `dict(rows,total)` |
 | `wfreqinfiles` | `wfreqinfiles(corpus_name=None, lowercase=True, limit=None)` | options | `dict(rows,total)` |
-| `clusters` | `clusters(word, corpus_name=None, pos=None, size=3, minfreq=1, minrange=1, lowercase=True, limit=None)` | options | `dict(rows,total)` |
-| `ngrams` | `ngrams(corpus_name=None, pos=None, size=3, minfreq=1, minrange=1, lowercase=True, limit=None)` | options | `dict(rows,total)` |
-| `dispersion` | `dispersion(node, corpus_name=None, pos=None, case_sensitive=False, regexp=False, limit=None)` | options | `dict(rows,total,totals)` |
+| `clusters` | `clusters(word, corpus_name=None, pos=None, size=3, minfreq=1, minrange=1, lowercase=True, limit=None, position='both', case_sensitive=False, regexp=False, wildcards=False, stoplist=None, allowlist=None)` | options | `dict(rows,total)` |
+| `ngrams` | `ngrams(corpus_name=None, pos=None, size=3, minfreq=1, minrange=1, lowercase=True, limit=None, search=None, regexp=False, stoplist=None, allowlist=None)` | options | `dict(rows,total)` |
+| `pframes` | `pframes(corpus_name=None, size=4, slots=1, pos=None, minfreq=2, minrange=1, min_variants=2, lowercase=True, stoplist=None, limit=100)` | options | `dict(rows,total)` |
+| `lemmalist` | `lemmalist(corpus_name=None, lemma_file=None, lemma_format='auto', min_freq=1, min_range=1, stoplist=None, limit=None)` | options | `dict(rows,total)` |
+| `dispersion_measures` | `dispersion_measures(corpus_name=None, words=None, min_freq=1, lowercase=True, limit=None)` | options | `dict(rows,total)` |
+| `fileview` | `fileview(filename, corpus_name=None, node=None, case_sensitive=False, regexp=False, wildcards=False, marker='[[{}]]')` | file + optional search | `dict(filename,text,hits,tokens,types,rows,total)` |
+| `wordcloud` | `wordcloud(output_path, corpus_name=None, source='wordlist', max_words=150, width=1200, height=800, colormap='viridis', stoplist='default')` | PNG path + options | `dict(output_path,source)` |
+| `dispersion` | `dispersion(node, corpus_name=None, pos=None, case_sensitive=False, regexp=False, limit=None, wildcards=False)` | options | `dict(rows,total,stats,totals)` |
 | `keywords_dispersion` | `keywords_dispersion(corpus_name=None, lowercase=True, limit=25, keywords_measure='log-likelihood')` | options | `dict(rows,total,totals)` |
 | `text2utf8` | `text2utf8(source, target, source_encoding='mbcs', verbose=False)` | source/target folders | `dict(source,target,files,total)` |
 | `examples` | `examples(dest_path=None)` | optional destination | `str` destination path |
