@@ -95,6 +95,14 @@ Quick start
 
 **1. Install** (Python 3.10+):
 
+For an agent-only setup, you do **not** need to install Kitconc globally with `pip`. With `uv` available, install the bundled skill for Claude and Codex directly from PyPI:
+
+```bash
+uvx --from kitconc kitconc-skill install
+```
+
+`uvx` downloads Kitconc into a temporary environment to run the installer. The skill can then launch Kitconc tools through `uvx` when needed. To make Kitconc commands available globally, use the persistent installation below instead.
+
 ```bash
 pip install kitconc            # or: uv tool install kitconc
 pip install "kitconc[full]"    # optional: semantic search with sentence embeddings
@@ -174,9 +182,10 @@ which measures to trust, how to compose results and how to report evidence. It f
 Agent Skills format and also explains how to use Kitconc without MCP.
 
 ```bash
-kitconc-skill install                   # Claude (~/.claude/skills) and Codex (~/.agents/skills)
-kitconc-skill install --target codex    # only one of them
-kitconc-skill install --scope project   # into ./.claude/skills and ./.agents/skills of the current repo
+uvx --from kitconc kitconc-skill install                   # no pip install required
+kitconc-skill install                                      # if Kitconc is already installed
+uvx --from kitconc kitconc-skill install --target codex    # install for Codex only
+uvx --from kitconc kitconc-skill install --scope project   # install into this repository
 ```
 
 Source: [`kitconc/agent/skill/kitconc`](kitconc/agent/skill/kitconc/SKILL.md) — copy the folder
@@ -216,6 +225,65 @@ Ready-made, editable pipelines. Agents run them with `recipe_run`, adapt them wi
 Learn more: [docs/MCP.md](docs/MCP.md) (full reference) · built-in guides on
 [measures](kitconc/agent/guides/measures.md), [terminology](kitconc/agent/guides/terminology.md),
 [pipelines](kitconc/agent/guides/pipelines.md) and [expressions](kitconc/agent/guides/expressions.md).
+
+#### Create your own recipe
+
+A recipe is a reusable JSON pipeline. It declares the inputs (`params`), the tools to run in order
+(`steps`), which step to return (`output`), and notes for interpreting the result. Start from a
+built-in recipe with `recipe_show`, or create a new JSON file like this:
+
+```json
+{
+  "name": "term-shortlist",
+  "title": "Term shortlist",
+  "description": "Find and rank term candidates, then add example contexts.",
+  "tags": ["terminology"],
+  "params": {
+    "corpus": {"type": "string", "required": true, "description": "Corpus id."},
+    "min_freq": {"type": "integer", "default": 3},
+    "top": {"type": "integer", "default": 25}
+  },
+  "steps": [
+    {"id": "candidates", "tool": "term_candidates",
+     "args": {"corpus": "$params.corpus", "min_freq": "$params.min_freq", "limit": 0}},
+    {"id": "scored", "tool": "result_derive",
+     "args": {"result_id": "$candidates.result_id",
+              "columns": {"CVALUE": "round(c_value(TERM, FREQUENCY), 2)"}, "limit": 0}},
+    {"id": "shortlist", "tool": "result_filter",
+     "args": {"result_id": "$scored.result_id", "where": "CVALUE > 0",
+              "sort_by": "CVALUE", "keep": "$params.top", "limit": "$params.top"}},
+    {"id": "evidence", "tool": "result_enrich",
+     "args": {"result_id": "$shortlist.result_id", "column": "TERM",
+              "corpus": "$params.corpus", "add": ["example"],
+              "max_rows": "$params.top", "limit": "$params.top"}}
+  ],
+  "output": "evidence",
+  "interpretation": "Review the examples before deciding which candidates belong in the glossary."
+}
+```
+
+Each step has a unique `id`, a tool name and its `args`. Reference parameters with `"$params.name"`
+and earlier step outputs with expressions such as `"$candidates.result_id"`; a whole-string
+reference keeps its original type. Use `${params.name}` when inserting a value inside a longer string.
+For example, `"exports/${params.corpus}.xlsx"` creates a corpus-specific export path.
+
+Before saving, you can check the structure and references with `pipeline_validate`. `recipe_save`
+also validates them and writes the recipe to `<workspace>/recipes/<name>.json`. Give user recipes a
+new name rather than reusing a built-in name, unless you intend to override it. Names use lowercase
+letters, digits, hyphens or underscores. Saving an existing user recipe requires `overwrite: true`.
+
+For MCP, call `recipe_save` with the JSON above as its `recipe` argument. With the CLI, save a
+request file containing `{"recipe": ...}` (wrap the recipe object above in `recipe`) and run:
+
+```bash
+kitconc-tool recipe_save - < recipe-request.json
+kitconc-tool recipe_list '{"tag": "terminology"}'
+kitconc-tool recipe_run '{"name": "term-shortlist", "params": {"corpus": "ads", "min_freq": 4, "top": 20}}'
+```
+
+`recipe_run` returns the per-step status, result IDs, final output and the recipe's interpretation
+notes. Keep `limit: 0` on intermediate analysis steps to retain all rows for later filtering; set
+limits on the final step to control the returned page.
 
 
 Requirements
