@@ -1,5 +1,31 @@
-Unreleased
-----------
+Version 4.0.0
+-------------
+- 2026-10-11
+- Breaking (MCP): `kitconc-mcp` now exposes a curated, agent-oriented tool set instead of one tool per
+  `KitconcActions` method. Tools are grouped and renamed (`analyze_wordlist`, `corpus_create`, `result_export`...),
+  take an explicit `corpus` instead of a selected corpus, and return a `result_id` with one page of rows. Run
+  `kitconc-mcp --tool-set legacy` to keep the 3.x tools; see "Migrating from 3.x" in docs/MCP.md. The Python API
+  (`Corpus`, `KitconcActions`) is unchanged.
+- MCP: analysis results are stored on the server (persisted in `<workspace>/.kitconc_results`) and can be paged,
+  filtered, derived with a safe expression language (`per_million`, `log_likelihood`, `log_ratio`, `c_value`...),
+  joined, combined, aggregated, enriched with corpus evidence (examples, definitions, dispersion, collocates) and
+  exported without sending rows through the conversation.
+- MCP: new tools `corpus_tagset`, `corpus_qa`, `subcorpus_create`, `term_candidates` (tagset-agnostic term
+  extraction for Brown/Penn, Universal POS/spaCy, Mac-Morpho and untagged corpora), `context_mine` and `text_stats`.
+- MCP: declarative pipelines (`pipeline_run`), 11 built-in editable recipes (glossary candidates, domain-specific
+  glossaries, corpus comparison, word profiles, near-synonyms, collocation entries, lexical bundles, keyword report,
+  corpus profile, word frequencies across corpora, corpus QA), user recipes and background jobs with progress and
+  cancellation.
+- MCP: tool annotations, structured errors with hints, server instructions, resources (`kitconc://...`), one prompt
+  per recipe plus `plan-analysis`, argument completion, built-in guides, `--read-only`, `--disk-capacity` and
+  `--job-workers` options.
+- Fixed corpus creation tokenizing binary files found in the source folder (e.g. SQLite databases); they are now
+  skipped with a warning.
+- Fixed info.tab metadata written without a final newline, which merged fields such as
+  "encoding: utf-8Textfiles: 98"; existing files are repaired when read.
+- Tabular `KitconcActions` methods also return `columns`.
+- Updated pyjwt, pypdf, torch (optional "full" extra) and urllib3.
+- Added a test workflow on every push and pull request (Ubuntu and Windows, Python 3.10 and 3.12).
 - Added AntConc-style options (all optional; default results are unchanged):
   - Keywords against another corpus of the workspace (`ref_corpus`), effect sizes (Log Ratio, Dice, LogDice, MI, MI3,
     RRF, DRF, z, t, %DIFF, odds ratio), negative keywords (`polarity`), p-value thresholds with optional Bonferroni

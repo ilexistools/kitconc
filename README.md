@@ -188,8 +188,23 @@ Kitconc comes with built-in language resources for Portuguese and English corpor
 It also provides functions for adding your own language resources.
 
 
-What's new (unreleased): AntConc-style analyses
+What's new in 4.0.0
 =========
+
+**Agent tool surface (MCP).** `kitconc-mcp` now offers composable tools for AI agents: analyses stored on the
+server, a result algebra (filter, derive, join, combine, aggregate, enrich, export), tagset-agnostic term
+extraction, corpus QA and subcorpora, pipelines, editable recipes (glossaries, corpus comparison, word profiles,
+collocation entries, lexical bundles...) and background jobs. See [docs/MCP.md](docs/MCP.md).
+
+**Upgrading from 3.x.** MCP tool names changed (e.g. `wordlist` -> `analyze_wordlist`, `use` + `kwic` ->
+`analyze_kwic(corpus=...)`). Start the server with `--tool-set legacy` to keep the old tools, or follow
+"Migrating from 3.x" in [docs/MCP.md](docs/MCP.md). The Python API is unchanged.
+
+**Fixes.** Corpus creation skips binary files in source folders, and corpus metadata (info.tab) is written and read
+correctly.
+
+Corpus analyses (AntConc-style)
+-------------
 
 All new options are optional keyword arguments; existing calls return the same results as before.
 

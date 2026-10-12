@@ -20,6 +20,7 @@ large corpora) run as pipelines or jobs.
 - [Errors](#errors)
 - [Safety](#safety)
 - [Extending](#extending)
+- [Migrating from 3.x](#migrating-from-3x)
 - [Legacy tool set](#legacy-tool-set)
 - [Tests](#tests)
 
@@ -334,6 +335,37 @@ with the allowed values in the message.
   `tests/test_agent_workflows.py`.
 - **New guide**: add `kitconc/agent/guides/<name>.md`; it becomes `guide_read("<name>")` and
   `kitconc://guide/<name>`.
+
+## Migrating from 3.x
+
+Version 4.0.0 replaced the auto-generated catalog (one tool per `KitconcActions` method) with the
+curated tools. Three things change for existing clients:
+
+1. **Names.** See the table below.
+2. **No selected corpus.** `use`/`home` are gone; pass `corpus` to every corpus-scoped tool.
+3. **Results instead of full tables.** Analyses return `result_id` and one page. Read more with
+   `result_page`, export with `result_export(result_id, output_path)` instead of sending rows back
+   to `export_analysis_result`.
+
+| 3.x tool | 4.0 tool |
+|---|---|
+| `workspace`, `workspace_status`, `version`, `app_version`, `list_ref_languages` | `workspace_info` (read), `workspace_set` (change) |
+| `ls`, `list_corpora` | `corpus_list` (corpora), `corpus_files` (texts of a corpus) |
+| `use` + any analysis | the analysis with `corpus=...` |
+| `get_corpus_info` | `corpus_info` |
+| `create`, `create_corpus` | `corpus_create` |
+| `delete`, `delete_corpus` | `corpus_delete(confirm=true)` |
+| `export_corpus`, `import_corpus` | `corpus_export`, `corpus_import` |
+| `wordlist`, `keywords`, `kwic`, `concordance`, `collocates`, `clusters`, `ngrams`, `pframes`, `dispersion`, `dispersion_measures`, `keywords_dispersion` | `analyze_` + the same name |
+| `lemmalist` | `analyze_lemmas` |
+| `wtfreq`, `wfreqinfiles` | `analyze_word_tag_freq`, `analyze_word_freq_by_file` |
+| `collgraph(plot=False)` | `analyze_collocates` |
+| `fileview` | `corpus_read_file` |
+| `wordcloud` | `plot_wordcloud` |
+| `index_corpus`, `semantic_index_status`, `semantic_search` | `semantic_index_build`, `semantic_index_status`, `semantic_search` |
+| `export_analysis_result` | `result_export(result_id, ...)` |
+| `help`, `command_help` | `guide_read` |
+| `cleanse`, `open`, `list_output_files`, `text2utf8`, `train_model`, `examples` | not exposed (CLI/Python only); use `--tool-set legacy` if a client needs them |
 
 ## Legacy tool set
 
