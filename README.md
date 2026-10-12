@@ -1,5 +1,37 @@
-Kitconc 
-=========
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/kitconc-logo-dark.png">
+    <img src="docs/assets/kitconc-logo-light.png" alt="Kitconc logo" width="190">
+  </picture>
+</p>
+
+<h1 align="center">Kitconc</h1>
+
+<p align="center">
+  <b>Corpus linguistics for Python — and for your AI assistant.</b><br>
+  Concordances, keywords, collocations, terminology and corpus comparison that Claude, Codex, Cursor
+  or any MCP client can run for you, step by step and with evidence.
+</p>
+
+<p align="center">
+  <a href="https://pypi.org/project/kitconc/"><img alt="PyPI" src="https://img.shields.io/pypi/v/kitconc?color=19b5b5"></a>
+  <a href="https://pypi.org/project/kitconc/"><img alt="Python" src="https://img.shields.io/pypi/pyversions/kitconc"></a>
+  <a href="https://github.com/ilexistools/kitconc/actions/workflows/tests.yml"><img alt="Tests" src="https://github.com/ilexistools/kitconc/actions/workflows/tests.yml/badge.svg"></a>
+  <a href="LICENSE.txt"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-0a4a4a"></a>
+  <a href="docs/MCP.md"><img alt="MCP ready" src="https://img.shields.io/badge/MCP-ready-19b5b5"></a>
+  <a href="#install-the-agent-skill"><img alt="Agent skill: Claude and Codex" src="https://img.shields.io/badge/skill-Claude%20%7C%20Codex-0a4a4a"></a>
+</p>
+
+<p align="center">
+  <a href="#use-kitconc-with-ai">Use with AI</a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="docs/MCP.md">MCP docs</a> ·
+  <a href="#recipes">Recipes</a> ·
+  <a href="#usage-examples">Python examples</a> ·
+  <a href="CHANGES.txt">Changelog</a>
+</p>
+
+---
 
 Kitconc is a package for Corpus Linguistics and text analysis with Python.
 It contains, among other things, tools for creating:
@@ -15,8 +47,175 @@ It contains, among other things, tools for creating:
 * Dispersion plots and dispersion measures (Range, Juilland's D, Gries' DP)
 * Word clouds, file view and Excel data files
 * Semantic search with sentence embeddings
+* Term candidates and glossaries, corpus quality checks, subcorpora and corpus comparison
 
 The package is built on top of platforms and packages for scientific research: numpy, pandas, XlsxWriter and matplotlib. Its corpus tokenization and tagging pipeline uses built-in dependency-free components.
+
+**Three ways to use it:** a desktop app (`kitconc-app`), a Python API (`kitconc.kit_corpus.Corpus`),
+and an **AI agent interface** — an MCP server, a CLI and a ready-made skill for Claude and Codex.
+
+
+Use Kitconc with AI
+=========
+
+Ask your assistant questions like these and let it do the corpus work:
+
+> *"Check my `contracts` corpus for problems, then build a glossary of its 60 most relevant terms with an example and a definition for each, and export it to `glossary.xlsx`."*
+>
+> *"How is* sustainability *used in the 2020s news compared with the 2010s? Show keywords, collocates and a few concordance lines."*
+>
+> *"Compare* big, large *and* huge *in my learner corpus: frequencies, shared and exclusive collocates, and examples."*
+>
+> *"Which lexical bundles characterize these research articles? Group them by function for an EAP class."*
+
+What the assistant gets:
+
+| Capability | What it means for the agent |
+|---|---|
+| **55 described tools** | Corpora, concordances, keywords, collocates, clusters, n-grams, p-frames, dispersion, lemmas, terms, definitions, per-text statistics, semantic search |
+| **Results that stay on the server** | Every analysis returns a `result_id` and one compact page; the agent filters, joins, scores and enriches results instead of copying tables into the chat |
+| **A result algebra** | `result_filter`, `result_derive` (safe expressions: `per_million`, `log_likelihood`, `log_ratio`, `c_value`...), `result_join`, `result_combine`, `result_aggregate`, `result_enrich` (examples, definitions, dispersion, collocates per row), `result_export` |
+| **Pipelines and recipes** | Whole studies in one call; 11 editable recipes from corpus QA to domain-specific glossaries |
+| **Any POS tagset** | Brown/Penn, Universal POS (spaCy), Mac-Morpho or untagged corpora — term patterns such as `ADJ NOUN` work everywhere |
+| **Long jobs** | Background jobs with progress and cancellation for large corpora |
+| **Guardrails** | Structured errors with hints, read-only mode, confirmation for destructive actions, built-in guides on measures and methods |
+
+```mermaid
+flowchart LR
+    A["AI assistant<br/>Claude · Codex · Cursor · VS Code"] -- "MCP or kitconc-tool" --> B["Kitconc tools"]
+    B --> C[("Workspace<br/>corpora")]
+    B --> D["Stored results<br/>result_id"]
+    D --> E["Result algebra<br/>filter · join · derive · enrich"]
+    E --> F["Pipelines & recipes"]
+    F --> G["Answer with evidence<br/>+ .xlsx export"]
+```
+
+Quick start
+-------------
+
+**1. Install** (Python 3.10+):
+
+```bash
+pip install kitconc            # or: uv tool install kitconc
+pip install "kitconc[full]"    # optional: semantic search with sentence embeddings
+```
+
+This gives you `kitconc-app` (desktop), `kitconc-mcp` (MCP server), `kitconc-tool` (CLI for agents)
+and `kitconc-skill` (skill installer).
+
+**2. Connect your assistant** to a workspace folder (it holds your corpora):
+
+<details open>
+<summary><b>Claude Code</b></summary>
+
+```bash
+claude mcp add kitconc -- uvx --from kitconc kitconc-mcp --workspace /path/to/kitconc_workspace
+```
+</details>
+
+<details>
+<summary><b>Codex</b> (<code>~/.codex/config.toml</code>)</summary>
+
+```toml
+[mcp_servers.kitconc]
+command = "uvx"
+args = ["--from", "kitconc", "kitconc-mcp", "--workspace", "/path/to/kitconc_workspace"]
+```
+</details>
+
+<details>
+<summary><b>Claude Desktop, Cursor and other <code>mcpServers</code> clients</b></summary>
+
+```json
+{
+  "mcpServers": {
+    "kitconc": {
+      "command": "uvx",
+      "args": ["--from", "kitconc", "kitconc-mcp", "--workspace", "/path/to/kitconc_workspace"]
+    }
+  }
+}
+```
+</details>
+
+<details>
+<summary><b>VS Code</b> (<code>.vscode/mcp.json</code>)</summary>
+
+```json
+{
+  "servers": {
+    "kitconc": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--from", "kitconc", "kitconc-mcp", "--workspace", "/path/to/kitconc_workspace"]
+    }
+  }
+}
+```
+</details>
+
+<details>
+<summary><b>HTTP / Docker</b></summary>
+
+```bash
+kitconc-mcp --transport streamable-http --host 127.0.0.1 --port 8001 --workspace /path/to/kitconc_workspace
+# clients connect to http://127.0.0.1:8001/mcp — see "Installation and usage with Docker" below
+```
+</details>
+
+**3. Ask.** Start with *"What corpora do I have?"* or *"Create a corpus called `ads` from
+`/data/texts/ads` in English and check it for problems."* MCP clients that support prompts also
+list every recipe as a prompt (slash command), plus `plan-analysis` for open questions.
+
+### Install the agent skill
+
+The Kitconc skill teaches Claude and Codex how to work with corpora: when to use which recipe,
+which measures to trust, how to compose results and how to report evidence. It follows the open
+Agent Skills format and also explains how to use Kitconc without MCP.
+
+```bash
+kitconc-skill install                   # Claude (~/.claude/skills) and Codex (~/.agents/skills)
+kitconc-skill install --target codex    # only one of them
+kitconc-skill install --scope project   # into ./.claude/skills and ./.agents/skills of the current repo
+```
+
+Source: [`kitconc/agent/skill/kitconc`](kitconc/agent/skill/kitconc/SKILL.md) — copy the folder
+manually into any skills directory if you prefer.
+
+### No MCP? Use the CLI
+
+`kitconc-tool` runs exactly the same tools from a terminal and prints JSON, which is ideal for
+coding agents and scripts:
+
+```bash
+kitconc-tool --workspace ./kitconc_workspace workspace_info
+kitconc-tool analyze_kwic '{"corpus": "ads", "node": "experience", "sample": 10}'
+kitconc-tool recipe_run '{"name": "glossary-candidates", "params": {"corpus": "ads", "export_path": "glossary.xlsx"}}'
+kitconc-tool --list
+```
+
+### Recipes
+
+Ready-made, editable pipelines. Agents run them with `recipe_run`, adapt them with
+`recipe_show` + `pipeline_run`, and save new ones with `recipe_save`.
+
+| Recipe | Answers |
+|---|---|
+| `corpus-qa` | Is the corpus clean? (binary files, duplicates, encoding, outliers) |
+| `corpus-profile` | What is this corpus like? (size, texts, content words, keywords, phraseology, terms) |
+| `word-profile` | How is this word used? (dispersion, collocates, clusters, definitions, KWIC sample) |
+| `synonym-comparison` | How do these near-synonyms differ? (shared vs. exclusive collocates) |
+| `collocation-entry` | Collocation-dictionary entry grouped by part of speech |
+| `keyword-report` | What is typical of this corpus? (LL + log-ratio, Bonferroni, dispersion, examples) |
+| `compare-corpora` | What distinguishes corpus A from corpus B? |
+| `word-frequency-comparison` | How frequent are these words across corpora, per million? |
+| `lexical-bundles` | Which recurrent sequences and frames characterize the corpus? |
+| `glossary-candidates` | Which terms belong in a glossary? (C-value, examples, definitions) |
+| `glossary-contrastive` | Which terms are specific to this domain compared with a reference corpus? |
+
+Learn more: [docs/MCP.md](docs/MCP.md) (full reference) · built-in guides on
+[measures](kitconc/agent/guides/measures.md), [terminology](kitconc/agent/guides/terminology.md),
+[pipelines](kitconc/agent/guides/pipelines.md) and [expressions](kitconc/agent/guides/expressions.md).
 
 
 Requirements
@@ -41,7 +240,7 @@ Core dependencies (managed by `uv`):
 
 Optional `full` dependencies (embeddings, API and local environment):
 
-* torch>=2.6,<2.10 *(CPU wheels from the configured `pytorch-cpu` uv index)*
+* torch>=2.6,<2.14 *(CPU wheels from the configured `pytorch-cpu` uv index)*
 * transformers>=4.45,<6.0.0
 * sentence-transformers>=3.0,<6.0.0
 * sqlite-vec>=0.1.7,<1.0.0
@@ -49,6 +248,14 @@ Optional `full` dependencies (embeddings, API and local environment):
 * uvicorn[standard]>=0.27,<1.0.0
 * python-dotenv>=1.0.0,<2.0.0
 
+
+Installation with pip
+=========
+
+```bash
+pip install kitconc
+pip install "kitconc[full]"   # with semantic search (torch, sentence-transformers)
+```
 
 Installation with uv
 =========
@@ -67,6 +274,7 @@ Run commands inside the locked environment with `uv run`, for example:
 
 ```bash
 uv run kitconc-mcp --transport stdio
+uv run kitconc-tool workspace_info
 uv run pytest
 ```
 
@@ -177,6 +385,10 @@ The server is organized as composable building blocks rather than fixed reports:
 Useful options: `--read-only`, `--tool-set legacy` (previous one-tool-per-method catalog),
 `--disk-capacity`, `--job-workers`.
 
+The same tools run without a server through `kitconc-tool` (JSON in, JSON out), and the
+`kitconc-skill` command installs the Kitconc skill for Claude and Codex (see
+[Use Kitconc with AI](#use-kitconc-with-ai)).
+
 Full documentation: [docs/MCP.md](docs/MCP.md). Python action-layer contract:
 [kitconc/agent/CONTRACT.md](kitconc/agent/CONTRACT.md).
 
@@ -196,6 +408,9 @@ server, a result algebra (filter, derive, join, combine, aggregate, enrich, expo
 extraction, corpus QA and subcorpora, pipelines, editable recipes (glossaries, corpus comparison, word profiles,
 collocation entries, lexical bundles...) and background jobs. See [docs/MCP.md](docs/MCP.md).
 
+**Agent skill and CLI.** `kitconc-skill install` adds the Kitconc skill to Claude and Codex, and
+`kitconc-tool` runs every agent tool from the terminal.
+
 **Upgrading from 3.x.** MCP tool names changed (e.g. `wordlist` -> `analyze_wordlist`, `use` + `kwic` ->
 `analyze_kwic(corpus=...)`). Start the server with `--tool-set legacy` to keep the old tools, or follow
 "Migrating from 3.x" in [docs/MCP.md](docs/MCP.md). The Python API is unchanged.
@@ -203,7 +418,7 @@ collocation entries, lexical bundles...) and background jobs. See [docs/MCP.md](
 **Fixes.** Corpus creation skips binary files in source folders, and corpus metadata (info.tab) is written and read
 correctly.
 
-Corpus analyses (AntConc-style)
+Advanced corpus analyses
 -------------
 
 All new options are optional keyword arguments; existing calls return the same results as before.
@@ -234,7 +449,7 @@ dm = corpus.dispersion_measures(['new', 'skills'])
 wl = corpus.wordlist(dispersion=True, stoplist='default', search='*ing')
 
 # Lemma list, file view and word cloud
-lemmas = corpus.lemmalist()                       # or lemma_file='my_lemmas.txt' (AntConc format accepted)
+lemmas = corpus.lemmalist()                       # or lemma_file='my_lemmas.txt' (form-lemma or headword-forms)
 view = corpus.fileview('ad_000.txt', 'new'); print(view.text)
 corpus.wordcloud(kw, 'keywords_cloud.png')        # saved in the corpus output folder
 ```
@@ -243,7 +458,6 @@ New CLI commands: `pframes`, `lemmalist`, `dispersion_measures`, `fileview` and 
 accept new flags (see `help <command>`). Corpus creation also converts DOCX, ODT, EPUB, HTML/XHTML and XML files.
 Runnable examples: `19_howto_compare-keywords.py`, `20_howto_advanced-kwic.py`,
 `21_howto_measure-dispersion.py`, `22_howto_make-pframes-and-lemmas.py` and `23_howto_make-wordcloud-and-fileview.py`.
-A comparison with AntConc is available in `docs/ANTCONC_PESQUISA_E_COMPARACAO.md`.
 
 
 What's new in 3.2.0
@@ -412,3 +626,21 @@ collocates.save_excel(corpus.output_path + 'collocates.xlsx')
 collocates.plot_collgraph(node='skills')
 ```
 <a href='https://raw.githubusercontent.com/ilexistools/kitconc-examples/master/images/img12.jpg'>View plot...</a>
+
+
+Development
+=========
+
+```bash
+uv sync --all-extras --dev
+uv run pytest
+```
+
+Tests run on every push and pull request (Ubuntu and Windows, Python 3.10 and 3.12). Agent-layer
+architecture and extension points are documented in [docs/MCP.md](docs/MCP.md#extending).
+
+
+License
+=========
+
+Kitconc is released under the [MIT License](LICENSE.txt).

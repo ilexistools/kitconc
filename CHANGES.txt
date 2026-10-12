@@ -19,6 +19,9 @@ Version 4.0.0
 - MCP: tool annotations, structured errors with hints, server instructions, resources (`kitconc://...`), one prompt
   per recipe plus `plan-analysis`, argument completion, built-in guides, `--read-only`, `--disk-capacity` and
   `--job-workers` options.
+- Agents: `kitconc-tool` runs every agent tool from the command line (JSON in, JSON out), and
+  `kitconc-skill install` installs the Kitconc skill for Claude (~/.claude/skills) and Codex (~/.agents/skills).
+- Redesigned README with the new logo and a guide to using Kitconc with AI assistants.
 - Fixed corpus creation tokenizing binary files found in the source folder (e.g. SQLite databases); they are now
   skipped with a warning.
 - Fixed info.tab metadata written without a final newline, which merged fields such as
@@ -26,7 +29,7 @@ Version 4.0.0
 - Tabular `KitconcActions` methods also return `columns`.
 - Updated pyjwt, pypdf, torch (optional "full" extra) and urllib3.
 - Added a test workflow on every push and pull request (Ubuntu and Windows, Python 3.10 and 3.12).
-- Added AntConc-style options (all optional; default results are unchanged):
+- Added advanced analysis options (all optional; default results are unchanged):
   - Keywords against another corpus of the workspace (`ref_corpus`), effect sizes (Log Ratio, Dice, LogDice, MI, MI3,
     RRF, DRF, z, t, %DIFF, odds ratio), negative keywords (`polarity`), p-value thresholds with optional Bonferroni
     correction, two-term log-likelihood, chi-square with Yates correction and Text Dispersion Keyness.
