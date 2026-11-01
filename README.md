@@ -540,8 +540,8 @@ corpus.wordcloud(kw, 'keywords_cloud.png')        # saved in the corpus output f
 
 New CLI commands: `pframes`, `lemmalist`, `dispersion_measures`, `fileview` and `wordcloud`; existing commands
 accept new flags (see `help <command>`). Corpus creation also converts DOCX, ODT, EPUB, HTML/XHTML and XML files.
-Runnable examples: `19_howto_compare-keywords.py`, `20_howto_advanced-kwic.py`,
-`21_howto_measure-dispersion.py`, `22_howto_make-pframes-and-lemmas.py` and `23_howto_make-wordcloud-and-fileview.py`.
+Runnable examples: `howto/19_howto_compare-keywords.py`, `howto/20_howto_advanced-kwic.py`,
+`howto/21_howto_measure-dispersion.py`, `howto/22_howto_make-pframes-and-lemmas.py` and `howto/23_howto_make-wordcloud-and-fileview.py`.
 
 
 What's new in 3.2.0
