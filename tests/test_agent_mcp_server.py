@@ -111,6 +111,43 @@ def test_call_tool_via_stdio_transport(workspace):
     asyncio.run(_run())
 
 
+def test_create_and_subcorpus_via_stdio_have_statistics(tmp_path):
+    from datetime import timedelta
+
+    source = tmp_path / "src"
+    source.mkdir()
+    for filename, text in TEXTS.items():
+        (source / filename).write_text(text, encoding="utf-8")
+
+    async def _run():
+        params = StdioServerParameters(
+            command=sys.executable,
+            args=["-m", "kitconc.agent.mcp_server", "--transport", "stdio",
+                  "--workspace", str(tmp_path / "ws")],
+        )
+        async with stdio_client(params) as (read, write):
+            async with ClientSession(read, write, read_timeout_seconds=timedelta(seconds=45)) as session:
+                await session.initialize()
+
+                async def call(name, args):
+                    result = await session.call_tool(name, args)
+                    assert not result.isError, result
+                    return json.loads(result.content[0].text)
+
+                created = await call("corpus_create", {"name": "demo", "language": "english",
+                                                        "source_folder": str(source)})
+                assert created["texts"] == 3
+                assert created["tokens"] > 0 and created["types"] > 0
+                info = await call("corpus_info", {"corpus": "demo"})
+                assert all(info[k] == created[k] for k in ("tokens", "types", "ttr"))
+                subset = await call("subcorpus_create", {"corpus": "demo", "name": "subset",
+                                                         "files": ["t1.txt"]})
+                assert subset["texts"] == 1
+                assert 0 < subset["info"]["tokens"] < created["tokens"]
+
+    asyncio.run(_run())
+
+
 def test_curated_catalog_is_described_and_annotated(workspace):
     async def scenario(session, call):
         return (await session.list_tools()).tools

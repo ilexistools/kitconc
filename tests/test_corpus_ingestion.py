@@ -70,7 +70,6 @@ def corpus_with_binary_source(tmp_path_factory):
     with pytest.warns(UserWarning, match="index.sqlite"):
         Corpus(workspace, "demo", "no-tagging").add_texts(str(src))
     corpus = Corpus(workspace, "demo", "no-tagging")
-    corpus.wordlist()  # writes Tokens/Types/Type-token into info.tab
     return corpus, workspace
 
 
@@ -102,3 +101,37 @@ def test_source_folder_with_only_binary_files_is_rejected(tmp_path):
     with pytest.warns(UserWarning):
         with pytest.raises(ValueError, match="no text files"):
             Corpus(str(tmp_path / "ws") + "/", "empty", "no-tagging").add_texts(str(src))
+
+
+def test_creation_returns_stats_without_wordlist_analysis(tmp_path):
+    src = _write_sources(tmp_path / "src")
+    actions = KitconcActions(str(tmp_path / "ws"))
+    created = actions.create("demo", str(src), "no-tagging")
+    assert created["tokens"] == sum(len(text.split()) for text in TEXTS.values())
+    assert created["types"] == len({word.lower() for text in TEXTS.values() for word in text.split()})
+    assert created["ttr"] == pytest.approx(created["types"] / created["tokens"] * 100)
+    assert created == actions.get_corpus_info("demo")
+    assert created == actions.list_corpora()[0]
+
+
+def test_reindex_refreshes_existing_wordlist_statistics(tmp_path):
+    src = _write_sources(tmp_path / "src")
+    workspace = str(tmp_path / "ws")
+    corpus = Corpus(workspace, "demo", "no-tagging")
+    corpus.add_texts(str(src))
+    corpus.wordlist()
+    for name in TEXTS:
+        (src / name).write_text("hello hello", encoding="utf-8")
+    corpus.add_texts(str(src))
+    info = KitconcActions(workspace).get_corpus_info("demo")
+    assert (info["tokens"], info["types"], info["ttr"]) == (4, 1, 25.0)
+    assert corpus.wordlist().df["WORD"].tolist() == ["hello"]
+
+
+def test_whitespace_only_text_has_zero_statistics(tmp_path):
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "blank.txt").write_text("   \n", encoding="utf-8")
+    actions = KitconcActions(str(tmp_path / "ws"))
+    info = actions.create("empty", str(src), "no-tagging")
+    assert (info["tokens"], info["types"], info["ttr"]) == (0, 0, 0.0)
