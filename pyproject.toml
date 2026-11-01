@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kitconc"
-version = "4.0.1"
+version = "4.0.2"
 description = "A toolkit for Corpus Linguistics Analysis"
 readme = {file = "README.txt", content-type = "text/x-rst"}
 requires-python = ">=3.10"

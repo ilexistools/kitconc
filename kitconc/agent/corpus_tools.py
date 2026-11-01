@@ -385,8 +385,9 @@ class CorpusToolsMixin:
         outlier_factor: Annotated[float, Field(gt=1, description="Texts longer than this times the median are "
                                                                  "flagged.")] = 10.0,
     ) -> dict[str, Any]:
-        """Quality check of a corpus: non-text files ingested by mistake, duplicates, too short/long texts,
-        garbled encoding, metadata mismatches and untagged data. Returns issues with severity and a
+        """Quality check of a corpus: predominantly non-word content, duplicates, too short/long texts,
+        garbled encoding, metadata mismatches and untagged data. The non_text check uses token content,
+        not file extensions; readable TSV/CSV files may be classified as too_short. Returns issues with severity and a
         per-text statistics result (stats_result_id)."""
         data = self._corpus_data(corpus)
         info = self.actions.get_corpus_info(data.name)

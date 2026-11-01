@@ -26,6 +26,8 @@ def count_words(npy_path: str) -> Dict[int, int]:
     files = os.listdir(npy_path)
     for filename in files:
         arr=np.load(npy_path + filename)
+        if arr.size == 0:
+            continue
         i,c = np.unique(arr[:,0], return_counts=True)
         for x in range(i.shape[0]):
             if i[x] in counter:
@@ -101,7 +103,7 @@ def make_wordlist(workspace: str, corpus_name: str, language: str, lowercase: bo
                     hapax+=1
         word_count = None
         dict_words = None
-    type_token = (types/float(tokens))*100
+    type_token = (types/float(tokens))*100 if tokens else 0.0
     
     if os.path.exists(workspace + corpus_name + '/data/idx/wordlistlc.pickle') == False and lowercase == True:
         with open(workspace + corpus_name + '/data/idx/wordlistlc.pickle','wb') as fh:

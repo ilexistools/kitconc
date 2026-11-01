@@ -56,9 +56,16 @@ from kitconc import py_measures
 from kitconc import py_extras
 
 
-def _run_pipeline(command, stage):
+def _run_pipeline(command, stage, timeout=1800):
     """Run one indexing stage and surface failures with the stage name."""
-    result = subprocess.run(command, capture_output=True, text=True, encoding='utf-8', errors='replace')
+    try:
+        result = subprocess.run(
+            command, stdin=subprocess.DEVNULL, close_fds=True,
+            capture_output=True, text=True, encoding='utf-8', errors='replace',
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"Corpus {stage} timed out after {timeout} seconds.") from exc
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or '').strip()
         raise RuntimeError(
@@ -441,6 +448,9 @@ class Corpus (object):
         tagged = kwargs.get('tagged', False)
         language_model = kwargs.get('language_model', None)
         verbose = kwargs.get('verbose', False)
+        # add_texts cleans these folders after each run, including on existing objects.
+        for name in ('tmp1', 'tmp2', 'tmp3'):
+            (Path(self.workspace) / self.corpus_name / 'data' / name).mkdir(parents=True, exist_ok=True)
         if not source_folder.endswith('/'):
             source_folder = source_folder + '/'
         
@@ -551,6 +561,14 @@ class Corpus (object):
         position = next((i + 1 for i, (key, _) in enumerate(pairs) if key.lower() == 'encoding'), len(pairs))
         pairs[position:position] = [('Textfiles', total_texts), ('Source', original_source)]
         kit_util.write_info_tab(str(info_path), pairs)
+
+        # Indexing changes word ids and frequencies; old wordlist caches are invalid.
+        idx_path = Path(self.workspace) / self.corpus_name / 'data' / 'idx'
+        for filename in ('wordlist.pickle', 'wordlistlc.pickle', 'info.pickle'):
+            (idx_path / filename).unlink(missing_ok=True)
+        # Persist the same lowercase statistics used by the default wordlist before
+        # create/add_texts returns, rather than waiting for the first analysis.
+        make_wordlist(self.workspace, self.corpus_name, self.language)
         
         # Time end and print total time if progress display is enabled
         if verbose:

@@ -167,6 +167,14 @@ directly, from a pipeline, from a recipe or from a job.
 | `corpus_tagset` | Raw POS tags with frequency, examples and inferred category |
 | `corpus_qa` | Duplicates, binary/garbled files, short/long outliers, encoding, metadata |
 | `corpus_create`, `subcorpus_create` | Create a corpus from a folder, or from a selection of another corpus' texts |
+
+Corpus creation and `Corpus.add_texts()` persist `Tokens`, `Types` and `Type/token` immediately,
+using the default lowercase wordlist convention (TTR is a percentage). A separate wordlist analysis
+is not required to populate `corpus_info` or `corpus_list`.
+Indexing subprocesses receive no stdin and do not inherit unrelated handles, including the MCP
+stdio input pipe. Each indexing stage has a 30-minute timeout and reports the failed stage on error.
+The `corpus_qa` `non_text` check uses the proportion of non-word tokens, not filename extensions.
+A readable TSV or CSV can therefore receive `too_short`; keep metadata files outside the source folder.
 | `corpus_delete` | Irreversible; requires `confirm=true` |
 | `corpus_import`, `corpus_export` | Zip archives |
 

@@ -1,3 +1,13 @@
+Version 4.0.2
+-------------
+- 2026-10-31
+- Fixed corpus creation and subcorpus creation hanging under MCP stdio on Windows by isolating
+  subprocess stdin and explicitly closing inherited handles. Indexing stages now have a timeout.
+- Persist corpus size statistics at ingestion time and refresh wordlist caches after reindexing.
+  Empty token arrays produce zero statistics. Recreate temporary folders when adding texts again.
+- Clarified that corpus QA detects non-text content by token ratios, not file extensions.
+- Aligned the application-reported version with the package version.
+
 Version 4.0.1
 -------------
 - 2026-10-11

@@ -11,6 +11,22 @@ from kitconc.kit_cmd import Kit
 from kitconc.kit_corpus import Corpus, Corpora, _run_pipeline
 
 
+def test_pipeline_timeout_names_failed_stage_and_keeps_cause():
+    import sys
+
+    with pytest.raises(RuntimeError, match="tagging timed out") as caught:
+        _run_pipeline([sys.executable, "-c", "import time; time.sleep(10)"], "tagging", timeout=0.1)
+    assert isinstance(caught.value.__cause__, subprocess.TimeoutExpired)
+
+
+def test_pipeline_child_receives_eof_on_stdin():
+    import sys
+
+    result = _run_pipeline([sys.executable, "-c", "import sys; print(repr(sys.stdin.read()))"],
+                           "stdin isolation", timeout=10)
+    assert result.stdout.strip() == "''"
+
+
 def test_command_parser_keeps_quoted_windows_path_spaces():
     args = Kit().parse_arg('demo "C:\\My Texts\\área" english --tagged False')
     assert args == ["demo", "C:\\My Texts\\área", "english", "--tagged", "False"]
