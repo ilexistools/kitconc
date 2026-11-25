@@ -23,7 +23,7 @@
 </p>
 
 <p align="center">
-  <a href="#new-kitconc-mcp-console">MCP Console</a> ·
+  <a href="#new-ai-feature-kitconc-mcp-console">MCP Console</a> ·
   <a href="#use-kitconc-with-ai">Use with AI</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="docs/MCP.md">MCP docs</a> ·
@@ -34,7 +34,7 @@
 
 ---
 
-## New: Kitconc MCP Console
+## New AI feature: Kitconc MCP Console
 
 > [!TIP]
 > **Explore, run and connect every Kitconc tool from your browser.** One local command starts
@@ -45,9 +45,17 @@
   <img src="docs/assets/mcp-console.png" alt="Kitconc MCP Console in dark theme, showing the KWIC concordance tool with its argument form" width="900">
 </p>
 
+**Start and stop with one click** (from a clone of this repository, with [uv](https://docs.astral.sh/uv/) installed):
+
+| | Start | Stop |
+|---|---|---|
+| 🪟 **Windows** | double-click `start-gui.cmd` | double-click `stop-gui.cmd` |
+| 🍎 **macOS** | double-click `start-gui.command` | double-click `stop-gui.command` |
+
+The console runs in the background and opens in your browser. Or, from a terminal:
+
 ```bash
 uv run --locked --python 3.12 kitconc-gui --workspace /path/to/kitconc_workspace
-# or, on Windows, double-click start-gui.cmd
 ```
 
 | | What you get |
@@ -154,7 +162,19 @@ and `kitconc-skill` (skill installer).
 
 ### Open the local MCP tools dashboard
 
-From a clone of this repository, double-click `start-gui.cmd` on Windows or run:
+From a clone of this repository, use the launcher scripts. They start the console in the
+background, wait until it is ready, open the browser, and stop it again later:
+
+| | Start | Stop |
+|---|---|---|
+| Windows | `start-gui.cmd` | `stop-gui.cmd` |
+| macOS (Finder or Terminal) | `start-gui.command` | `stop-gui.command` |
+| Any shell | `scripts/kitconc-console.sh start` (macOS/Linux) or `scripts\kitconc-console.ps1 start` (Windows) | `... stop` |
+
+All of them accept `--workspace DIR`, `--port N`, `--read-only` and `--no-browser`, for example
+`start-gui.cmd --workspace D:\corpora --port 8790`. The scripts also support `status` and
+`restart`. Server output goes to `kitconc-gui.log`. To use another port by default, set
+`KITCONC_PORT`. You can also run the console in the foreground and stop it with Ctrl+C:
 
 ```bash
 uv run --locked --python 3.12 kitconc-gui --workspace /path/to/kitconc_workspace
@@ -173,8 +193,8 @@ HTTP or SSE). The same local process exposes:
 | MCP · SSE | `http://127.0.0.1:8787/sse` |
 | REST API | `GET /api/tools`, `GET /api/info`, `POST /api/tools/{name}` (JSON body) |
 
-It runs locally without model credentials. Press Ctrl+C in the launcher terminal to stop
-it. Use `kitconc-app` to open the desktop application.
+It runs locally without model credentials. Stop it with `stop-gui.cmd` / `stop-gui.command`
+(or Ctrl+C when started in the foreground). Use `kitconc-app` to open the desktop application.
 
 **2. Connect your assistant** to a workspace folder (it holds your corpora):
 
