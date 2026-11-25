@@ -40,8 +40,46 @@ kitconc-gui --workspace /data/kitconc_workspace
 uv run --locked --python 3.12 kitconc-gui --workspace /data/kitconc_workspace
 ```
 
-On Windows, double-click `start-gui.cmd` to use the default workspace (`kitconc.tmp`
-if present, otherwise `./kitconc_workspace`).
+#### Start and stop scripts
+
+From a clone, launcher scripts run the console in the background. They wait until it answers,
+open the browser and stop it later:
+
+| Platform | Start | Stop | Script with all commands |
+|---|---|---|---|
+| Windows | `start-gui.cmd` | `stop-gui.cmd` | `scripts\kitconc-console.ps1 start\|stop\|status\|restart` |
+| macOS (Finder or Terminal) | `start-gui.command` | `stop-gui.command` | `scripts/kitconc-console.sh start\|stop\|status\|restart` |
+| Linux | `./start-gui.command` | `./stop-gui.command` | `scripts/kitconc-console.sh ...` |
+
+Options: `--workspace DIR` (default: `kitconc.tmp` if present, otherwise `./kitconc_workspace`),
+`--port N` (default `8787`, or the `KITCONC_PORT` environment variable), `--read-only` and
+`--no-browser`. For example:
+
+```bash
+./start-gui.command --workspace ~/corpora --port 8790
+./stop-gui.command --port 8790
+```
+
+```powershell
+.\start-gui.cmd --workspace D:\corpora --port 8790
+.\stop-gui.cmd --port 8790
+```
+
+How the scripts work:
+
+- **Starting.** The script runs `uv sync --locked`, then starts the server with the project's
+  environment. If the sync fails but an environment already exists (for example, another
+  Kitconc process is using `.venv` on Windows), it warns and starts anyway.
+- **Logs and process ID.** Server output goes to `kitconc-gui.log`, and the process ID goes to
+  `.kitconc-gui.pid`, both in the repository root.
+- **Already running.** Starting again on the same port just reopens the browser.
+- **Port in use.** If another program holds the port, the script refuses to start and asks
+  for `--port`.
+- **Stopping.** Stopping ends the recorded process tree. It also stops a console started
+  another way, for example `kitconc-gui` in a terminal, but only after `/api/info` confirms
+  that the program on that port is Kitconc.
+- **Requirements.** The scripts need [uv](https://docs.astral.sh/uv/). The macOS/Linux
+  script also uses `curl` and `lsof`, which macOS includes.
 
 | Interface | Address | Notes |
 |---|---|---|

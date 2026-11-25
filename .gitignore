@@ -93,3 +93,4 @@ kitconc.tmp
 kitconc.egg-info
 kitconc_workspace/**/*
 embeddings/models/**/*
+.kitconc-gui.pid

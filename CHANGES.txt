@@ -1,5 +1,9 @@
 Unreleased
 ----------
+- Added start/stop launcher scripts for the MCP Console: `start-gui.cmd` / `stop-gui.cmd` on Windows and
+  `start-gui.command` / `stop-gui.command` on macOS. They are backed by `scripts/kitconc-console.ps1` and
+  `scripts/kitconc-console.sh`, which also support `status` and `restart`. The console runs in the
+  background and logs to `kitconc-gui.log`. Options: `--workspace`, `--port`, `--read-only`, `--no-browser`.
 - Added the Kitconc MCP Console (`kitconc-gui`, or `start-gui.cmd` on Windows): a local browser
   dashboard with a dark theme by default (light and system themes and accent colors in Settings),
   a tool catalog grouped by purpose with an icon per tool, schema-based argument forms, JSON and
