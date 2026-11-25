@@ -1,196 +1,1423 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark" data-accent="teal">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Kitconc · MCP tools</title>
-<style>
-  :root { color-scheme: light; font: 16px/1.5 system-ui, sans-serif; color: #172828; background: #f3f6f5; }
-  * { box-sizing: border-box; }
-  body { margin: 0; }
-  header { background: #123b39; color: white; padding: 22px max(24px, calc((100% - 1200px)/2)); display: flex; justify-content: space-between; align-items: center; gap: 20px; }
-  header strong { font-size: 1.4rem; white-space: nowrap; }
-  header button { white-space: nowrap; }
-  main { max-width: 1248px; margin: 28px auto; padding: 0 24px; display: grid; grid-template-columns: minmax(230px, 310px) minmax(0, 1fr); gap: 20px; }
-  aside, article { background: white; border: 1px solid #d7e2df; border-radius: 12px; padding: 20px; }
-  aside { align-self: start; }
-  h1, h2, p { margin-top: 0; }
-  h1 { font-size: 1.65rem; margin-bottom: 4px; }
-  h2 { font-size: 1.1rem; }
-  code, pre, textarea { font-family: ui-monospace, Consolas, monospace; }
-  input, textarea { width: 100%; padding: 10px; border: 1px solid #809a95; border-radius: 6px; font-size: 1rem; color: inherit; background: #fbfdfc; }
-  textarea { resize: vertical; min-height: 120px; }
-  button { cursor: pointer; border: 1px solid transparent; border-radius: 6px; padding: 8px 12px; font: inherit; }
-  button:disabled { cursor: default; opacity: .6; }
-  button:focus-visible, summary:focus-visible { outline: 2px solid #267e76; outline-offset: 2px; }
-  #tools { display: grid; gap: 4px; margin-top: 12px; overflow-y: auto; max-height: 67vh; }
-  #tools button { text-align: left; background: transparent; color: inherit; }
-  #tools button:hover, #tools button[aria-pressed="true"] { background: #e2f0eb; border-color: #a5c4bb; }
-  #tools code { display: block; font-size: .75rem; overflow-wrap: anywhere; }
-  #status, #identifier { color: #405b57; }
-  form { margin: 18px 0; }
-  label, summary { font-weight: 600; }
-  summary { cursor: pointer; }
-  pre { background: #edf3f1; border-radius: 6px; padding: 12px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 440px; overflow: auto; }
-  #run { background: #14645a; color: white; margin-top: 8px; }
-  #description { white-space: pre-line; }
-  .error { color: #9b1d25; }
-  @media (max-width: 700px) { main { grid-template-columns: 1fr; } #tools { max-height: 240px; } }
-</style>
-<header><strong>Kitconc · MCP tools</strong><button id="copy" type="button">Copy MCP URL</button></header>
-<main>
-  <aside aria-label="Tool catalog">
-    <label for="search">Find a tool</label>
-    <input id="search" type="search" autocomplete="off">
-    <p id="status" role="status">Loading tools…</p>
-    <nav id="tools" aria-label="Tools"></nav>
-  </aside>
-  <article id="tool" hidden>
-    <h1 id="title"></h1>
-    <p><code id="identifier"></code></p>
-    <p id="description"></p>
-    <details><summary>Input schema</summary><pre id="schema"></pre></details>
-    <form id="form">
-      <label for="args">Arguments (JSON)</label>
-      <textarea id="args" spellcheck="false" required></textarea>
-      <button id="run" type="submit">Run tool</button>
-    </form>
-    <section id="result" hidden>
-      <h2 id="result-title" role="status">Result</h2>
-      <pre id="output"></pre>
-    </section>
-  </article>
-</main>
+<meta name="color-scheme" content="dark light">
+<title>Kitconc · MCP Console</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2314b8a6'/%3E%3Cpath d='M11 8v16M11 16l9-8M14 13l7 11' stroke='white' stroke-width='3' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
 <script>
-  const byId = id => document.getElementById(id);
-  const endpoint = new URL('/mcp', location.href);
-  let protocolVersion = '2025-03-26';
-  let requestId = 0;
-  let tools = [];
-  let selected;
-
-  async function rpc(method, params, notification = false) {
-    const request = {jsonrpc: '2.0', method, params};
-    if (!notification) request.id = ++requestId;
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json, text/event-stream',
-        'MCP-Protocol-Version': protocolVersion,
-      },
-      body: JSON.stringify(request),
-    });
-    if (!response.ok) throw new Error(`MCP request failed (HTTP ${response.status}).`);
-    if (notification) return;
-    const message = await response.json();
-    if (message.error) throw new Error(message.error.message);
-    return message.result;
+  // Apply the saved theme before first paint (dark by default).
+  (function () {
+    var s = {};
+    try { s = JSON.parse(localStorage.getItem('kitconc.console.settings') || '{}') || {}; } catch (e) {}
+    var theme = s.theme || 'dark';
+    if (theme === 'system') theme = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.dataset.accent = s.accent || 'teal';
+  })();
+</script>
+<style>
+  :root {
+    --font: "Inter", "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --mono: "JetBrains Mono", "Cascadia Code", ui-monospace, "SF Mono", Consolas, monospace;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --accent: #2dd4bf;
+    --accent-strong: #14b8a6;
+    --on-accent: #04201c;
   }
+  :root[data-accent="indigo"] { --accent: #818cf8; --accent-strong: #6366f1; --on-accent: #ffffff; }
+  :root[data-accent="violet"] { --accent: #c084fc; --accent-strong: #a855f7; --on-accent: #ffffff; }
+  :root[data-accent="amber"]  { --accent: #fbbf24; --accent-strong: #f59e0b; --on-accent: #2a1a00; }
+  :root[data-accent="rose"]   { --accent: #fb7185; --accent-strong: #f43f5e; --on-accent: #ffffff; }
+
+  :root, :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #090c10;
+    --bg-glow: radial-gradient(1200px 600px at 10% -10%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 60%);
+    --surface: #10151c;
+    --surface-2: #151b23;
+    --surface-3: #1b222c;
+    --border: #232b36;
+    --border-strong: #303a47;
+    --text: #e6edf3;
+    --text-2: #b4bfcc;
+    --muted: #7d8a9a;
+    --code-bg: #0b0f14;
+    --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 12px 32px -12px rgba(0,0,0,.6);
+    --ok: #34d399; --warn: #fbbf24; --danger: #f87171;
+    --j-key: #7dd3fc; --j-str: #a5d6a7; --j-num: #fbbf24; --j-bool: #c4b5fd; --j-null: #94a3b8;
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f5f7fa;
+    --bg-glow: radial-gradient(1200px 600px at 10% -10%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%);
+    --surface: #ffffff;
+    --surface-2: #f7f9fb;
+    --surface-3: #eef2f6;
+    --border: #e2e8ef;
+    --border-strong: #cfd8e2;
+    --text: #0f1720;
+    --text-2: #334155;
+    --muted: #64748b;
+    --code-bg: #f6f8fa;
+    --shadow: 0 1px 2px rgba(15,23,32,.04), 0 8px 24px -12px rgba(15,23,32,.12);
+    --ok: #059669; --warn: #b45309; --danger: #dc2626;
+    --j-key: #0369a1; --j-str: #15803d; --j-num: #b45309; --j-bool: #7c3aed; --j-null: #64748b;
+    --accent: color-mix(in srgb, var(--accent-strong) 85%, black);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; font: 14px/1.55 var(--font); color: var(--text);
+    background: var(--bg-glow), var(--bg); background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, pre, textarea.code, .mono { font-family: var(--mono); font-size: 12.5px; }
+  h1, h2, h3, p { margin: 0; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+  ::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); }
+  [hidden] { display: none !important; }
+
+  .i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .i.sm { width: 15px; height: 15px; }
+  .i.lg { width: 26px; height: 26px; stroke-width: 1.6; }
+
+  /* ---------- Top bar ---------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 20; height: 60px;
+    display: flex; align-items: center; gap: 16px; padding: 0 20px;
+    background: color-mix(in srgb, var(--bg) 78%, transparent);
+    backdrop-filter: saturate(150%) blur(14px);
+    border-bottom: 1px solid var(--border);
+  }
+  .brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
+  .logo {
+    width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; flex: none;
+    background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+    color: var(--on-accent); box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--accent) 70%, transparent);
+  }
+  .logo svg { width: 18px; height: 18px; stroke-width: 2.6; }
+  .brand strong { font-size: 15px; letter-spacing: -.01em; }
+  .brand span { color: var(--muted); font-size: 12.5px; display: block; line-height: 1.2; }
+  .status {
+    display: inline-flex; align-items: center; gap: 8px; margin-left: 8px;
+    padding: 5px 11px; border: 1px solid var(--border); border-radius: 999px;
+    color: var(--text-2); font-size: 12.5px; background: var(--surface); white-space: nowrap;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex: none; }
+  .dot.ok { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 20%, transparent); }
+  .dot.err { background: var(--danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 20%, transparent); }
+  .spacer { flex: 1; }
+  .actions { display: flex; align-items: center; gap: 6px; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    height: 34px; padding: 0 13px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    font-weight: 500; white-space: nowrap; transition: background .15s, border-color .15s, transform .05s;
+  }
+  .btn:hover { background: var(--surface-3); border-color: var(--border-strong); }
+  .btn:active { transform: translateY(1px); }
+  .btn.icon { width: 34px; padding: 0; }
+  .btn.ghost { background: transparent; border-color: transparent; color: var(--text-2); }
+  .btn.ghost:hover { background: var(--surface-3); color: var(--text); }
+  .btn.primary {
+    background: linear-gradient(180deg, var(--accent), var(--accent-strong)); color: var(--on-accent);
+    border-color: transparent; font-weight: 600;
+    box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--accent) 80%, transparent);
+  }
+  .btn.primary:hover { filter: brightness(1.07); }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .btn.sm { height: 28px; padding: 0 9px; font-size: 12.5px; }
+  .btn.sm.icon { width: 28px; padding: 0; }
+  kbd {
+    font-family: var(--mono); font-size: 11px; padding: 1px 5px; border-radius: 5px;
+    border: 1px solid var(--border-strong); color: var(--muted); background: var(--surface-2);
+  }
+  .btn.primary kbd { background: rgba(0,0,0,.14); border-color: rgba(0,0,0,.18); color: inherit; opacity: .8; }
+
+  /* ---------- Layout ---------- */
+  .layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); height: calc(100vh - 60px); }
+  .sidebar {
+    border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0;
+    background: color-mix(in srgb, var(--surface) 55%, transparent);
+  }
+  .sidebar-head { padding: 16px 16px 10px; display: grid; gap: 10px; }
+  .search { position: relative; }
+  .search .i { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+  .search kbd { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); }
+  .input, .search input, select.input, textarea.input {
+    width: 100%; height: 36px; padding: 0 11px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .search input { padding-left: 36px; padding-right: 34px; }
+  .input:focus, .search input:focus, textarea.input:focus {
+    outline: none; border-color: color-mix(in srgb, var(--accent) 70%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+  textarea.input { height: auto; padding: 10px 11px; resize: vertical; line-height: 1.5; }
+  .input.invalid { border-color: var(--danger); }
+  .chips { display: flex; gap: 6px; }
+  .chip {
+    border: 1px solid var(--border); background: transparent; color: var(--text-2);
+    border-radius: 999px; height: 26px; padding: 0 11px; font-size: 12px; font-weight: 500;
+  }
+  .chip[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); color: var(--text); }
+  .count { color: var(--muted); font-size: 12px; padding: 0 2px; }
+  .tool-list { overflow-y: auto; padding: 4px 10px 24px; min-height: 0; flex: 1; scrollbar-width: thin; }
+  .group-label {
+    display: flex; align-items: center; gap: 8px; padding: 14px 8px 6px;
+    font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  }
+  .group-label .i { width: 14px; height: 14px; }
+  .group-label span:last-child { margin-left: auto; font-weight: 500; letter-spacing: 0; }
+  .tool-item {
+    width: 100%; display: flex; align-items: center; gap: 11px; padding: 7px 8px; margin: 1px 0;
+    border: 1px solid transparent; border-radius: 9px; background: transparent; text-align: left;
+    transition: background .12s, border-color .12s;
+  }
+  .tool-item:hover { background: var(--surface-3); }
+  .tool-item[aria-current="true"] { background: color-mix(in srgb, var(--accent) 11%, var(--surface)); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+  .tool-item .meta { min-width: 0; flex: 1; }
+  .tool-item .name { display: block; font-weight: 550; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tool-item code { display: block; color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tile {
+    --hue: var(--accent);
+    width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; flex: none;
+    color: var(--hue); background: color-mix(in srgb, var(--hue) 13%, transparent);
+    border: 1px solid color-mix(in srgb, var(--hue) 22%, transparent);
+  }
+  .tile .i { width: 17px; height: 17px; }
+  .tile.big { width: 54px; height: 54px; border-radius: 14px; }
+  .flag { color: var(--muted); }
+  .flag.danger { color: var(--danger); }
+  .empty { color: var(--muted); text-align: center; padding: 32px 12px; }
+
+  /* ---------- Main ---------- */
+  .main { overflow-y: auto; min-height: 0; scrollbar-width: thin; }
+  .content { max-width: 1080px; margin: 0 auto; padding: 28px 32px 64px; display: grid; gap: 20px; }
+  .tool-head { display: flex; gap: 18px; align-items: flex-start; }
+  .tool-head h1 { font-size: 24px; letter-spacing: -.02em; line-height: 1.25; }
+  .ident { display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+  .ident code { color: var(--text-2); }
+  .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 6px;
+    font-size: 11.5px; font-weight: 550; border: 1px solid var(--border); color: var(--text-2); background: var(--surface-2);
+  }
+  .badge .i { width: 12px; height: 12px; }
+  .badge.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 30%, transparent); background: color-mix(in srgb, var(--ok) 9%, transparent); }
+  .badge.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 30%, transparent); background: color-mix(in srgb, var(--warn) 9%, transparent); }
+  .badge.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, transparent); background: color-mix(in srgb, var(--danger) 9%, transparent); }
+  .description { color: var(--text-2); white-space: pre-line; max-width: 78ch; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .card-head {
+    display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border);
+    min-height: 52px; flex-wrap: wrap;
+  }
+  .card-head h2 { font-size: 13.5px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .card-body { padding: 16px; }
+
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); }
+  .tab {
+    display: inline-flex; align-items: center; gap: 7px; padding: 10px 14px; margin-bottom: -1px;
+    border: 0; border-bottom: 2px solid transparent; background: none; color: var(--muted); font-weight: 550;
+  }
+  .tab:hover { color: var(--text); }
+  .tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+
+  .segmented { display: inline-flex; padding: 3px; gap: 2px; border-radius: 9px; background: var(--surface-3); border: 1px solid var(--border); }
+  .segmented button {
+    border: 0; background: transparent; color: var(--muted); height: 26px; padding: 0 10px; border-radius: 6px;
+    font-size: 12.5px; font-weight: 550; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .segmented button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+
+  /* ---------- Argument form ---------- */
+  .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 18px; }
+  .field { display: grid; gap: 6px; align-content: start; }
+  .field.wide { grid-column: 1 / -1; }
+  .field-label { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .field-label label { font-family: var(--mono); font-size: 12.5px; font-weight: 600; color: var(--text); }
+  .req { color: var(--danger); font-weight: 700; }
+  .type { font-size: 11px; color: var(--muted); border: 1px solid var(--border); border-radius: 5px; padding: 0 5px; font-family: var(--mono); }
+  .help { color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+  .switch { position: relative; display: inline-flex; align-items: center; gap: 10px; cursor: pointer; width: fit-content; }
+  .switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .switch .track { width: 36px; height: 20px; border-radius: 999px; background: var(--surface-3); border: 1px solid var(--border-strong); position: relative; transition: background .15s; }
+  .switch .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s; }
+  .switch input:checked + .track { background: color-mix(in srgb, var(--accent) 40%, transparent); border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
+  .switch input:checked + .track::after { transform: translateX(16px); background: var(--accent); }
+  .switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .switch span:last-child { color: var(--text-2); font-size: 12.5px; }
+  .no-args { color: var(--muted); display: flex; gap: 8px; align-items: center; }
+  textarea#json-args { min-height: 220px; font-family: var(--mono); font-size: 12.5px; background: var(--code-bg); }
+  .run-bar { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+  .run-bar .hint { color: var(--muted); font-size: 12.5px; display: inline-flex; gap: 6px; align-items: center; }
+
+  /* ---------- Results & code ---------- */
+  pre.code {
+    margin: 0; padding: 14px 16px; background: var(--code-bg); color: var(--text-2); overflow: auto;
+    max-height: 560px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; tab-size: 2;
+  }
+  .card > pre.code:last-child { border-radius: 0 0 var(--radius) var(--radius); }
+  pre.code.error { color: var(--danger); }
+  .j-key { color: var(--j-key); } .j-str { color: var(--j-str); } .j-num { color: var(--j-num); }
+  .j-bool { color: var(--j-bool); } .j-null { color: var(--j-null); font-style: italic; }
+  .result-meta { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 12.5px; flex-wrap: wrap; }
+  .result-meta b { font-weight: 600; }
+  .state-ok { color: var(--ok); } .state-err { color: var(--danger); } .state-run { color: var(--accent); }
+  .table-wrap { overflow: auto; max-height: 560px; }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  th, td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; max-width: 420px; overflow: hidden; text-overflow: ellipsis; }
+  th { position: sticky; top: 0; background: var(--surface-2); font-weight: 600; color: var(--text-2); z-index: 1; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--mono); }
+  tbody tr:hover td { background: var(--surface-2); }
+  .spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--accent) 30%, transparent); border-top-color: var(--accent); animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .snippet { border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+  .snippet-head { display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border); font-size: 12.5px; font-weight: 600; color: var(--text-2); }
+  .snippet-head .spacer { flex: 1; }
+  .snippet pre.code { max-height: 340px; }
+  .stack { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
+  .content { grid-template-columns: minmax(0, 1fr); }
+  .card { min-width: 0; }
+  .note { color: var(--muted); font-size: 12.5px; }
+  .note code { color: var(--text-2); }
+
+  /* ---------- Dialogs ---------- */
+  dialog {
+    width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 64px); padding: 0; border-radius: 16px;
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+    box-shadow: 0 30px 80px -20px rgba(0,0,0,.6);
+  }
+  dialog.narrow { width: min(560px, calc(100vw - 32px)); }
+  dialog::backdrop { background: rgba(3,6,10,.55); backdrop-filter: blur(3px); }
+  dialog[open] { animation: pop .16s ease-out; display: flex; flex-direction: column; }
+  @keyframes pop { from { opacity: 0; transform: translateY(6px) scale(.985); } }
+  .dialog-head { display: flex; align-items: center; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--border); }
+  .dialog-head h2 { font-size: 16px; }
+  .dialog-head p { color: var(--muted); font-size: 12.5px; }
+  .dialog-body { padding: 20px; overflow-y: auto; display: grid; gap: 22px; }
+  .setting h3 { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+  .setting > p { color: var(--muted); font-size: 12.5px; margin-bottom: 10px; }
+  .options { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+  .option {
+    display: flex; gap: 10px; align-items: flex-start; text-align: left; padding: 11px 12px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+  }
+  .option:hover { border-color: var(--border-strong); }
+  .option[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--surface-2)); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .option b { display: block; font-size: 13px; font-weight: 600; }
+  .option small { display: block; color: var(--muted); font-size: 11.5px; line-height: 1.4; margin-top: 2px; }
+  .option .i { margin-top: 1px; color: var(--accent); }
+  .swatches { display: flex; gap: 10px; }
+  .swatch { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--border-strong); }
+  .swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--text); }
+  .kv { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; font-size: 13px; }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; font-family: var(--mono); font-size: 12.5px; overflow-wrap: anywhere; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px); opacity: 0; pointer-events: none;
+    display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 10px;
+    background: var(--text); color: var(--bg); font-weight: 550; font-size: 13px; transition: .2s; z-index: 50;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%); }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; height: auto; }
+    .sidebar { border-right: 0; border-bottom: 1px solid var(--border); }
+    .tool-list { max-height: 320px; }
+    .main { overflow: visible; }
+    .content { padding: 20px 16px 48px; }
+    .fields { grid-template-columns: 1fr; }
+    .status { display: none; }
+    .topbar .label { display: none; }
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="logo"><svg class="i" viewBox="0 0 24 24"><path d="M7 4v16M7 13l9-9M10 10l7 10"/></svg></div>
+    <div><strong>Kitconc</strong><span>MCP Console</span></div>
+  </div>
+  <div class="status" id="status" role="status"><span class="dot" id="status-dot"></span><span id="status-text">Connecting…</span></div>
+  <div class="spacer"></div>
+  <div class="actions">
+    <button class="btn" id="open-connect" type="button"><span data-icon="plug"></span><span class="label">Connect</span></button>
+    <button class="btn icon ghost" id="toggle-theme" type="button" title="Toggle theme" aria-label="Toggle theme"><span data-icon="moon"></span></button>
+    <button class="btn icon ghost" id="open-settings" type="button" title="Settings" aria-label="Settings"><span data-icon="settings"></span></button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar" aria-label="Tool catalog">
+    <div class="sidebar-head">
+      <div class="search">
+        <span data-icon="search" data-size="sm"></span>
+        <input id="search" type="search" placeholder="Search tools" autocomplete="off" aria-label="Search tools">
+        <kbd>/</kbd>
+      </div>
+      <div class="chips" role="group" aria-label="Filter tools">
+        <button class="chip" data-filter="all" aria-pressed="true" type="button">All</button>
+        <button class="chip" data-filter="read" aria-pressed="false" type="button">Read-only</button>
+        <button class="chip" data-filter="write" aria-pressed="false" type="button">Modifies data</button>
+        <span class="spacer"></span>
+        <span class="count" id="count"></span>
+      </div>
+    </div>
+    <nav class="tool-list" id="tools" aria-label="Tools"><div class="empty">Loading tools…</div></nav>
+  </aside>
+
+  <main class="main" id="main">
+    <div class="content" id="tool" hidden>
+      <section class="tool-head">
+        <div class="tile big" id="tool-tile"></div>
+        <div style="min-width:0;flex:1">
+          <h1 id="title"></h1>
+          <div class="ident">
+            <code id="identifier"></code>
+            <button class="btn sm icon ghost" id="copy-name" type="button" title="Copy tool name" aria-label="Copy tool name"><span data-icon="copy" data-size="sm"></span></button>
+          </div>
+          <div class="badges" id="badges"></div>
+        </div>
+      </section>
+      <p class="description" id="description"></p>
+
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" data-tab="run" aria-selected="true" type="button"><span data-icon="play" data-size="sm"></span>Run</button>
+        <button class="tab" role="tab" data-tab="usage" aria-selected="false" type="button"><span data-icon="terminal" data-size="sm"></span>API &amp; CLI</button>
+        <button class="tab" role="tab" data-tab="schema" aria-selected="false" type="button"><span data-icon="braces" data-size="sm"></span>Schema</button>
+      </div>
+
+      <section data-panel="run" class="stack">
+        <form class="card" id="form" novalidate>
+          <div class="card-head">
+            <h2><span data-icon="sliders" data-size="sm"></span>Arguments</h2>
+            <span class="spacer"></span>
+            <div class="segmented" role="group" aria-label="Argument editor">
+              <button type="button" data-mode="form" aria-pressed="true">Form</button>
+              <button type="button" data-mode="json" aria-pressed="false">JSON</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div id="fields" class="fields"></div>
+            <div id="json-editor" hidden>
+              <textarea id="json-args" class="input" spellcheck="false" aria-label="Arguments (JSON)"></textarea>
+              <p class="note" id="json-error" style="margin-top:6px"></p>
+            </div>
+          </div>
+          <div class="run-bar">
+            <button class="btn primary" id="run" type="submit"><span data-icon="play" data-size="sm"></span>Run tool <kbd>Ctrl ↵</kbd></button>
+            <button class="btn ghost" id="reset" type="button">Reset</button>
+            <span class="spacer"></span>
+            <span class="hint"><span data-icon="route" data-size="sm"></span>via <b id="channel-label"></b></span>
+          </div>
+        </form>
+
+        <section class="card" id="result" hidden aria-live="polite">
+          <div class="card-head">
+            <h2 id="result-title"></h2>
+            <div class="result-meta" id="result-meta"></div>
+            <span class="spacer"></span>
+            <div class="segmented" id="view-switch" role="group" aria-label="Result view">
+              <button type="button" data-view="json" aria-pressed="true">JSON</button>
+              <button type="button" data-view="table" aria-pressed="false">Table</button>
+            </div>
+            <button class="btn sm icon ghost" id="copy-result" type="button" title="Copy result" aria-label="Copy result"><span data-icon="copy" data-size="sm"></span></button>
+            <button class="btn sm icon ghost" id="download-result" type="button" title="Download JSON" aria-label="Download JSON"><span data-icon="download" data-size="sm"></span></button>
+          </div>
+          <pre class="code" id="output"></pre>
+          <div class="table-wrap" id="table" hidden></div>
+        </section>
+      </section>
+
+      <section data-panel="usage" class="stack" hidden>
+        <p class="note">Every tool is available through three interfaces backed by the same workspace. Snippets use the arguments currently in the editor; change the shell in <a href="#" data-open="settings" style="color:var(--accent)">Settings</a>.</p>
+        <div id="usage"></div>
+      </section>
+
+      <section data-panel="schema" hidden>
+        <div class="card"><div class="card-head"><h2><span data-icon="braces" data-size="sm"></span>Input schema</h2><span class="spacer"></span>
+          <button class="btn sm icon ghost" id="copy-schema" type="button" title="Copy schema" aria-label="Copy schema"><span data-icon="copy" data-size="sm"></span></button></div>
+          <pre class="code" id="schema"></pre></div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<dialog id="settings" class="narrow" aria-labelledby="settings-title">
+  <div class="dialog-head">
+    <span data-icon="settings"></span>
+    <div><h2 id="settings-title">Settings</h2><p>Saved in this browser.</p></div>
+    <span class="spacer"></span>
+    <button class="btn icon ghost" data-close type="button" aria-label="Close"><span data-icon="x"></span></button>
+  </div>
+  <div class="dialog-body">
+    <div class="setting">
+      <h3>Theme</h3><p>Dark is the default. System follows your operating system.</p>
+      <div class="options" data-setting="theme">
+        <button class="option" type="button" data-value="dark"><span data-icon="moon"></span><span><b>Dark</b><small>Default</small></span></button>
+        <button class="option" type="button" data-value="light"><span data-icon="sun"></span><span><b>Light</b><small>Bright surfaces</small></span></button>
+        <button class="option" type="button" data-value="system"><span data-icon="monitor"></span><span><b>System</b><small>Match the OS</small></span></button>
+      </div>
+    </div>
+    <div class="setting">
+      <h3>Accent color</h3>
+      <div class="swatches" data-setting="accent">
+        <button class="swatch" type="button" data-value="teal" aria-label="Teal" style="background:#14b8a6"></button>
+        <button class="swatch" type="button" data-value="indigo" aria-label="Indigo" style="background:#6366f1"></button>
+        <button class="swatch" type="button" data-value="violet" aria-label="Violet" style="background:#a855f7"></button>
+        <button class="swatch" type="button" data-value="amber" aria-label="Amber" style="background:#f59e0b"></button>
+        <button class="swatch" type="button" data-value="rose" aria-label="Rose" style="background:#f43f5e"></button>
+      </div>
+    </div>
+    <div class="setting">
+      <h3>MCP transport for clients</h3><p>Used by <b>Connect</b> to generate the configuration for Claude, Cursor and other MCP clients.</p>
+      <div class="options" data-setting="transport">
+        <button class="option" type="button" data-value="stdio"><span data-icon="terminal"></span><span><b>stdio</b><small>Client launches Kitconc as a subprocess</small></span></button>
+        <button class="option" type="button" data-value="streamable-http"><span data-icon="globe"></span><span><b>Streamable HTTP</b><small>Connect to this server at /mcp</small></span></button>
+        <button class="option" type="button" data-value="sse"><span data-icon="radio"></span><span><b>SSE</b><small>Legacy clients, at /sse</small></span></button>
+      </div>
+    </div>
+    <div class="setting">
+      <h3>Run tools from this console via</h3><p>The channel the Run button uses. All three reach the same tools and workspace.</p>
+      <div class="options" data-setting="channel">
+        <button class="option" type="button" data-value="streamable-http"><span data-icon="globe"></span><span><b>MCP · HTTP</b><small>Streamable HTTP</small></span></button>
+        <button class="option" type="button" data-value="sse"><span data-icon="radio"></span><span><b>MCP · SSE</b><small>Server-sent events</small></span></button>
+        <button class="option" type="button" data-value="rest"><span data-icon="server"></span><span><b>REST API</b><small>POST /api/tools/…</small></span></button>
+      </div>
+    </div>
+    <div class="setting">
+      <h3>Shell for snippets</h3>
+      <div class="options" data-setting="shell">
+        <button class="option" type="button" data-value="bash"><span data-icon="terminal"></span><span><b>bash / zsh</b><small>macOS, Linux, Git Bash</small></span></button>
+        <button class="option" type="button" data-value="powershell"><span data-icon="terminal"></span><span><b>PowerShell</b><small>Windows</small></span></button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="connect" aria-labelledby="connect-title">
+  <div class="dialog-head">
+    <span data-icon="plug"></span>
+    <div><h2 id="connect-title">Connect &amp; integrate</h2><p>Use Kitconc from an MCP client, over HTTP, or from the command line.</p></div>
+    <span class="spacer"></span>
+    <button class="btn icon ghost" data-close type="button" aria-label="Close"><span data-icon="x"></span></button>
+  </div>
+  <div class="dialog-body">
+    <div class="tabs" role="tablist" id="connect-tabs">
+      <button class="tab" role="tab" data-ctab="mcp" aria-selected="true" type="button"><span data-icon="plug" data-size="sm"></span>MCP</button>
+      <button class="tab" role="tab" data-ctab="rest" aria-selected="false" type="button"><span data-icon="server" data-size="sm"></span>REST API</button>
+      <button class="tab" role="tab" data-ctab="cli" aria-selected="false" type="button"><span data-icon="terminal" data-size="sm"></span>CLI</button>
+      <button class="tab" role="tab" data-ctab="server" aria-selected="false" type="button"><span data-icon="info" data-size="sm"></span>Server</button>
+    </div>
+    <div id="connect-body" class="stack"></div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status"><span data-icon="check" data-size="sm"></span><span id="toast-text"></span></div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+  /* ---------------- Icons (24×24, stroke) ---------------- */
+  const FILE = '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>';
+  const FOLDER = '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>';
+  const ICONS = {
+    info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+    folder: FOLDER,
+    folderCheck: FOLDER + '<path d="m9 13 2 2 4-4"/>',
+    folderPlus: FOLDER + '<path d="M12 10v6M9 13h6"/>',
+    bookOpen: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+    book: '<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>',
+    database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/>',
+    layers: '<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>',
+    files: '<path d="M15 2H9a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7z"/><path d="M15 2v5h5"/><path d="M3 7.6v12.8A1.6 1.6 0 0 0 4.6 22h9.8"/>',
+    fileText: FILE + '<path d="M16 13H8M16 17H8M10 9H8"/>',
+    fileChart: FILE + '<path d="M8 18v-2M12 18v-6M16 18v-4"/>',
+    fileDown: FILE + '<path d="M12 18v-6M9 15l3 3 3-3"/>',
+    tag: '<path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+    tags: '<path d="M9 5H3v6l8.3 8.3a2 2 0 0 0 2.8 0l3.6-3.6a2 2 0 0 0 0-2.8z"/><path d="m15 5 6.3 6.3a2.4 2.4 0 0 1 0 3.4L17 19"/><circle cx="6.5" cy="8.5" r="1"/>',
+    shieldCheck: '<path d="M20 13c0 5-3.5 7.5-7.7 9a1 1 0 0 1-.6 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.7a1.2 1.2 0 0 1 1.6 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+    branch: '<circle cx="6" cy="5" r="2.5"/><circle cx="18" cy="7" r="2.5"/><circle cx="6" cy="19" r="2.5"/><path d="M6 7.5v9M18 9.5a8 8 0 0 1-8 8H8.5"/>',
+    trash: '<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/>',
+    download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/>',
+    upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5M12 3v12"/>',
+    listOrdered: '<path d="M10 6h11M10 12h11M10 18h11M4 6h1v4M4 10h2M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/>',
+    key: '<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/>',
+    textSearch: '<path d="M21 5H3M10 12H3M10 19H3"/><circle cx="17" cy="15" r="3"/><path d="m21 19-1.9-1.9"/>',
+    alignCenter: '<path d="M21 6H3M17 12H7M19 18H5"/>',
+    link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+    grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>',
+    braces: '<path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1M16 21h1a2 2 0 0 0 2-2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/>',
+    brackets: '<path d="M16 3h3v18h-3M8 21H5V3h3"/><path d="M9.5 12h.01M12 12h.01M14.5 12h.01"/>',
+    frame: '<path d="M22 6H2M22 18H2M6 2v20M18 2v20"/>',
+    type: '<path d="M4 7V4h16v3M9 20h6M12 4v16"/>',
+    scatter: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><circle cx="8" cy="15" r="1.2"/><circle cx="11.5" cy="9" r="1.2"/><circle cx="17.5" cy="13.5" r="1.2"/><circle cx="15.5" cy="6.5" r="1.2"/>',
+    ruler: '<path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z"/><path d="m14.5 12.5 2-2M11.5 9.5l2-2M8.5 6.5l2-2M17.5 15.5l2-2"/>',
+    barChart: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9M13 17V5M8 17v-3"/>',
+    bookmark: '<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/><path d="M9 9h6"/>',
+    radar: '<path d="M19.07 4.93A10 10 0 0 0 6.99 3.34M4 6h.01M2.29 9.62A10 10 0 1 0 21.31 8.35M16.24 7.76A6 6 0 1 0 8.23 16.67M12 18h.01M17.99 11.66A6 6 0 0 1 15.77 16.67"/><circle cx="12" cy="12" r="2"/><path d="m13.41 10.59 5.66-5.66"/>',
+    calculator: '<rect width="16" height="20" x="4" y="2" rx="2"/><path d="M8 6h8M16 14v4M16 10h.01M12 10h.01M8 10h.01M12 14h.01M8 14h.01M12 18h.01M8 18h.01"/>',
+    cloud: '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+    activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+    cpu: '<rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2"/>',
+    sparkles: '<path d="M10 3.5 11.8 8.2 16.5 10 11.8 11.8 10 16.5 8.2 11.8 3.5 10 8.2 8.2z"/><path d="M18 14v6M15 17h6M19 3v3M17.5 4.5h3"/>',
+    searchSparkle: '<circle cx="10.5" cy="10.5" r="7.5"/><path d="m21 21-5.2-5.2M10.5 6.5l1.1 2.9 2.9 1.1-2.9 1.1-1.1 2.9-1.1-2.9-2.9-1.1 2.9-1.1z"/>',
+    inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+    table: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>',
+    plusSquare: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8M12 8v8"/>',
+    filter: '<path d="M22 3H2l8 9.46V19l4 2v-8.54z"/>',
+    wand: '<path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72M14 7l3 3M5 6v4M19 14v4M10 2v2M7 8H3M21 16h-4M11 3H9"/>',
+    merge: '<path d="m8 6 4-4 4 4M12 2v10.3a4 4 0 0 1-1.17 2.87L4 22M20 22l-5-5"/>',
+    combine: '<rect width="8" height="8" x="2" y="2" rx="2"/><rect width="8" height="8" x="14" y="14" rx="2"/><path d="M14 2c1.1 0 2 .9 2 2v4c0 1.1-.9 2-2 2M20 2c1.1 0 2 .9 2 2v4c0 1.1-.9 2-2 2M10 18H5c-1.7 0-3-1.3-3-3v-1M7 21l3-3-3-3"/>',
+    sigma: '<path d="M18 7V4H6l6 8-6 8h12v-3"/>',
+    checkCircle: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+    workflow: '<rect width="8" height="8" x="3" y="3" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/><rect width="8" height="8" x="13" y="13" rx="2"/>',
+    eye: '<path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/>',
+    play: '<path d="M6 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L7.5 3.64A1 1 0 0 0 6 4.5z"/>',
+    playCircle: '<circle cx="12" cy="12" r="10"/><path d="m10 8 6 4-6 4z"/>',
+    save: '<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7M7 3v4a1 1 0 0 0 1 1h7"/>',
+    rocket: '<path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>',
+    clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+    ban: '<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
+    wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+    settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+    moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+    monitor: '<rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8M12 17v4"/>',
+    plug: '<path d="M12 22v-5M9 8V2M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>',
+    copy: '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+    terminal: '<path d="m4 17 6-6-6-6M12 19h8"/>',
+    globe: '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20M2 12h20"/>',
+    radio: '<path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5M19.1 4.9C23 8.8 23 15.1 19.1 19"/><circle cx="12" cy="12" r="2"/>',
+    server: '<rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><path d="M6 6h.01M6 18h.01"/>',
+    x: '<path d="M18 6 6 18M6 6l12 12"/>',
+    lock: '<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+    pencil: '<path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/>',
+    alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/>',
+    sliders: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',
+    route: '<circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/>',
+    repeat: '<path d="m17 2 4 4-4 4M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v1a4 4 0 0 1-4 4H3"/>',
+  };
+
+  const TOOL_ICONS = {
+    workspace_info: 'info', workspace_set: 'folderCheck', guide_read: 'bookOpen',
+    corpus_list: 'layers', corpus_info: 'database', corpus_files: 'files', corpus_read_file: 'fileText',
+    corpus_tagset: 'tag', corpus_qa: 'shieldCheck', corpus_create: 'folderPlus', subcorpus_create: 'branch',
+    corpus_delete: 'trash', corpus_import: 'download', corpus_export: 'upload',
+    analyze_wordlist: 'listOrdered', analyze_keywords: 'key', analyze_kwic: 'textSearch',
+    analyze_concordance: 'alignCenter', analyze_collocates: 'link', analyze_clusters: 'grid',
+    analyze_ngrams: 'brackets', analyze_pframes: 'frame', analyze_lemmas: 'type',
+    analyze_dispersion: 'scatter', analyze_dispersion_measures: 'ruler', analyze_keywords_dispersion: 'barChart',
+    analyze_word_tag_freq: 'tags', analyze_word_freq_by_file: 'fileChart', term_candidates: 'bookmark',
+    context_mine: 'radar', text_stats: 'calculator', plot_wordcloud: 'cloud',
+    semantic_index_status: 'activity', semantic_index_build: 'cpu', semantic_search: 'searchSparkle',
+    result_list: 'inbox', result_page: 'table', result_create: 'plusSquare', result_filter: 'filter',
+    result_derive: 'wand', result_join: 'merge', result_combine: 'combine', result_aggregate: 'sigma',
+    result_enrich: 'sparkles', result_export: 'fileDown', result_delete: 'trash',
+    pipeline_validate: 'checkCircle', pipeline_run: 'workflow', recipe_list: 'book', recipe_show: 'eye',
+    recipe_run: 'playCircle', recipe_save: 'save', job_start: 'rocket', job_status: 'clock', job_cancel: 'ban',
+  };
+  // Keyword fallback for tools added later.
+  const KEYWORD_ICONS = [
+    [/delete|remove/, 'trash'], [/export/, 'upload'], [/import/, 'download'], [/search|kwic|find/, 'textSearch'],
+    [/list/, 'listOrdered'], [/stat|count/, 'calculator'], [/plot|chart/, 'barChart'], [/run|start/, 'playCircle'],
+    [/status/, 'activity'], [/info/, 'info'], [/file/, 'fileText'], [/save/, 'save'], [/filter/, 'filter'],
+  ];
+  const GROUPS = {
+    workspace:   {label: 'Workspace',   icon: 'folder',    hue: '#60a5fa'},
+    corpus:      {label: 'Corpora',     icon: 'database',  hue: '#38bdf8'},
+    analysis:    {label: 'Analysis',    icon: 'barChart',  hue: '#a78bfa'},
+    semantic:    {label: 'Semantic',    icon: 'sparkles',  hue: '#f472b6'},
+    results:     {label: 'Results',     icon: 'table',     hue: '#fbbf24'},
+    composition: {label: 'Pipelines & recipes', icon: 'workflow', hue: '#34d399'},
+    jobs:        {label: 'Jobs',        icon: 'clock',     hue: '#fb923c'},
+    other:       {label: 'Other',       icon: 'wrench',    hue: '#94a3b8'},
+  };
+
+  const svg = (name, size = '') => `<svg class="i ${size}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ICONS.wrench}</svg>`;
+  const hydrateIcons = (root = document) => $$('[data-icon]', root).forEach(el => { el.outerHTML = svg(el.dataset.icon, el.dataset.size || ''); });
+  const toolIcon = tool => TOOL_ICONS[tool.name]
+    || (KEYWORD_ICONS.find(([re]) => re.test(tool.name)) || [])[1]
+    || (GROUPS[tool.group] || GROUPS.other).icon;
+  const groupOf = tool => GROUPS[tool.group] || GROUPS.other;
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+
+  /* ---------------- Settings ---------------- */
+  const STORAGE_KEY = 'kitconc.console.settings';
+  const isWindows = /win/i.test(navigator.userAgentData?.platform || navigator.platform || '');
+  const DEFAULTS = {theme: 'dark', accent: 'teal', transport: 'streamable-http', channel: 'streamable-http',
+                    shell: isWindows ? 'powershell' : 'bash', editor: 'form'};
+  let settings = {...DEFAULTS};
+  try { Object.assign(settings, JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')); } catch {}
+  const CHANNEL_LABELS = {'streamable-http': 'MCP · Streamable HTTP', sse: 'MCP · SSE', rest: 'REST API'};
+  const TRANSPORT_LABELS = {stdio: 'stdio', 'streamable-http': 'Streamable HTTP', sse: 'SSE'};
+  if (!CHANNEL_LABELS[settings.channel]) settings.channel = DEFAULTS.channel;
+  if (!TRANSPORT_LABELS[settings.transport]) settings.transport = DEFAULTS.transport;
+
+  const systemLight = matchMedia('(prefers-color-scheme: light)');
+  const resolvedTheme = () => settings.theme === 'system' ? (systemLight.matches ? 'light' : 'dark') : settings.theme;
+
+  function saveSettings() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(settings)); } catch {}
+  }
+  function applySettings() {
+    const root = document.documentElement;
+    root.dataset.theme = resolvedTheme();
+    root.dataset.accent = settings.accent;
+    const themeBtn = $('#toggle-theme');
+    themeBtn.innerHTML = svg(resolvedTheme() === 'dark' ? 'moon' : 'sun');
+    $$('[data-setting]').forEach(group => {
+      $$('[data-value]', group).forEach(b => b.setAttribute('aria-pressed', String(settings[group.dataset.setting] === b.dataset.value)));
+    });
+    $('#channel-label').textContent = CHANNEL_LABELS[settings.channel];
+    updateStatus();
+  }
+  function setSetting(key, value) {
+    if (settings[key] === value) return;
+    settings[key] = value;
+    saveSettings();
+    applySettings();
+    if (key === 'shell' || key === 'transport') { renderUsage(); renderConnect(); }
+    if (key === 'channel') checkChannel();
+  }
+  systemLight.addEventListener('change', () => settings.theme === 'system' && applySettings());
+
+  /* ---------------- Transports ---------------- */
+  const origin = location.origin;
+  let info = {endpoints: {streamable_http: '/mcp', sse: '/sse', rest: '/api'}, commands: {stdio: ['kitconc-mcp']}, workspace: ''};
+  const CLIENT_INFO = {name: 'Kitconc console', version: '2'};
+  let protocolVersion = '2025-03-26';
+
+  const http = {
+    requestId: 0,
+    ready: null,
+    async rpc(method, params, notification = false) {
+      const body = {jsonrpc: '2.0', method, params};
+      if (!notification) body.id = ++this.requestId;
+      const response = await fetch(new URL(info.endpoints.streamable_http, origin), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', Accept: 'application/json, text/event-stream', 'MCP-Protocol-Version': protocolVersion},
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) throw new Error(`MCP request failed (HTTP ${response.status}).`);
+      if (notification) return;
+      const message = await response.json();
+      if (message.error) throw new Error(message.error.message);
+      return message.result;
+    },
+    connect() {
+      if (!this.ready) {
+        this.ready = (async () => {
+          const init = await this.rpc('initialize', {protocolVersion, capabilities: {}, clientInfo: CLIENT_INFO});
+          protocolVersion = init.protocolVersion;
+          await this.rpc('notifications/initialized', {}, true);
+        })().catch(err => { this.ready = null; throw err; });
+      }
+      return this.ready;
+    },
+    async call(name, args) {
+      await this.connect();
+      return fromMcp(await this.rpc('tools/call', {name, arguments: args}));
+    },
+  };
+
+  const sse = {
+    requestId: 0,
+    pending: new Map(),
+    ready: null,
+    source: null,
+    postUrl: null,
+    async send(message) {
+      const response = await fetch(this.postUrl, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(message)});
+      if (!response.ok) throw new Error(`MCP request failed (HTTP ${response.status}).`);
+    },
+    request(method, params) {
+      const id = ++this.requestId;
+      const promise = new Promise((resolve, reject) => this.pending.set(id, {resolve, reject}));
+      this.send({jsonrpc: '2.0', id, method, params}).catch(err => {
+        const entry = this.pending.get(id);
+        if (entry) { this.pending.delete(id); entry.reject(err); }
+      });
+      return promise;
+    },
+    fail(error) {
+      if (this.source) this.source.close();
+      this.source = null;
+      this.ready = null;
+      for (const entry of this.pending.values()) entry.reject(error);
+      this.pending.clear();
+    },
+    connect() {
+      if (this.ready) return this.ready;
+      this.ready = new Promise((resolve, reject) => {
+        const source = new EventSource(new URL(info.endpoints.sse, origin));
+        this.source = source;
+        const timer = setTimeout(() => { this.fail(new Error('SSE connection timed out.')); reject(new Error('SSE connection timed out.')); }, 10000);
+        source.addEventListener('endpoint', async event => {
+          clearTimeout(timer);
+          this.postUrl = new URL(event.data, origin);
+          try {
+            await this.request('initialize', {protocolVersion: '2025-03-26', capabilities: {}, clientInfo: CLIENT_INFO});
+            await this.send({jsonrpc: '2.0', method: 'notifications/initialized', params: {}});
+            resolve();
+          } catch (err) { this.fail(err); reject(err); }
+        });
+        source.addEventListener('message', event => {
+          let message;
+          try { message = JSON.parse(event.data); } catch { return; }
+          const entry = this.pending.get(message.id);
+          if (!entry) return;
+          this.pending.delete(message.id);
+          if (message.error) entry.reject(new Error(message.error.message));
+          else entry.resolve(message.result);
+        });
+        source.onerror = () => { clearTimeout(timer); const err = new Error('SSE connection lost.'); this.fail(err); reject(err); };
+      });
+      return this.ready;
+    },
+    async call(name, args) {
+      await this.connect();
+      return fromMcp(await this.request('tools/call', {name, arguments: args}));
+    },
+  };
+
+  const rest = {
+    async connect() {
+      const response = await fetch(new URL(`${info.endpoints.rest}/info`, origin));
+      if (!response.ok) throw new Error(`REST API unavailable (HTTP ${response.status}).`);
+    },
+    async call(name, args) {
+      const response = await fetch(new URL(`${info.endpoints.rest}/tools/${encodeURIComponent(name)}`, origin), {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(args),
+      });
+      let data;
+      try { data = await response.json(); } catch { data = null; }
+      if (response.ok || response.status === 422) return {isError: response.status === 422, data};
+      throw new Error(data?.error?.message || `HTTP ${response.status}`);
+    },
+  };
+  const CHANNELS = {'streamable-http': http, sse, rest};
+
+  function tryParse(text) { try { return JSON.parse(text); } catch { return text; } }
+  function fromMcp(result) {
+    if (result.structuredContent) return {isError: Boolean(result.isError), data: result.structuredContent};
+    const items = (result.content || []).map(item => item.type === 'text' ? tryParse(item.text) : item);
+    return {isError: Boolean(result.isError), data: items.length === 1 ? items[0] : items};
+  }
+
+  let connection = {state: 'pending', message: 'Connecting…'};
+  async function checkChannel() {
+    connection = {state: 'pending', message: 'Connecting…'};
+    updateStatus();
+    const channel = settings.channel;
+    try {
+      await CHANNELS[channel].connect();
+      if (settings.channel === channel) connection = {state: 'ok'};
+    } catch (err) {
+      if (settings.channel === channel) connection = {state: 'err', message: err.message};
+    }
+    updateStatus();
+  }
+  function updateStatus() {
+    const dot = $('#status-dot');
+    dot.className = 'dot' + (connection.state === 'ok' ? ' ok' : connection.state === 'err' ? ' err' : '');
+    const parts = [connection.state === 'ok' ? CHANNEL_LABELS[settings.channel] : connection.message];
+    if (tools.length) parts.push(`${tools.length} tools`);
+    if (info.read_only) parts.push('read-only');
+    $('#status-text').textContent = parts.join(' · ');
+    $('#status').title = info.workspace ? `Workspace: ${info.workspace}` : '';
+  }
+
+  /* ---------------- Catalog ---------------- */
+  let tools = [];
+  let selected = null;
+  let filter = 'all';
+  let args = {};
+
+  const isReadOnly = tool => tool.annotations?.readOnlyHint === true;
+  const isDestructive = tool => tool.annotations?.destructiveHint === true;
 
   function renderTools() {
-    const query = byId('search').value.trim().toLowerCase();
-    const visible = tools.filter(tool => `${tool.name} ${tool.title || ''} ${tool.description || ''}`.toLowerCase().includes(query));
-    byId('status').textContent = `${visible.length} of ${tools.length} tools`;
-    byId('tools').replaceChildren(...visible.map(tool => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.textContent = tool.title || tool.name;
-      button.setAttribute('aria-pressed', String(tool === selected));
-      if (tool.title && tool.title !== tool.name) {
-        const name = document.createElement('code');
-        name.textContent = tool.name;
-        button.append(name);
+    const query = $('#search').value.trim().toLowerCase();
+    const visible = tools.filter(tool => {
+      if (filter === 'read' && !isReadOnly(tool)) return false;
+      if (filter === 'write' && isReadOnly(tool)) return false;
+      return !query || `${tool.name} ${tool.title || ''} ${tool.description || ''} ${tool.group}`.toLowerCase().includes(query);
+    });
+    $('#count').textContent = `${visible.length}/${tools.length}`;
+    const nav = $('#tools');
+    if (!visible.length) { nav.innerHTML = '<div class="empty">No tools match your search.</div>'; return; }
+    const groups = new Map();
+    visible.forEach(tool => { if (!groups.has(tool.group)) groups.set(tool.group, []); groups.get(tool.group).push(tool); });
+    nav.innerHTML = '';
+    for (const [key, list] of groups) {
+      const meta = GROUPS[key] || GROUPS.other;
+      const label = document.createElement('div');
+      label.className = 'group-label';
+      label.innerHTML = `${svg(meta.icon)}<span>${esc(meta.label)}</span><span>${list.length}</span>`;
+      nav.append(label);
+      for (const tool of list) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'tool-item';
+        button.dataset.name = tool.name;
+        button.setAttribute('aria-current', String(tool === selected));
+        const flag = isDestructive(tool) ? `<span class="flag danger" title="Destructive">${svg('alert', 'sm')}</span>`
+          : !isReadOnly(tool) ? `<span class="flag" title="Modifies data">${svg('pencil', 'sm')}</span>` : '';
+        button.innerHTML = `<span class="tile" style="--hue:${meta.hue}">${svg(toolIcon(tool))}</span>
+          <span class="meta"><span class="name">${esc(tool.title || tool.name)}</span><code>${esc(tool.name)}</code></span>${flag}`;
+        button.onclick = () => selectTool(tool, true);
+        nav.append(button);
       }
-      button.onclick = () => {
-        selectTool(tool);
-        Array.from(byId('tools').children).forEach(item => item.setAttribute('aria-pressed', String(item === button)));
-      };
-      return button;
-    }));
+    }
   }
 
-  function selectTool(tool) {
+  function selectTool(tool, userAction = false) {
     selected = tool;
-    byId('tool').hidden = false;
-    byId('title').textContent = tool.title || tool.name;
-    byId('identifier').textContent = tool.name;
-    byId('description').textContent = tool.description || '';
-    const schema = tool.inputSchema;
-    byId('schema').textContent = JSON.stringify(schema, null, 2);
-    const argumentsTemplate = Object.fromEntries((schema.required || []).map(name => {
-      const field = schema.properties[name];
-      const emptyValues = {string: '', integer: 0, number: 0, boolean: false, array: [], object: {}};
-      return [name, field.default ?? field.enum?.[0] ?? emptyValues[field.type] ?? null];
+    if (userAction) history.replaceState(null, '', `#${encodeURIComponent(tool.name)}`);
+    $$('.tool-item').forEach(b => b.setAttribute('aria-current', String(b.dataset.name === tool.name)));
+    const meta = groupOf(tool);
+    $('#tool').hidden = false;
+    $('#tool-tile').style.setProperty('--hue', meta.hue);
+    $('#tool-tile').innerHTML = svg(toolIcon(tool), 'lg');
+    $('#title').textContent = tool.title || tool.name;
+    $('#identifier').textContent = tool.name;
+    // Docstrings are hard-wrapped: reflow lines but keep paragraphs and list items.
+    $('#description').textContent = (tool.description || '').trim().replace(/([^\n])\n(?![\n\s]*(?:[-*•]|\d+[.)])\s)(?!\n)/g, '$1 ');
+    const badges = [`<span class="badge">${svg(meta.icon)}${esc(meta.label)}</span>`];
+    if (isReadOnly(tool)) badges.push(`<span class="badge ok">${svg('lock')}Read-only</span>`);
+    else if (isDestructive(tool)) badges.push(`<span class="badge danger">${svg('alert')}Destructive</span>`);
+    else badges.push(`<span class="badge warn">${svg('pencil')}Modifies data</span>`);
+    if (tool.annotations?.idempotentHint) badges.push(`<span class="badge">${svg('repeat')}Idempotent</span>`);
+    const nParams = Object.keys(tool.inputSchema?.properties || {}).length;
+    badges.push(`<span class="badge">${svg('sliders')}${nParams} parameter${nParams === 1 ? '' : 's'}</span>`);
+    $('#badges').innerHTML = badges.join('');
+    $('#schema').innerHTML = highlight(JSON.stringify(tool.inputSchema, null, 2));
+    resetArgs();
+    $('#result').hidden = true;
+    if (userAction && innerWidth <= 900) $('#tool').scrollIntoView({behavior: 'smooth'});
+  }
+
+  /* ---------------- Arguments ---------------- */
+  const EMPTY = {string: '', integer: 0, number: 0, boolean: false, array: [], object: {}};
+  function defaultArgs(schema) {
+    return Object.fromEntries((schema.required || []).map(name => {
+      const field = schema.properties?.[name] || {};
+      const type = field.type || field.anyOf?.find(v => v.type && v.type !== 'null')?.type;
+      return [name, field.default ?? field.enum?.[0] ?? EMPTY[type] ?? null];
     }));
-    byId('args').value = JSON.stringify(argumentsTemplate, null, 2);
-    byId('result').hidden = true;
+  }
+  function resetArgs() {
+    args = defaultArgs(selected.inputSchema || {});
+    renderEditor();
   }
 
-  byId('search').addEventListener('input', renderTools);
-  byId('copy').onclick = async () => {
-    try {
-      await navigator.clipboard.writeText(endpoint.href);
-      byId('copy').textContent = 'MCP URL copied';
-    } catch {
-      byId('copy').textContent = endpoint.href;
+  function fieldKind(prop) {
+    const variants = prop.anyOf ? prop.anyOf.filter(v => v.type !== 'null') : [prop];
+    const primary = variants[0] || {};
+    if (variants.length === 1) {
+      if (primary.enum || prop.enum) return {kind: 'enum', options: primary.enum || prop.enum, label: 'enum'};
+      if (primary.type === 'boolean') return {kind: 'bool', label: 'boolean'};
+      if (primary.type === 'integer' || primary.type === 'number') return {kind: 'number', spec: primary, label: primary.type};
+      if (primary.type === 'string') return {kind: 'text', label: 'string'};
+      if (primary.type === 'array' && (!primary.items || primary.items.type === 'string')) return {kind: 'list', array: true, label: 'string[]'};
     }
-  };
-
-  function formatContent(item) {
-    if (item.type !== 'text') return JSON.stringify(item, null, 2);
-    try {
-      return JSON.stringify(JSON.parse(item.text), null, 2);
-    } catch {
-      return item.text;
-    }
+    const simple = variants.length && variants.every(v => v.type === 'string' || (v.type === 'array' && v.items?.type === 'string'));
+    if (simple) return {kind: 'list', array: false, label: variants.map(v => v.type === 'array' ? 'string[]' : 'string').join(' | ')};
+    return {kind: 'json', label: variants.map(v => v.type || 'any').join(' | ') || 'json'};
   }
 
-  byId('form').onsubmit = async event => {
-    event.preventDefault();
-    const tool = selected;
-    byId('run').disabled = true;
-    byId('result').hidden = false;
-    byId('result-title').textContent = 'Running…';
-    byId('output').textContent = '';
-    byId('output').classList.remove('error');
-    try {
-      const args = JSON.parse(byId('args').value);
-      if (!args || typeof args !== 'object' || Array.isArray(args)) throw new Error('Arguments must be a JSON object.');
-      if (tool.annotations?.destructiveHint === true && !window.confirm(`Run ${tool.name}? This tool can modify or delete data.`)) {
-        byId('result').hidden = true;
-        return;
+  function renderEditor() {
+    const mode = settings.editor;
+    $$('[data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === mode)));
+    $('#fields').hidden = mode !== 'form';
+    $('#json-editor').hidden = mode !== 'json';
+    $('#json-args').value = JSON.stringify(args, null, 2);
+    $('#json-args').classList.remove('invalid');
+    $('#json-error').textContent = '';
+    if (mode === 'form') renderForm();
+    renderUsage();
+  }
+
+  function renderForm() {
+    const schema = selected.inputSchema || {};
+    const props = schema.properties || {};
+    const required = new Set(schema.required || []);
+    const container = $('#fields');
+    container.innerHTML = '';
+    const names = Object.keys(props);
+    if (!names.length) {
+      container.innerHTML = `<p class="no-args">${svg('check', 'sm')}This tool takes no arguments.</p>`;
+      return;
+    }
+    names.sort((a, b) => Number(required.has(b)) - Number(required.has(a)));
+    for (const name of names) {
+      const prop = props[name];
+      const kind = fieldKind(prop);
+      const id = `arg-${name}`;
+      const field = document.createElement('div');
+      field.className = 'field' + ((kind.kind === 'json' || (prop.description || '').length > 140) ? ' wide' : '');
+      const def = prop.default !== undefined && prop.default !== null ? JSON.stringify(prop.default) : '';
+      field.innerHTML = `<div class="field-label"><label for="${id}">${esc(name)}</label>${required.has(name) ? '<span class="req" title="Required">*</span>' : ''}<span class="type">${esc(kind.label)}</span></div>`;
+      const value = args[name];
+      let control;
+      if (kind.kind === 'bool') {
+        control = document.createElement('label');
+        control.className = 'switch';
+        const checked = value ?? prop.default ?? false;
+        control.innerHTML = `<input type="checkbox" id="${id}" ${checked ? 'checked' : ''}><span class="track"></span><span>${checked ? 'true' : 'false'}</span>`;
+        const input = control.querySelector('input');
+        input.onchange = () => {
+          control.lastElementChild.textContent = String(input.checked);
+          setArg(name, input.checked, input.checked === (prop.default ?? false) && !required.has(name));
+        };
+      } else if (kind.kind === 'enum') {
+        control = document.createElement('select');
+        control.className = 'input';
+        control.id = id;
+        const options = required.has(name) ? [] : [`<option value="">Default${def ? ` (${esc(def)})` : ''}</option>`];
+        kind.options.forEach((opt, i) => options.push(`<option value="${i}" ${value === opt ? 'selected' : ''}>${esc(opt)}</option>`));
+        control.innerHTML = options.join('');
+        control.onchange = () => setArg(name, kind.options[Number(control.value)], control.value === '');
+      } else if (kind.kind === 'json') {
+        control = document.createElement('textarea');
+        control.className = 'input code';
+        control.id = id;
+        control.rows = 3;
+        control.spellcheck = false;
+        control.placeholder = def ? `Default: ${def}` : 'JSON value';
+        control.value = value === undefined ? '' : JSON.stringify(value, null, 2);
+        control.oninput = () => {
+          if (!control.value.trim()) { control.classList.remove('invalid'); return setArg(name, undefined, true); }
+          try { setArg(name, JSON.parse(control.value)); control.classList.remove('invalid'); }
+          catch { control.classList.add('invalid'); }
+        };
+      } else {
+        control = document.createElement('input');
+        control.className = 'input';
+        control.id = id;
+        control.autocomplete = 'off';
+        control.spellcheck = false;
+        if (kind.kind === 'number') {
+          control.type = 'number';
+          if (kind.spec.minimum !== undefined) control.min = kind.spec.minimum;
+          if (kind.spec.maximum !== undefined) control.max = kind.spec.maximum;
+          control.step = kind.spec.type === 'integer' ? '1' : 'any';
+          control.value = value ?? '';
+          control.placeholder = def ? `Default: ${def}` : '';
+          control.oninput = () => {
+            if (control.value === '') return setArg(name, undefined, true);
+            const n = Number(control.value);
+            if (!Number.isNaN(n)) setArg(name, n);
+          };
+        } else if (kind.kind === 'list') {
+          control.value = Array.isArray(value) ? value.join(', ') : (value ?? '');
+          control.placeholder = def ? `Default: ${def}` : (kind.array ? 'Comma-separated values' : 'Value, or comma-separated values');
+          control.oninput = () => {
+            const raw = control.value;
+            if (!raw.trim()) return setArg(name, kind.array && required.has(name) ? [] : undefined, !required.has(name));
+            const parts = raw.split(',').map(s => s.trim()).filter(Boolean);
+            setArg(name, kind.array || parts.length > 1 ? parts : raw.trim());
+          };
+        } else {
+          control.value = value ?? '';
+          control.placeholder = def ? `Default: ${def}` : '';
+          control.oninput = () => setArg(name, control.value, control.value === '' && !required.has(name));
+        }
       }
-      const result = await rpc('tools/call', {name: tool.name, arguments: args});
-      if (selected !== tool) return;
-      byId('result-title').textContent = result.isError ? 'Tool error' : 'Result';
-      byId('output').classList.toggle('error', Boolean(result.isError));
-      byId('output').textContent = result.structuredContent
-        ? JSON.stringify(result.structuredContent, null, 2)
-        : result.content.map(formatContent).join('\n');
-    } catch (error) {
-      if (selected !== tool) return;
-      byId('result-title').textContent = 'Error';
-      byId('output').classList.add('error');
-      byId('output').textContent = error.message;
-    } finally {
-      byId('run').disabled = false;
+      field.append(control);
+      if (prop.description) {
+        const help = document.createElement('p');
+        help.className = 'help';
+        help.textContent = prop.description;
+        field.append(help);
+      }
+      container.append(field);
     }
-  };
-
-  async function loadCatalog() {
-    const init = await rpc('initialize', {protocolVersion, capabilities: {}, clientInfo: {name: 'Kitconc dashboard', version: '1'}});
-    protocolVersion = init.protocolVersion;
-    await rpc('notifications/initialized', {}, true);
-    let cursor;
-    do {
-      const page = await rpc('tools/list', cursor ? {cursor} : {});
-      tools.push(...page.tools);
-      cursor = page.nextCursor;
-    } while (cursor);
-    if (tools.length) selectTool(tools.find(tool => tool.name === 'workspace_info') || tools[0]);
-    renderTools();
   }
 
-  loadCatalog().catch(error => { byId('status').textContent = error.message; });
+  function setArg(name, value, remove = false) {
+    if (remove || value === undefined) delete args[name];
+    else args[name] = value;
+    $('#json-args').value = JSON.stringify(args, null, 2);
+    scheduleUsage();
+  }
+
+  let usageTimer;
+  const scheduleUsage = () => { clearTimeout(usageTimer); usageTimer = setTimeout(renderUsage, 200); };
+
+  $('#json-args').addEventListener('input', () => {
+    const area = $('#json-args');
+    try {
+      const value = JSON.parse(area.value || '{}');
+      if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Arguments must be a JSON object.');
+      args = value;
+      area.classList.remove('invalid');
+      $('#json-error').textContent = '';
+      scheduleUsage();
+    } catch (err) {
+      area.classList.add('invalid');
+      $('#json-error').textContent = err.message;
+    }
+  });
+  $$('[data-mode]').forEach(b => b.onclick = () => {
+    if ($('#json-args').classList.contains('invalid')) { toast('Fix the JSON before switching'); return; }
+    settings.editor = b.dataset.mode;
+    saveSettings();
+    renderEditor();
+  });
+  $('#reset').onclick = () => { resetArgs(); toast('Arguments reset'); };
+
+  /* ---------------- Running ---------------- */
+  let lastResult = null;
+  let resultView = 'json';
+  let running = false;
+
+  $('#form').addEventListener('submit', async event => {
+    event.preventDefault();
+    if (running || !selected) return;
+    if ($('#json-args').classList.contains('invalid')) { toast('Fix the JSON arguments first'); return; }
+    const tool = selected;
+    if (isDestructive(tool) && !confirm(`Run ${tool.name}?\n\nThis tool can modify or delete data in your workspace.`)) return;
+    const channelKey = settings.channel;
+    running = true;
+    $('#run').disabled = true;
+    $('#result').hidden = false;
+    $('#result-title').innerHTML = `<span class="spinner"></span><span class="state-run">Running…</span>`;
+    $('#result-meta').textContent = '';
+    $('#view-switch').hidden = true;
+    $('#output').hidden = false;
+    $('#table').hidden = true;
+    $('#output').className = 'code';
+    $('#output').textContent = '';
+    const started = performance.now();
+    try {
+      const outcome = await CHANNELS[channelKey].call(tool.name, structuredClone(args));
+      if (selected !== tool) return;
+      showResult(tool, outcome.isError, outcome.data, performance.now() - started, channelKey);
+      if (connection.state !== 'ok') { connection = {state: 'ok'}; updateStatus(); }
+    } catch (err) {
+      if (selected !== tool) return;
+      showResult(tool, true, {error: {message: err.message}}, performance.now() - started, channelKey, true);
+    } finally {
+      running = false;
+      $('#run').disabled = false;
+    }
+  });
+
+  function formatBytes(n) { return n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(1)} MB`; }
+
+  function showResult(tool, isError, data, ms, channelKey, transportError = false) {
+    const text = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+    lastResult = {tool: tool.name, text};
+    $('#result-title').innerHTML = isError
+      ? `${svg('alert', 'sm')}<span class="state-err">${transportError ? 'Request failed' : 'Tool error'}</span>`
+      : `${svg('checkCircle', 'sm')}<span class="state-ok">Success</span>`;
+    $('#result-meta').innerHTML = `<span>${ms < 1000 ? Math.round(ms) + ' ms' : (ms / 1000).toFixed(2) + ' s'}</span><span>${formatBytes(new Blob([text]).size)}</span><span>${esc(CHANNEL_LABELS[channelKey])}</span>`;
+    const output = $('#output');
+    output.className = 'code' + (isError ? ' error' : '');
+    if (isError || text.length > 400000) output.textContent = text;
+    else output.innerHTML = highlight(text);
+    const table = isError ? null : findTable(data);
+    $('#view-switch').hidden = !table;
+    if (table) renderTable(table);
+    if (!table && resultView === 'table') resultView = 'json';
+    setView(table ? resultView : 'json');
+  }
+
+  function setView(view) {
+    resultView = view;
+    $$('[data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === view)));
+    $('#output').hidden = view !== 'json';
+    $('#table').hidden = view !== 'table';
+  }
+  $$('[data-view]').forEach(b => b.onclick = () => setView(b.dataset.view));
+
+  function findTable(data, depth = 0) {
+    if (!data || typeof data !== 'object' || depth > 2) return null;
+    if (Array.isArray(data)) {
+      if (data.length && data.every(r => r && typeof r === 'object' && !Array.isArray(r))) {
+        const columns = [...new Set(data.slice(0, 200).flatMap(Object.keys))];
+        return {columns, rows: data.map(r => columns.map(c => r[c]))};
+      }
+      return null;
+    }
+    if (Array.isArray(data.columns) && Array.isArray(data.rows)) {
+      const rows = data.rows.map(r => Array.isArray(r) ? r : data.columns.map(c => r?.[c]));
+      return {columns: data.columns, rows};
+    }
+    for (const value of Object.values(data)) {
+      const found = findTable(value, depth + 1);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  function renderTable({columns, rows}) {
+    const limit = 500;
+    const cell = v => {
+      if (v === null || v === undefined) return '<td class="j-null">—</td>';
+      if (typeof v === 'number') return `<td class="num">${esc(v)}</td>`;
+      const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+      return `<td title="${esc(s)}">${esc(s)}</td>`;
+    };
+    const head = `<thead><tr>${columns.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead>`;
+    const body = rows.slice(0, limit).map(r => `<tr>${r.map(cell).join('')}</tr>`).join('');
+    const more = rows.length > limit ? `<p class="note" style="padding:10px 14px">Showing ${limit} of ${rows.length} rows.</p>` : '';
+    $('#table').innerHTML = `<table>${head}<tbody>${body}</tbody></table>${more}`;
+  }
+
+  function highlight(json) {
+    const safe = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return safe.replace(/("(\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g, match => {
+      let cls = 'num';
+      if (match[0] === '"') cls = match.endsWith(':') ? 'key' : 'str';
+      else if (match === 'true' || match === 'false') cls = 'bool';
+      else if (match === 'null') cls = 'null';
+      return `<span class="j-${cls}">${match}</span>`;
+    });
+  }
+
+  $('#copy-result').onclick = () => lastResult && copy(lastResult.text, 'Result copied');
+  $('#download-result').onclick = () => {
+    if (!lastResult) return;
+    const url = URL.createObjectURL(new Blob([lastResult.text], {type: 'application/json'}));
+    const a = Object.assign(document.createElement('a'), {href: url, download: `${lastResult.tool}-result.json`});
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  $('#copy-name').onclick = () => selected && copy(selected.name, 'Tool name copied');
+  $('#copy-schema').onclick = () => selected && copy(JSON.stringify(selected.inputSchema, null, 2), 'Schema copied');
+
+  /* ---------------- Snippets ---------------- */
+  const bashQuote = s => `'${String(s).replace(/'/g, `'\\''`)}'`;
+  const psQuote = s => `'${String(s).replace(/'/g, "''")}'`;
+  const quote = s => settings.shell === 'powershell' ? psQuote(s) : bashQuote(s);
+  const quoteArg = s => (settings.shell === 'powershell' ? /^[\w@%+=:,./\\-]+$/ : /^[\w@%+=:,./-]+$/).test(s) ? s : quote(s);
+  const commandLine = parts => {
+    const quoted = parts.map(quoteArg);
+    return (settings.shell === 'powershell' && quoted[0].startsWith("'") ? '& ' : '') + quoted.join(' ');
+  };
+  const url = path => new URL(path, origin).href;
+
+  function snippet(title, iconName, code, note = '') {
+    const id = `snip-${Math.random().toString(36).slice(2)}`;
+    return `<div class="snippet"><div class="snippet-head">${svg(iconName, 'sm')}<span>${esc(title)}</span><span class="spacer"></span>
+      <button class="btn sm ghost" type="button" data-copy="${id}">${svg('copy', 'sm')}Copy</button></div>
+      <pre class="code" id="${id}">${esc(code)}</pre></div>${note ? `<p class="note">${note}</p>` : ''}`;
+  }
+
+  function toolSnippets(tool, values) {
+    const compact = JSON.stringify(values);
+    const ps = settings.shell === 'powershell';
+    const ws = info.workspace;
+    const cli = ps
+      ? `${psQuote(compact)} | kitconc-tool --workspace ${psQuote(ws)} --pretty ${tool.name} -`
+      : `kitconc-tool --workspace ${bashQuote(ws)} --pretty ${tool.name} ${bashQuote(compact)}`;
+    const endpoint = url(`${info.endpoints.rest}/tools/${tool.name}`);
+    const restCmd = ps
+      ? `Invoke-RestMethod -Method Post -Uri ${psQuote(endpoint)} \`\n  -ContentType 'application/json' \`\n  -Body ${psQuote(compact)} | ConvertTo-Json -Depth 20`
+      : `curl -s -X POST ${endpoint} \\\n  -H 'Content-Type: application/json' \\\n  -d ${bashQuote(compact)}`;
+    const mcp = JSON.stringify({jsonrpc: '2.0', id: 1, method: 'tools/call', params: {name: tool.name, arguments: values}}, null, 2);
+    const cliNote = tool.name === 'job_start'
+      ? 'Background jobs need a running server, so <code>job_start</code> is not available from the CLI.'
+      : 'Runs in-process and prints JSON. <code>result_id</code> values persist in the workspace between calls.';
+    return [
+      snippet('CLI · kitconc-tool', 'terminal', cli, cliNote),
+      snippet(`REST API · ${ps ? 'PowerShell' : 'curl'}`, 'server', restCmd,
+        `<code>200</code> returns the tool output, <code>422</code> a tool error, <code>400/404</code> invalid requests. The body must be <code>application/json</code>.`),
+      snippet('MCP · JSON-RPC request', 'plug', mcp,
+        `Send to <code>${esc(url(info.endpoints.streamable_http))}</code> (Streamable HTTP) after <code>initialize</code>, or let an MCP client do it for you — see <a href="#" data-open="connect" style="color:var(--accent)">Connect</a>.`),
+    ];
+  }
+
+  function renderUsage() {
+    if (!selected) return;
+    $('#usage').innerHTML = `<div class="stack">${toolSnippets(selected, args).join('')}</div>`;
+  }
+
+  /* ---------------- Connect dialog ---------------- */
+  let connectTab = 'mcp';
+  function mcpSnippets() {
+    const transport = settings.transport;
+    const name = 'kitconc';
+    const stdio = info.commands.stdio;
+    const httpUrl = url(info.endpoints.streamable_http);
+    const sseUrl = url(info.endpoints.sse);
+    let config, claudeCode, summary;
+    if (transport === 'stdio') {
+      config = {mcpServers: {[name]: {command: stdio[0], args: stdio.slice(1)}}};
+      claudeCode = `claude mcp add ${name} -- ${commandLine(stdio)}`;
+      summary = 'The client starts its own Kitconc process and talks to it over stdin/stdout. This console does not need to be running.';
+    } else if (transport === 'sse') {
+      config = {mcpServers: {[name]: {type: 'sse', url: sseUrl}}};
+      claudeCode = `claude mcp add --transport sse ${name} ${sseUrl}`;
+      summary = `Connects to this running server at <code>${esc(sseUrl)}</code>. Keep the console open while the client is in use.`;
+    } else {
+      config = {mcpServers: {[name]: {type: 'http', url: httpUrl}}};
+      claudeCode = `claude mcp add --transport http ${name} ${httpUrl}`;
+      summary = `Connects to this running server at <code>${esc(httpUrl)}</code>. Keep the console open while the client is in use.`;
+    }
+    const options = Object.entries(TRANSPORT_LABELS).map(([value, label]) =>
+      `<button type="button" data-transport="${value}" aria-pressed="${value === transport}">${esc(label)}</button>`).join('');
+    return `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><b>Transport</b><div class="segmented" role="group" aria-label="MCP transport">${options}</div></div>
+      <p class="note">${summary}</p>
+      ${snippet('Claude Desktop, Cursor & other clients · JSON config', 'braces', JSON.stringify(config, null, 2))}
+      ${snippet('Claude Code', 'terminal', claudeCode)}
+      ${transport === 'stdio' ? snippet('Run the server manually', 'terminal', commandLine(stdio)) : ''}`;
+  }
+  function restSnippets() {
+    const base = url(info.endpoints.rest);
+    const ps = settings.shell === 'powershell';
+    const get = path => ps ? `Invoke-RestMethod ${psQuote(base + path)}` : `curl -s ${base}${path}`;
+    return `<dl class="kv">
+        <dt>GET</dt><dd>${esc(base)}/info</dd>
+        <dt>GET</dt><dd>${esc(base)}/tools</dd>
+        <dt>GET</dt><dd>${esc(base)}/tools/{name}</dd>
+        <dt>POST</dt><dd>${esc(base)}/tools/{name} &nbsp;<span class="note">body: JSON arguments</span></dd>
+      </dl>
+      ${snippet('List tools', 'server', get('/tools'))}
+      ${selected ? toolSnippets(selected, args)[1] : ''}
+      <p class="note">The REST API only listens on 127.0.0.1 and only accepts requests from this machine.</p>`;
+  }
+  function cliSnippets() {
+    const ws = info.workspace;
+    const ps = settings.shell === 'powershell';
+    const example = ps
+      ? `'{"corpus": "ads", "node": "experience", "sample": 10}' | kitconc-tool --workspace ${psQuote(ws)} --pretty analyze_kwic -`
+      : `kitconc-tool --workspace ${bashQuote(ws)} --pretty analyze_kwic '{"corpus": "ads", "node": "experience", "sample": 10}'`;
+    return `<p class="note"><code>kitconc-tool</code> runs the same tools in-process, without a server, and prints JSON — ideal for scripts and agents without MCP.</p>
+      ${snippet('List the tools', 'terminal', 'kitconc-tool --list --pretty')}
+      ${snippet('Run a tool', 'terminal', example)}
+      ${snippet('Read a guide', 'terminal', ps ? `'{"topic": "overview"}' | kitconc-tool guide_read -` : `kitconc-tool guide_read '{"topic": "overview"}'`)}
+      ${snippet('Start this console', 'terminal', `kitconc-gui --workspace ${quote(ws)} --port ${location.port || 80}`, 'Add <code>--read-only</code> to expose only read-only tools, or <code>--no-browser</code> to skip opening the browser.')}`;
+  }
+  function serverInfo() {
+    return `<dl class="kv">
+      <dt>Version</dt><dd>${esc(info.version || '')}</dd>
+      <dt>Workspace</dt><dd>${esc(info.workspace)}</dd>
+      <dt>Catalog</dt><dd>${tools.length} tools${info.read_only ? ' (read-only)' : ''}</dd>
+      <dt>Dashboard</dt><dd>${esc(url('/'))}</dd>
+      <dt>Streamable HTTP</dt><dd>${esc(url(info.endpoints.streamable_http))}</dd>
+      <dt>SSE</dt><dd>${esc(url(info.endpoints.sse))}</dd>
+      <dt>REST API</dt><dd>${esc(url(info.endpoints.rest))}</dd>
+      <dt>Console channel</dt><dd>${esc(CHANNEL_LABELS[settings.channel])}</dd>
+    </dl>`;
+  }
+  function renderConnect() {
+    $$('[data-ctab]').forEach(t => t.setAttribute('aria-selected', String(t.dataset.ctab === connectTab)));
+    const body = {mcp: mcpSnippets, rest: restSnippets, cli: cliSnippets, server: serverInfo}[connectTab]();
+    $('#connect-body').innerHTML = body;
+  }
+  $$('[data-ctab]').forEach(t => t.onclick = () => { connectTab = t.dataset.ctab; renderConnect(); });
+  $('#connect-body').addEventListener('click', e => {
+    const b = e.target.closest('[data-transport]');
+    if (b) setSetting('transport', b.dataset.transport);
+  });
+
+  /* ---------------- UI wiring ---------------- */
+  function toast(message) {
+    $('#toast-text').textContent = message;
+    const el = $('#toast');
+    el.classList.add('show');
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(() => el.classList.remove('show'), 1600);
+  }
+  async function copy(text, message = 'Copied') {
+    try { await navigator.clipboard.writeText(text); toast(message); }
+    catch { toast('Copy failed — select the text manually'); }
+  }
+  document.addEventListener('click', e => {
+    const copyBtn = e.target.closest('[data-copy]');
+    if (copyBtn) copy($(`#${copyBtn.dataset.copy}`).textContent);
+    const opener = e.target.closest('[data-open]');
+    if (opener) { e.preventDefault(); openDialog(opener.dataset.open); }
+    const closer = e.target.closest('[data-close]');
+    if (closer) closer.closest('dialog').close();
+  });
+  $$('dialog').forEach(d => d.addEventListener('click', e => { if (e.target === d) d.close(); }));
+
+  function openDialog(id) {
+    $$('dialog[open]').forEach(d => d.close());
+    if (id === 'connect') renderConnect();
+    $(`#${id}`).showModal();
+  }
+  $('#open-settings').onclick = () => openDialog('settings');
+  $('#open-connect').onclick = () => openDialog('connect');
+  $('#toggle-theme').onclick = () => setSetting('theme', resolvedTheme() === 'dark' ? 'light' : 'dark');
+  $$('[data-setting]').forEach(group => group.addEventListener('click', e => {
+    const b = e.target.closest('[data-value]');
+    if (b) setSetting(group.dataset.setting, b.dataset.value);
+  }));
+
+  $$('[data-tab]').forEach(tab => tab.onclick = () => {
+    $$('[data-tab]').forEach(t => t.setAttribute('aria-selected', String(t === tab)));
+    $$('[data-panel]').forEach(p => p.hidden = p.dataset.panel !== tab.dataset.tab);
+  });
+  $$('[data-filter]').forEach(chip => chip.onclick = () => {
+    filter = chip.dataset.filter;
+    $$('[data-filter]').forEach(c => c.setAttribute('aria-pressed', String(c === chip)));
+    renderTools();
+  });
+  $('#search').addEventListener('input', renderTools);
+  $('#search').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { const first = $('.tool-item'); if (first) first.click(); }
+  });
+  document.addEventListener('keydown', e => {
+    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName);
+    if (e.key === '/' && !typing && !$('dialog[open]')) { e.preventDefault(); $('#search').focus(); }
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && selected && !$('dialog[open]')) {
+      e.preventDefault();
+      $('#form').requestSubmit();
+    }
+  });
+
+  /* ---------------- Boot ---------------- */
+  async function boot() {
+    hydrateIcons();
+    applySettings();
+    try {
+      const [infoResponse, toolsResponse] = await Promise.all([fetch('/api/info'), fetch('/api/tools')]);
+      if (!infoResponse.ok || !toolsResponse.ok) throw new Error('Could not load the tool catalog.');
+      info = await infoResponse.json();
+      tools = (await toolsResponse.json()).tools;
+    } catch (err) {
+      connection = {state: 'err', message: err.message};
+      updateStatus();
+      $('#tools').innerHTML = `<div class="empty">${esc(err.message)}</div>`;
+      return;
+    }
+    renderTools();
+    const wanted = decodeURIComponent(location.hash.slice(1));
+    const initial = tools.find(t => t.name === wanted) || tools.find(t => t.name === 'workspace_info') || tools[0];
+    if (initial) selectTool(initial);
+    updateStatus();
+    checkChannel();
+  }
+  addEventListener('hashchange', () => {
+    const tool = tools.find(t => t.name === decodeURIComponent(location.hash.slice(1)));
+    if (tool && tool !== selected) selectTool(tool);
+  });
+  boot();
+})();
 </script>
+</body>
 </html>

@@ -7,7 +7,8 @@ algebra of operations over those results, declarative pipelines, editable recipe
 jobs. Short questions take one or two calls; long studies (glossaries, corpus comparisons over
 large corpora) run as pipelines or jobs.
 
-- [Running the server](#running-the-server)
+- [Running the server](#running-the-server): [MCP Console](#mcp-console-browser-dashboard),
+  [REST API](#rest-api), [standalone server](#standalone-mcp-server)
 - [Architecture](#architecture)
 - [Tool catalog](#tool-catalog)
 - [Results](#results)
@@ -26,18 +27,91 @@ large corpora) run as pipelines or jobs.
 
 ## Running the server
 
-Start the local browser dashboard and Streamable HTTP server together from a clone:
+### MCP Console (browser dashboard)
+
+![Kitconc MCP Console](assets/mcp-console.png)
+
+`kitconc-gui` starts a local console in the browser together with every network interface
+to the tools:
 
 ```bash
+kitconc-gui --workspace /data/kitconc_workspace
+# from a clone:
 uv run --locked --python 3.12 kitconc-gui --workspace /data/kitconc_workspace
 ```
 
 On Windows, double-click `start-gui.cmd` to use the default workspace (`kitconc.tmp`
-if present, otherwise `./kitconc_workspace`). The dashboard is at `http://127.0.0.1:8787/`
-and the MCP endpoint is at `http://127.0.0.1:8787/mcp`. Use `--port` to change the
-port, `--no-browser` to skip opening the browser, or `--read-only` to limit the
-catalog for both the dashboard and MCP clients. `kitconc-mcp` starts the standalone
-server with the options below.
+if present, otherwise `./kitconc_workspace`).
+
+| Interface | Address | Notes |
+|---|---|---|
+| Console | `http://127.0.0.1:8787/` | Tool catalog, argument forms, results as JSON or tables |
+| MCP · Streamable HTTP | `http://127.0.0.1:8787/mcp` | Stateless, JSON responses |
+| MCP · SSE | `http://127.0.0.1:8787/sse` | For clients that only speak the legacy SSE transport |
+| REST API | `http://127.0.0.1:8787/api` | See below |
+
+Options: `--port` changes the port (default 8787), `--no-browser` skips opening the browser,
+and `--read-only` limits the catalog for the console, the REST API and MCP clients alike.
+The server only binds to `127.0.0.1` and rejects requests with other `Host` headers.
+
+In the console:
+
+- **Tool catalog**: tools grouped by purpose (workspace, corpora, analysis, semantic, results,
+  pipelines & recipes, jobs), each with an icon and read-only / modifies-data / destructive
+  markers. Press `/` to search. Destructive tools ask for confirmation before running.
+- **Run**: a form generated from the tool's input schema, or raw JSON; `Ctrl+Enter` runs the
+  tool. Results show duration and size, can be copied or downloaded, and tabular results can be
+  viewed as a table.
+- **API & CLI**: the equivalent `kitconc-tool`, REST (`curl` or PowerShell) and MCP JSON-RPC
+  calls for the current arguments.
+- **Schema**: the tool's JSON input schema.
+- **Connect**: MCP client configuration (Claude Desktop / Cursor JSON, `claude mcp add`) for the
+  selected transport, plus REST, CLI and server details.
+
+**Settings** (saved in the browser):
+
+| Setting | Options | Default |
+|---|---|---|
+| Theme | Dark, Light, System | Dark |
+| Accent color | Teal, Indigo, Violet, Amber, Rose | Teal |
+| MCP transport for clients | stdio, Streamable HTTP, SSE | Streamable HTTP |
+| Run tools from this console via | MCP · HTTP, MCP · SSE, REST API | MCP · HTTP |
+| Shell for snippets | bash / zsh, PowerShell | Detected from the OS |
+
+With **stdio**, the generated configuration points to the absolute path of `kitconc-mcp`, so the
+client launches its own server process and the console does not need to stay open.
+
+### REST API
+
+The console process also exposes the tools as plain HTTP + JSON, convenient for scripts and
+languages without an MCP client:
+
+| Method | Path | Returns |
+|---|---|---|
+| `GET` | `/api/info` | Version, workspace, read-only flag, endpoints, stdio command, tool count |
+| `GET` | `/api/tools` | The tool catalog (MCP tool definitions plus `group`) |
+| `GET` | `/api/tools/{name}` | One tool definition |
+| `POST` | `/api/tools/{name}` | Runs the tool; the JSON body holds the arguments |
+
+```bash
+curl -s http://127.0.0.1:8787/api/tools
+curl -s -X POST http://127.0.0.1:8787/api/tools/analyze_kwic \
+  -H 'Content-Type: application/json' -d '{"corpus": "ads", "node": "experience"}'
+```
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8787/api/tools/analyze_kwic `
+  -ContentType 'application/json' -Body '{"corpus": "ads", "node": "experience"}'
+```
+
+Status codes: `200` with the tool output; `422` with the structured tool error (see
+[Errors](#errors)); `400` for invalid JSON or arguments; `404` for unknown tools (or tools hidden
+by `--read-only`); `415` when the body is not `application/json`. Requiring JSON forces a CORS
+preflight, so other web pages cannot trigger tools through your browser.
+
+### Standalone MCP server
+
+`kitconc-mcp` starts the MCP server alone, without the console:
 
 ```bash
 kitconc-mcp --transport stdio --workspace /data/kitconc_workspace
