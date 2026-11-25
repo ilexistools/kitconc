@@ -23,6 +23,7 @@
 </p>
 
 <p align="center">
+  <a href="#new-kitconc-mcp-console">MCP Console</a> ·
   <a href="#use-kitconc-with-ai">Use with AI</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="docs/MCP.md">MCP docs</a> ·
@@ -30,6 +31,45 @@
   <a href="#usage-examples">Python examples</a> ·
   <a href="CHANGES.txt">Changelog</a>
 </p>
+
+---
+
+## New: Kitconc MCP Console
+
+> [!TIP]
+> **Explore, run and connect every Kitconc tool from your browser.** One local command starts
+> a polished console plus MCP (Streamable HTTP and SSE), a REST API and ready-to-copy CLI calls,
+> all backed by the same workspace.
+
+<p align="center">
+  <img src="docs/assets/mcp-console.png" alt="Kitconc MCP Console in dark theme, showing the KWIC concordance tool with its argument form" width="900">
+</p>
+
+```bash
+uv run --locked --python 3.12 kitconc-gui --workspace /path/to/kitconc_workspace
+# or, on Windows, double-click start-gui.cmd
+```
+
+| | What you get |
+|---|---|
+| 🎨 **Modern interface** | Dark theme by default, with light and system themes and five accent colors in Settings |
+| 🧭 **Visual tool catalog** | 55 tools grouped by purpose, each with its own icon, search (`/`), read-only and destructive markers |
+| ▶️ **Run tools without code** | Argument forms generated from each tool's schema (or raw JSON), `Ctrl+Enter` to run, results as highlighted JSON or tables, copy and download |
+| 🔌 **Choose the MCP transport** | **Connect** generates configuration for Claude Desktop, Claude Code, Cursor and other clients over **stdio**, **Streamable HTTP** or **SSE** |
+| 🌐 **REST API** | `GET /api/tools`, `GET /api/info`, `POST /api/tools/{name}`: call any tool with plain HTTP and JSON |
+| 💻 **CLI snippets** | Each tool's **API & CLI** tab shows the equivalent `kitconc-tool`, `curl`/PowerShell and MCP JSON-RPC calls, filled with your current arguments |
+
+| Interface | Address (default port 8787) |
+|---|---|
+| Console | `http://127.0.0.1:8787/` |
+| MCP · Streamable HTTP | `http://127.0.0.1:8787/mcp` |
+| MCP · SSE | `http://127.0.0.1:8787/sse` |
+| REST API | `http://127.0.0.1:8787/api` |
+| CLI (no server needed) | `kitconc-tool --list` |
+
+Everything runs locally on `127.0.0.1`, needs no model credentials, and honors `--read-only`.
+Details in [Open the local MCP tools dashboard](#open-the-local-mcp-tools-dashboard) and
+[docs/MCP.md](docs/MCP.md#running-the-server).
 
 ---
 
@@ -108,7 +148,8 @@ pip install kitconc            # or: uv tool install kitconc
 pip install "kitconc[full]"    # optional: semantic search with sentence embeddings
 ```
 
-This gives you `kitconc-app` (desktop), `kitconc-mcp` (MCP server), `kitconc-tool` (CLI for agents)
+This gives you `kitconc-app` (desktop), `kitconc-gui` (MCP Console in the browser, with MCP,
+REST API and CLI snippets), `kitconc-mcp` (MCP server), `kitconc-tool` (CLI for agents)
 and `kitconc-skill` (skill installer).
 
 ### Open the local MCP tools dashboard
@@ -119,11 +160,21 @@ From a clone of this repository, double-click `start-gui.cmd` on Windows or run:
 uv run --locked --python 3.12 kitconc-gui --workspace /path/to/kitconc_workspace
 ```
 
-The browser opens at `http://127.0.0.1:8787/`. Search the tool catalog, inspect input
-schemas, and run tools directly against your workspace. The same process exposes
-Streamable HTTP at `http://127.0.0.1:8787/mcp` for MCP clients. It runs locally without
-model credentials. Press Ctrl+C in the launcher terminal to stop it. Use `kitconc-app`
-to open the desktop application.
+The browser opens the **MCP Console** at `http://127.0.0.1:8787/` (dark theme by default;
+switch to light or system in Settings). Search the tool catalog, fill arguments with a form
+or JSON, run tools against your workspace and view results as JSON or tables. Each tool's
+**API & CLI** tab shows the equivalent `kitconc-tool`, REST and MCP calls, and **Connect**
+generates client configuration for the MCP transport chosen in Settings (stdio, Streamable
+HTTP or SSE). The same local process exposes:
+
+| Interface | Endpoint |
+|---|---|
+| MCP · Streamable HTTP | `http://127.0.0.1:8787/mcp` |
+| MCP · SSE | `http://127.0.0.1:8787/sse` |
+| REST API | `GET /api/tools`, `GET /api/info`, `POST /api/tools/{name}` (JSON body) |
+
+It runs locally without model credentials. Press Ctrl+C in the launcher terminal to stop
+it. Use `kitconc-app` to open the desktop application.
 
 **2. Connect your assistant** to a workspace folder (it holds your corpora):
 
@@ -218,6 +269,10 @@ kitconc-tool analyze_kwic '{"corpus": "ads", "node": "experience", "sample": 10}
 kitconc-tool recipe_run '{"name": "glossary-candidates", "params": {"corpus": "ads", "export_path": "glossary.xlsx"}}'
 kitconc-tool --list
 ```
+
+Prefer HTTP? While `kitconc-gui` is running, the same tools are available as a REST API:
+`POST http://127.0.0.1:8787/api/tools/{name}` with the arguments as a JSON body (see
+[docs/MCP.md](docs/MCP.md#rest-api)). The console's **API & CLI** tab writes these calls for you.
 
 ### Recipes
 

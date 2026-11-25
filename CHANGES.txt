@@ -1,3 +1,14 @@
+Unreleased
+----------
+- Added the Kitconc MCP Console (`kitconc-gui`, or `start-gui.cmd` on Windows): a local browser
+  dashboard with a dark theme by default (light and system themes and accent colors in Settings),
+  a tool catalog grouped by purpose with an icon per tool, schema-based argument forms, JSON and
+  table result views, and per-tool snippets for `kitconc-tool`, REST and MCP JSON-RPC.
+- The console process serves MCP over Streamable HTTP (`/mcp`) and SSE (`/sse`), plus a REST API:
+  `GET /api/info`, `GET /api/tools`, `GET|POST /api/tools/{name}`.
+- Settings let users choose the MCP transport (stdio, Streamable HTTP or SSE) used to generate client
+  configuration for Claude Desktop, Claude Code and Cursor, and the channel the console uses to run tools.
+
 Version 4.0.2
 -------------
 - 2026-10-31
