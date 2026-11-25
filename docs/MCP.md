@@ -26,6 +26,19 @@ large corpora) run as pipelines or jobs.
 
 ## Running the server
 
+Start the local browser dashboard and Streamable HTTP server together from a clone:
+
+```bash
+uv run --locked --python 3.12 kitconc-gui --workspace /data/kitconc_workspace
+```
+
+On Windows, double-click `start-gui.cmd` to use the default workspace (`kitconc.tmp`
+if present, otherwise `./kitconc_workspace`). The dashboard is at `http://127.0.0.1:8787/`
+and the MCP endpoint is at `http://127.0.0.1:8787/mcp`. Use `--port` to change the
+port, `--no-browser` to skip opening the browser, or `--read-only` to limit the
+catalog for both the dashboard and MCP clients. `kitconc-mcp` starts the standalone
+server with the options below.
+
 ```bash
 kitconc-mcp --transport stdio --workspace /data/kitconc_workspace
 kitconc-mcp --transport streamable-http --host 127.0.0.1 --port 8001 --workspace /data/kitconc_workspace

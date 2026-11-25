@@ -111,6 +111,20 @@ pip install "kitconc[full]"    # optional: semantic search with sentence embeddi
 This gives you `kitconc-app` (desktop), `kitconc-mcp` (MCP server), `kitconc-tool` (CLI for agents)
 and `kitconc-skill` (skill installer).
 
+### Open the local MCP tools dashboard
+
+From a clone of this repository, double-click `start-gui.cmd` on Windows or run:
+
+```bash
+uv run --locked --python 3.12 kitconc-gui --workspace /path/to/kitconc_workspace
+```
+
+The browser opens at `http://127.0.0.1:8787/`. Search the tool catalog, inspect input
+schemas, and run tools directly against your workspace. The same process exposes
+Streamable HTTP at `http://127.0.0.1:8787/mcp` for MCP clients. It runs locally without
+model credentials. Press Ctrl+C in the launcher terminal to stop it. Use `kitconc-app`
+to open the desktop application.
+
 **2. Connect your assistant** to a workspace folder (it holds your corpora):
 
 <details open>
