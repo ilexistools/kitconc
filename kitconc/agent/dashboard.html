@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kitconc · MCP tools</title>
+<style>
+  :root { color-scheme: light; font: 16px/1.5 system-ui, sans-serif; color: #172828; background: #f3f6f5; }
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  header { background: #123b39; color: white; padding: 22px max(24px, calc((100% - 1200px)/2)); display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+  header strong { font-size: 1.4rem; white-space: nowrap; }
+  header button { white-space: nowrap; }
+  main { max-width: 1248px; margin: 28px auto; padding: 0 24px; display: grid; grid-template-columns: minmax(230px, 310px) minmax(0, 1fr); gap: 20px; }
+  aside, article { background: white; border: 1px solid #d7e2df; border-radius: 12px; padding: 20px; }
+  aside { align-self: start; }
+  h1, h2, p { margin-top: 0; }
+  h1 { font-size: 1.65rem; margin-bottom: 4px; }
+  h2 { font-size: 1.1rem; }
+  code, pre, textarea { font-family: ui-monospace, Consolas, monospace; }
+  input, textarea { width: 100%; padding: 10px; border: 1px solid #809a95; border-radius: 6px; font-size: 1rem; color: inherit; background: #fbfdfc; }
+  textarea { resize: vertical; min-height: 120px; }
+  button { cursor: pointer; border: 1px solid transparent; border-radius: 6px; padding: 8px 12px; font: inherit; }
+  button:disabled { cursor: default; opacity: .6; }
+  button:focus-visible, summary:focus-visible { outline: 2px solid #267e76; outline-offset: 2px; }
+  #tools { display: grid; gap: 4px; margin-top: 12px; overflow-y: auto; max-height: 67vh; }
+  #tools button { text-align: left; background: transparent; color: inherit; }
+  #tools button:hover, #tools button[aria-pressed="true"] { background: #e2f0eb; border-color: #a5c4bb; }
+  #tools code { display: block; font-size: .75rem; overflow-wrap: anywhere; }
+  #status, #identifier { color: #405b57; }
+  form { margin: 18px 0; }
+  label, summary { font-weight: 600; }
+  summary { cursor: pointer; }
+  pre { background: #edf3f1; border-radius: 6px; padding: 12px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 440px; overflow: auto; }
+  #run { background: #14645a; color: white; margin-top: 8px; }
+  #description { white-space: pre-line; }
+  .error { color: #9b1d25; }
+  @media (max-width: 700px) { main { grid-template-columns: 1fr; } #tools { max-height: 240px; } }
+</style>
+<header><strong>Kitconc · MCP tools</strong><button id="copy" type="button">Copy MCP URL</button></header>
+<main>
+  <aside aria-label="Tool catalog">
+    <label for="search">Find a tool</label>
+    <input id="search" type="search" autocomplete="off">
+    <p id="status" role="status">Loading tools…</p>
+    <nav id="tools" aria-label="Tools"></nav>
+  </aside>
+  <article id="tool" hidden>
+    <h1 id="title"></h1>
+    <p><code id="identifier"></code></p>
+    <p id="description"></p>
+    <details><summary>Input schema</summary><pre id="schema"></pre></details>
+    <form id="form">
+      <label for="args">Arguments (JSON)</label>
+      <textarea id="args" spellcheck="false" required></textarea>
+      <button id="run" type="submit">Run tool</button>
+    </form>
+    <section id="result" hidden>
+      <h2 id="result-title" role="status">Result</h2>
+      <pre id="output"></pre>
+    </section>
+  </article>
+</main>
+<script>
+  const byId = id => document.getElementById(id);
+  const endpoint = new URL('/mcp', location.href);
+  let protocolVersion = '2025-03-26';
+  let requestId = 0;
+  let tools = [];
+  let selected;
+
+  async function rpc(method, params, notification = false) {
+    const request = {jsonrpc: '2.0', method, params};
+    if (!notification) request.id = ++requestId;
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json, text/event-stream',
+        'MCP-Protocol-Version': protocolVersion,
+      },
+      body: JSON.stringify(request),
+    });
+    if (!response.ok) throw new Error(`MCP request failed (HTTP ${response.status}).`);
+    if (notification) return;
+    const message = await response.json();
+    if (message.error) throw new Error(message.error.message);
+    return message.result;
+  }
+
+  function renderTools() {
+    const query = byId('search').value.trim().toLowerCase();
+    const visible = tools.filter(tool => `${tool.name} ${tool.title || ''} ${tool.description || ''}`.toLowerCase().includes(query));
+    byId('status').textContent = `${visible.length} of ${tools.length} tools`;
+    byId('tools').replaceChildren(...visible.map(tool => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = tool.title || tool.name;
+      button.setAttribute('aria-pressed', String(tool === selected));
+      if (tool.title && tool.title !== tool.name) {
+        const name = document.createElement('code');
+        name.textContent = tool.name;
+        button.append(name);
+      }
+      button.onclick = () => {
+        selectTool(tool);
+        Array.from(byId('tools').children).forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+      };
+      return button;
+    }));
+  }
+
+  function selectTool(tool) {
+    selected = tool;
+    byId('tool').hidden = false;
+    byId('title').textContent = tool.title || tool.name;
+    byId('identifier').textContent = tool.name;
+    byId('description').textContent = tool.description || '';
+    const schema = tool.inputSchema;
+    byId('schema').textContent = JSON.stringify(schema, null, 2);
+    const argumentsTemplate = Object.fromEntries((schema.required || []).map(name => {
+      const field = schema.properties[name];
+      const emptyValues = {string: '', integer: 0, number: 0, boolean: false, array: [], object: {}};
+      return [name, field.default ?? field.enum?.[0] ?? emptyValues[field.type] ?? null];
+    }));
+    byId('args').value = JSON.stringify(argumentsTemplate, null, 2);
+    byId('result').hidden = true;
+  }
+
+  byId('search').addEventListener('input', renderTools);
+  byId('copy').onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(endpoint.href);
+      byId('copy').textContent = 'MCP URL copied';
+    } catch {
+      byId('copy').textContent = endpoint.href;
+    }
+  };
+
+  function formatContent(item) {
+    if (item.type !== 'text') return JSON.stringify(item, null, 2);
+    try {
+      return JSON.stringify(JSON.parse(item.text), null, 2);
+    } catch {
+      return item.text;
+    }
+  }
+
+  byId('form').onsubmit = async event => {
+    event.preventDefault();
+    const tool = selected;
+    byId('run').disabled = true;
+    byId('result').hidden = false;
+    byId('result-title').textContent = 'Running…';
+    byId('output').textContent = '';
+    byId('output').classList.remove('error');
+    try {
+      const args = JSON.parse(byId('args').value);
+      if (!args || typeof args !== 'object' || Array.isArray(args)) throw new Error('Arguments must be a JSON object.');
+      if (tool.annotations?.destructiveHint === true && !window.confirm(`Run ${tool.name}? This tool can modify or delete data.`)) {
+        byId('result').hidden = true;
+        return;
+      }
+      const result = await rpc('tools/call', {name: tool.name, arguments: args});
+      if (selected !== tool) return;
+      byId('result-title').textContent = result.isError ? 'Tool error' : 'Result';
+      byId('output').classList.toggle('error', Boolean(result.isError));
+      byId('output').textContent = result.structuredContent
+        ? JSON.stringify(result.structuredContent, null, 2)
+        : result.content.map(formatContent).join('\n');
+    } catch (error) {
+      if (selected !== tool) return;
+      byId('result-title').textContent = 'Error';
+      byId('output').classList.add('error');
+      byId('output').textContent = error.message;
+    } finally {
+      byId('run').disabled = false;
+    }
+  };
+
+  async function loadCatalog() {
+    const init = await rpc('initialize', {protocolVersion, capabilities: {}, clientInfo: {name: 'Kitconc dashboard', version: '1'}});
+    protocolVersion = init.protocolVersion;
+    await rpc('notifications/initialized', {}, true);
+    let cursor;
+    do {
+      const page = await rpc('tools/list', cursor ? {cursor} : {});
+      tools.push(...page.tools);
+      cursor = page.nextCursor;
+    } while (cursor);
+    if (tools.length) selectTool(tools.find(tool => tool.name === 'workspace_info') || tools[0]);
+    renderTools();
+  }
+
+  loadCatalog().catch(error => { byId('status').textContent = error.message; });
+</script>
+</html>
