@@ -276,7 +276,12 @@ uvx --from kitconc kitconc-skill install --scope project   # install into this r
 
 The installer installs both skills. Sources: [`kitconc`](kitconc/agent/skill/kitconc/SKILL.md) and
 [`kitconc-recipe-author`](kitconc/agent/skill/kitconc-recipe-author/SKILL.md). Copy either folder
-manually into any skills directory if you prefer.
+manually into any skills directory if you prefer. The skills let agents reach Kitconc through MCP,
+the `kitconc-tool` CLI, or the REST API of a running MCP Console.
+
+Agents that work **on this repository** (Codex, Claude Code, Cursor...) get project instructions
+from [`AGENTS.md`](AGENTS.md): layout, setup, tests and conventions. `CLAUDE.md` imports it for
+Claude Code.
 
 ### No MCP? Use the CLI
 

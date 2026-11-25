@@ -73,6 +73,8 @@ def test_skill_front_matter_and_references():
     mentioned = set(re.findall(r"`([a-z]+_[a-z_]+)`", text)) & {n for n in tools}
     assert {"workspace_info", "recipe_run", "result_filter", "corpus_qa"} <= mentioned
     assert "antconc" not in text.lower()
+    # Every access route the skill promises is documented: MCP, CLI and the console's REST API.
+    assert "kitconc-tool" in text and "/api/tools/" in text and "/api/info" in text
 
 
 def test_skill_installs_for_claude_and_codex(tmp_path, monkeypatch):

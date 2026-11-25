@@ -1,3 +1,12 @@
+Version 4.1.1
+-------------
+- 2026-11-25
+- Agent skills: the `kitconc` skill now documents the MCP Console's REST API (`/api/info`,
+  `/api/tools/{name}`) as a third access route next to MCP and `kitconc-tool`, as well as MCP over
+  HTTP/SSE through the console. `kitconc-recipe-author` mentions the REST fallback too.
+- Added `AGENTS.md` with repository instructions for AI coding agents (layout, setup, tests,
+  conventions, how to add a tool). `CLAUDE.md` imports it for Claude Code.
+
 Version 4.1.0
 -------------
 - 2026-11-25

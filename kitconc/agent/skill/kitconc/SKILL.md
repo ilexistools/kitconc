@@ -1,6 +1,6 @@
 ---
 name: kitconc
-description: Corpus linguistics with Kitconc - build text corpora and analyze them with word lists, keywords, concordances (KWIC), collocations, clusters and n-grams, dispersion, term/glossary extraction, corpus comparison, lexical bundles and corpus quality checks. Use when the user wants to analyze a collection of texts, study how a word or term is used, compare corpora, genres or periods, extract terminology or build a glossary, or mentions Kitconc, a corpus, concordance, collocates or keywords. Works through the Kitconc MCP server or the kitconc-tool CLI.
+description: Corpus linguistics with Kitconc - build text corpora and analyze them with word lists, keywords, concordances (KWIC), collocations, clusters and n-grams, dispersion, term/glossary extraction, corpus comparison, lexical bundles and corpus quality checks. Use when the user wants to analyze a collection of texts, study how a word or term is used, compare corpora, genres or periods, extract terminology or build a glossary, or mentions Kitconc, a corpus, concordance, collocates or keywords. Works through the Kitconc MCP server, the kitconc-tool CLI or the local REST API of the Kitconc MCP Console.
 ---
 
 # Kitconc corpus analysis
@@ -25,7 +25,24 @@ Use the first option that works:
    inside a Kitconc checkout). On Windows or with complex JSON, pass arguments on stdin with `-`:
    `kitconc-tool corpus_qa - <<'EOF'` ... `EOF`. `kitconc-tool --list` lists the tools. The CLI runs
    synchronously (no `job_start`); results persist in the workspace, so `result_id`s work across calls.
-3. **Set up MCP** (offer it to the user for repeated work):
+3. **REST API**: use this when the user has the Kitconc MCP Console open (`kitconc-gui`,
+   `start-gui.cmd` or `start-gui.command`) and neither of the options above is available. The
+   default address is `http://127.0.0.1:8787`, or another port the user names. Check that it
+   answers with `GET /api/info`, which returns the workspace, version, read-only flag and
+   endpoints. Then run tools with a JSON body:
+   ```bash
+   curl -s http://127.0.0.1:8787/api/info
+   curl -s -X POST http://127.0.0.1:8787/api/tools/analyze_kwic \
+     -H 'Content-Type: application/json' -d '{"corpus": "ads", "node": "experience", "sample": 10}'
+   ```
+   - `GET /api/tools` lists the catalog.
+   - `200` returns the tool output, `422` a structured tool error (same `{"error": ...}` shape),
+     `400`/`404`/`415` an invalid request.
+   - The body must be `application/json`.
+   - The console works on the workspace it was started with: `workspace_set` changes it for
+     everyone using that console.
+   - With `--read-only`, write tools return `404`.
+4. **Set up MCP** (offer it to the user for repeated work):
    - Claude Code: `claude mcp add kitconc -- uvx --from kitconc kitconc-mcp --workspace /path/to/workspace`
    - Codex (`~/.codex/config.toml`):
      ```toml
@@ -33,8 +50,14 @@ Use the first option that works:
      command = "uvx"
      args = ["--from", "kitconc", "kitconc-mcp", "--workspace", "/path/to/workspace"]
      ```
+   - While the MCP Console is running, clients can also connect over HTTP:
+     `claude mcp add --transport http kitconc http://127.0.0.1:8787/mcp`. SSE is at `/sse`. The
+     console's **Connect** dialog generates the configuration for stdio, Streamable HTTP or SSE.
 
 Ask the user for the workspace folder if it is not obvious (default: `./kitconc_workspace`).
+Users who prefer a visual interface can browse and run every tool in the MCP Console. From a
+clone, they start it with `start-gui.cmd` (Windows) or `start-gui.command` (macOS) and stop it
+with `stop-gui.cmd` / `stop-gui.command`.
 
 ## 2. Workflow
 

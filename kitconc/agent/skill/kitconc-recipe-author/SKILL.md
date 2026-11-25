@@ -6,9 +6,11 @@ description: Help users design, validate, run, and save reusable Kitconc analysi
 # Kitconc recipe author
 
 Turn a user's analysis goal into a small, understandable, reusable Kitconc recipe. A recipe is a
-JSON pipeline. Use the Kitconc MCP tools when available; otherwise use `kitconc-tool` with the same
-arguments. If neither is available, explain how to connect Kitconc or install its CLI before
-claiming that a recipe was validated or saved.
+JSON pipeline. Use the Kitconc MCP tools when available. Otherwise use `kitconc-tool` with the same
+arguments, or the REST API of a running Kitconc MCP Console
+(`POST http://127.0.0.1:8787/api/tools/<tool>` with the arguments as an `application/json` body).
+If none of these is available, explain how to connect Kitconc or install its CLI before claiming
+that a recipe was validated or saved.
 
 ## Workflow
 
