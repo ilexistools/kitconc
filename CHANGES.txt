@@ -5,6 +5,10 @@ Unreleased
   HTTP/SSE through the console. `kitconc-recipe-author` mentions the REST fallback too.
 - Added `AGENTS.md` with repository instructions for AI coding agents (layout, setup, tests,
   conventions, how to add a tool). `CLAUDE.md` imports it for Claude Code.
+
+Version 4.1.0
+-------------
+- 2026-11-25
 - Added start/stop launcher scripts for the MCP Console: `start-gui.cmd` / `stop-gui.cmd` on Windows and
   `start-gui.command` / `stop-gui.command` on macOS. They are backed by `scripts/kitconc-console.ps1` and
   `scripts/kitconc-console.sh`, which also support `status` and `restart`. The console runs in the
